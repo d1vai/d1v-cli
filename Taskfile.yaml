@@ -11,10 +11,14 @@ includes:
     dir: d1v-cli
 
 tasks:
-  build:
-    deps:
-      - task: cli:build
+  check:
+    cmds:
+      - cargo check --workspace
 
-  build-release:
-    deps:
-      - task: cli:build-release
+  build:
+    cmds:
+      - cargo build --workspace
+
+  test:
+    cmds:
+      - cargo test --workspace
