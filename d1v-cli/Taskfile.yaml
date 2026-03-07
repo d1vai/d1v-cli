@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+tasks:
+  check:
+    cmds:
+      - cargo check
+
+  build:
+    cmds:
+      - cargo build
+
+  build-release:
+    cmds:
+      - cargo build --release
+
+  run:
+    cmds:
+      - cargo run -- {{.CLI_ARGS}}
+
+  install:
+    cmds:
+      - cargo install --path .
+
+  test:
+    cmds:
+      - cargo test

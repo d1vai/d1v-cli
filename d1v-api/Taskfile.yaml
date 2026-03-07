@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+tasks:
+  check:
+    cmds:
+      - cargo check
+
+  build:
+    cmds:
+      - cargo build
+
+  test:
+    cmds:
+      - cargo test

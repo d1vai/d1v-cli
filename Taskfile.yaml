@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: "3"
+
+includes:
+  api:
+    taskfile: d1v-api/Taskfile.yaml
+    dir: d1v-api
+
+  cli:
+    taskfile: d1v-cli/Taskfile.yaml
+    dir: d1v-cli
+
+tasks:
+  build:
+    deps:
+      - task: cli:build
+
+  build-release:
+    deps:
+      - task: cli:build-release
