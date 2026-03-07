@@ -16,7 +16,10 @@ tasks:
 
   run:
     cmds:
-      - cargo run -- {{.CLI_ARGS}}
+      - cmd: cargo run
+        if: "{{ eq (len .CLI_ARGS_LIST) 0 }}"
+      - cmd: cargo run -- {{.CLI_ARGS}}
+        if: "{{ gt (len .CLI_ARGS_LIST) 0 }}"
 
   install:
     cmds:
