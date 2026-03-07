@@ -1,6 +1,4 @@
-[package]
-name = "d1v-cli"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
+[workspace]
+resolver = "3"
+members = ["d1v-api", "d1v-cli"]
+default-members = ["d1v-cli"]

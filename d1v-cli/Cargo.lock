@@ -3,9 +3,5 @@
 version = 4
 
 [[package]]
-name = "d1v-api"
-version = "0.1.0"
-
-[[package]]
 name = "d1v-cli"
 version = "0.1.0"
