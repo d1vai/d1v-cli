@@ -16,7 +16,7 @@ tasks:
     cmds:
       - cmd: cross build --release{{.TARGET_ARG}}
         if: '{{ eq .USE_CROSS "true" }}'
-      - cmd: cargo build --release
+      - cmd: cargo build --release{{.TARGET_ARG}}
         if: '{{ ne .USE_CROSS "true" }}'
 
   run:
