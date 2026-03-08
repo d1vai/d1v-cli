@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*.*.*" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            archive: tar.gz
+            use_cross: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            archive: tar.gz
+            use_cross: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Task
+        uses: go-task/setup-task@v1
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          rustflags: ""
+
+      - name: Set up Binstall
+        if: matrix.use_cross
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Set up Cross
+        if: matrix.use_cross
+        run: cargo-binstall cross --no-confirm
+
+      - name: Build
+        env:
+          USE_CROSS: ${{ matrix.use_cross && 'true' || 'false' }}
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
+        run: task build-release
+
+      - name: Package
+        id: package
+        shell: bash
+        run: |
+          BIN_NAME="d1v-cli"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            BIN_NAME="d1v-cli.exe"
+          fi
+
+          TARGET="${{ matrix.target }}"
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          RELEASE_DIR="target/${TARGET}/release"
+          ARTIFACT_NAME="d1v-cli-${VERSION}-${TARGET}"
+
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            ARTIFACT_PATH="${ARTIFACT_NAME}.zip"
+            (cd "${RELEASE_DIR}" && 7z a -mx9 "${OLDPWD}/${ARTIFACT_PATH}" "${BIN_NAME}")
+          else
+            ARTIFACT_PATH="${ARTIFACT_NAME}.tar.gz"
+            tar -czf "${ARTIFACT_PATH}" -C "${RELEASE_DIR}" "${BIN_NAME}"
+          fi
+
+          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_path=${ARTIFACT_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: ${{ steps.package.outputs.artifact_path }}
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v8
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
