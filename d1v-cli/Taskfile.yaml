@@ -11,8 +11,13 @@ tasks:
       - cargo build
 
   build-release:
+    vars:
+      TARGET_ARG: '{{if .CARGO_BUILD_TARGET}} --target {{.CARGO_BUILD_TARGET}}{{end}}'
     cmds:
-      - cargo build --release
+      - cmd: cross build --release{{.TARGET_ARG}}
+        if: '{{ eq .USE_CROSS "true" }}'
+      - cmd: cargo build --release
+        if: '{{ ne .USE_CROSS "true" }}'
 
   run:
     cmds:

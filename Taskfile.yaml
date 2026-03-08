@@ -19,6 +19,10 @@ tasks:
     cmds:
       - cargo build --workspace
 
+  build-release:
+    cmds:
+      - task: cli:build-release
+
   test:
     cmds:
       - cargo test --workspace
