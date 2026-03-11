@@ -9,8 +9,8 @@ pub enum Error {
     #[error("api error {code}: {message}")]
     Api { code: i64, message: String },
 
-    #[error("missing data")]
-    MissingData,
+    #[error("invalid response data: {0}")]
+    Data(#[from] serde_json::Error),
 
     #[error(transparent)]
     Validation(#[from] ValidationError),
