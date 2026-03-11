@@ -1,5 +1,5 @@
 pub mod error;
 pub mod response;
 
-pub use crate::error::{Error, HttpStatusError};
-pub use crate::response::{Location, Response, ValidationDetail, ValidationError};
+pub use crate::error::{Error, HttpStatusError, Location, ValidationDetail, ValidationError};
+pub use crate::response::Response;
