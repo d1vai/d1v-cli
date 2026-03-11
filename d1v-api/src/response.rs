@@ -1,7 +1,7 @@
+use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use thiserror::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Response<T> {
@@ -16,16 +16,6 @@ impl<T> Response<T> {
     pub fn ok(self) -> Result<T, Error> {
         self.into()
     }
-}
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("api error {code}: {message}")]
-    Api { code: i64, message: String },
-    #[error("missing data")]
-    MissingData,
-    #[error(transparent)]
-    Validation(ValidationError),
 }
 
 impl<T> From<Response<T>> for Result<T, Error> {
@@ -62,7 +52,7 @@ pub struct ValidationDetail {
     pub error_type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Error)]
+#[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
 pub struct ValidationError {
     pub detail: Vec<ValidationDetail>,
 }
