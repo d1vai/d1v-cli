@@ -1,3 +1,4 @@
+use secrecy::SecretString;
 use serde::Serialize;
 
 use crate::{Client, Error};
@@ -35,7 +36,7 @@ impl UserApi<'_> {
         &self,
         email: impl AsRef<str>,
         code: impl AsRef<str>,
-    ) -> Result<String, Error> {
+    ) -> Result<SecretString, Error> {
         self.client
             .post("/api/user/login")?
             .json(&LoginRequest {
@@ -52,6 +53,7 @@ impl UserApi<'_> {
 mod tests {
     use super::*;
     use httpmock::prelude::*;
+    use secrecy::ExposeSecret;
 
     fn test_client(server: &MockServer) -> Client {
         Client::new(reqwest::Client::new(), server.base_url()).unwrap()
@@ -99,7 +101,7 @@ mod tests {
             .login("test@example.com", "123456")
             .await
             .unwrap();
-        assert_eq!(token, "abc123");
+        assert_eq!(token.expose_secret(), "abc123");
 
         mock.assert();
     }
