@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+d1v-api = { path = "../d1v-api" }
+anyhow = "1.0"
+dirs = "6.0"
+secrecy = { version = "0.10", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.0"
