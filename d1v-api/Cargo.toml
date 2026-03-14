@@ -3,7 +3,11 @@ name = "d1v-api"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+record = ["dep:ahash"]
+
 [dependencies]
+ahash = { version = "0.8", features = ["serde"], optional = true }
 reqwest = { version = "0.13", features = ["json", "query"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }

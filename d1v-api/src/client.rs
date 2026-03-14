@@ -1,5 +1,4 @@
-use crate::error::HttpStatusError;
-use crate::{Error, Response, ValidationError};
+use crate::{Error, HttpStatusError, Response, ValidationError};
 use reqwest::header::USER_AGENT;
 use reqwest::{Method, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
@@ -116,13 +115,25 @@ impl<'a> RequestBuilder<'a> {
             inner = inner.bearer_auth(token.expose_secret());
         }
 
-        let resp = inner.send().await?;
-        let status = resp.status();
+        #[cfg(feature = "record")]
+        {
+            crate::record::execute(&self.client.http, inner).await
+        }
 
-        match status {
-            StatusCode::OK => Ok(resp.json::<Response>().await?),
-            StatusCode::UNPROCESSABLE_ENTITY => Err(resp.json::<ValidationError>().await?.into()),
-            _ => Err(HttpStatusError::new(status, resp.text().await.unwrap_or_default()).into()),
+        #[cfg(not(feature = "record"))]
+        {
+            let resp = inner.send().await?;
+            let status = resp.status();
+
+            match status {
+                StatusCode::OK => Ok(resp.json::<Response>().await?),
+                StatusCode::UNPROCESSABLE_ENTITY => {
+                    Err(resp.json::<ValidationError>().await?.into())
+                }
+                _ => {
+                    Err(HttpStatusError::new(status, resp.text().await.unwrap_or_default()).into())
+                }
+            }
         }
     }
 
