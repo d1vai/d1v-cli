@@ -1,48 +1,57 @@
 use crate::{Error, HttpStatusError, Response, ValidationError};
+use parking_lot::RwLock;
 use reqwest::header::USER_AGENT;
 use reqwest::{Method, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::sync::Arc;
 use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct Client {
+    inner: Arc<ClientInner>,
+}
+
+#[derive(Debug)]
+struct ClientInner {
     http: reqwest::Client,
     base_url: Url,
-    token: Option<SecretString>,
-    user_agent: Option<String>,
+    token: RwLock<Option<SecretString>>,
+    user_agent: RwLock<Option<String>>,
 }
 
 impl Client {
     pub fn new(http: reqwest::Client, base_url: impl AsRef<str>) -> Result<Self, Error> {
         Ok(Client {
-            http,
-            base_url: Url::parse(base_url.as_ref())?,
-            token: None,
-            user_agent: None,
+            inner: Arc::new(ClientInner {
+                http,
+                base_url: Url::parse(base_url.as_ref())?,
+                token: RwLock::new(None),
+                user_agent: RwLock::new(None),
+            }),
         })
     }
 
-    pub fn token(&mut self, token: impl Into<SecretString>) -> &mut Self {
-        self.token = Some(token.into());
+    pub fn token(&self, token: impl Into<SecretString>) -> &Self {
+        *self.inner.token.write() = Some(token.into());
         self
     }
 
-    pub fn user_agent(&mut self, user_agent: impl Into<String>) -> &mut Self {
-        self.user_agent = Some(user_agent.into());
+    pub fn user_agent(&self, user_agent: impl Into<String>) -> &Self {
+        *self.inner.user_agent.write() = Some(user_agent.into());
         self
     }
 
     fn url(&self, path: impl AsRef<str>) -> Result<Url, Error> {
-        self.base_url.join(path.as_ref()).map_err(Error::Url)
+        self.inner.base_url.join(path.as_ref()).map_err(Error::Url)
     }
 
-    pub fn request(&self, method: Method, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn request(&self, method: Method, path: impl AsRef<str>) -> RequestBuilder {
         let inner = self.url(path).map(|url| {
-            let mut builder = self.http.request(method, url);
+            let mut builder = self.inner.http.request(method, url);
 
-            if let Some(ua) = &self.user_agent {
+            if let Some(ua) = self.inner.user_agent.read().as_deref() {
                 builder = builder.header(USER_AGENT, ua);
             }
 
@@ -50,40 +59,40 @@ impl Client {
         });
 
         RequestBuilder {
-            client: self,
+            client: self.clone(),
             inner,
             auth: true,
         }
     }
 
-    pub fn get(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn get(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::GET, path)
     }
 
-    pub fn post(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn post(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::POST, path)
     }
 
-    pub fn put(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn put(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::PUT, path)
     }
 
-    pub fn delete(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn delete(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::DELETE, path)
     }
 
-    pub fn patch(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
+    pub fn patch(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::PATCH, path)
     }
 }
 
-pub struct RequestBuilder<'a> {
-    client: &'a Client,
+pub struct RequestBuilder {
+    client: Client,
     inner: Result<reqwest::RequestBuilder, Error>,
     auth: bool,
 }
 
-impl<'a> RequestBuilder<'a> {
+impl RequestBuilder {
     pub fn query(self, query: &(impl Serialize + ?Sized)) -> Self {
         Self {
             inner: self.inner.map(|inner| inner.query(query)),
@@ -109,14 +118,14 @@ impl<'a> RequestBuilder<'a> {
         let mut inner = self.inner?;
 
         if self.auth
-            && let Some(token) = &self.client.token
+            && let Some(token) = self.client.inner.token.read().as_ref()
         {
             inner = inner.bearer_auth(token.expose_secret());
         }
 
         #[cfg(feature = "record")]
         {
-            crate::record::execute(&self.client.http, inner).await
+            crate::record::execute(&self.client.inner.http, inner).await
         }
 
         #[cfg(not(feature = "record"))]
@@ -152,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_debug_redacts_token() {
-        let mut client = Client::new(reqwest::Client::new(), "https://api.example.com").unwrap();
+        let client = Client::new(reqwest::Client::new(), "https://api.example.com").unwrap();
         client.token("secret-token");
 
         let debug = format!("{:#?}", client);
@@ -179,7 +188,7 @@ mod tests {
     #[test]
     fn test_new_valid_url() {
         let client = Client::new(reqwest::Client::new(), "https://api.example.com").unwrap();
-        assert_eq!(client.base_url.as_str(), "https://api.example.com/");
+        assert_eq!(client.inner.base_url.as_str(), "https://api.example.com/");
     }
 
     #[tokio::test]
@@ -294,7 +303,7 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let mut client = test_client(&server);
+        let client = test_client(&server);
         client.token("secret-token");
         client.get("/api/protected").ok::<()>().await.unwrap();
 
@@ -313,7 +322,7 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let mut client = test_client(&server);
+        let client = test_client(&server);
         client.token("secret-token".to_string());
         client
             .get("/api/public")
@@ -337,7 +346,7 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let mut client = test_client(&server);
+        let client = test_client(&server);
         client.user_agent("d1v-cli/0.1.0");
         client.get("/api/test").ok::<()>().await.unwrap();
 

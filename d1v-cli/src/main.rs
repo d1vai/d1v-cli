@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let config = Config::load().expect("failed to load config");
 
-    let mut client =
+    let client =
         Client::new(reqwest::Client::new(), config.base_url).expect("invalid base URL");
 
     if let Ok(Some(token)) = TokenChain::default().load() {

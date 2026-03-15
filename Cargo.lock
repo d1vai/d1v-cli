@@ -384,6 +384,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "httpmock",
+ "parking_lot",
  "reqwest",
  "secrecy",
  "serde",
