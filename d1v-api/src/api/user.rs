@@ -3,13 +3,15 @@ use serde::Serialize;
 
 use crate::{Client, Error};
 
-pub struct UserApi<'a> {
-    client: &'a Client,
+pub struct UserApi {
+    client: Client,
 }
 
 impl Client {
-    pub fn user(&self) -> UserApi<'_> {
-        UserApi { client: self }
+    pub fn user(&self) -> UserApi {
+        UserApi {
+            client: self.clone(),
+        }
     }
 }
 
@@ -20,7 +22,7 @@ struct LoginRequest<'a> {
     code: &'a str,
 }
 
-impl UserApi<'_> {
+impl UserApi {
     /// Sends a verification code to the given email.
     pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
         self.client
