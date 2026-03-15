@@ -38,63 +38,62 @@ impl Client {
         self.base_url.join(path.as_ref()).map_err(Error::Url)
     }
 
-    pub fn request(
-        &self,
-        method: Method,
-        path: impl AsRef<str>,
-    ) -> Result<RequestBuilder<'_>, Error> {
-        let url = self.url(path)?;
-        let mut inner = self.http.request(method, url);
+    pub fn request(&self, method: Method, path: impl AsRef<str>) -> RequestBuilder<'_> {
+        let inner = self.url(path).map(|url| {
+            let mut builder = self.http.request(method, url);
 
-        if let Some(ua) = &self.user_agent {
-            inner = inner.header(USER_AGENT, ua);
-        }
+            if let Some(ua) = &self.user_agent {
+                builder = builder.header(USER_AGENT, ua);
+            }
 
-        Ok(RequestBuilder {
+            builder
+        });
+
+        RequestBuilder {
             client: self,
             inner,
             auth: true,
-        })
+        }
     }
 
-    pub fn get(&self, path: impl AsRef<str>) -> Result<RequestBuilder<'_>, Error> {
+    pub fn get(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
         self.request(Method::GET, path)
     }
 
-    pub fn post(&self, path: impl AsRef<str>) -> Result<RequestBuilder<'_>, Error> {
+    pub fn post(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
         self.request(Method::POST, path)
     }
 
-    pub fn put(&self, path: impl AsRef<str>) -> Result<RequestBuilder<'_>, Error> {
+    pub fn put(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
         self.request(Method::PUT, path)
     }
 
-    pub fn delete(&self, path: impl AsRef<str>) -> Result<RequestBuilder<'_>, Error> {
+    pub fn delete(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
         self.request(Method::DELETE, path)
     }
 
-    pub fn patch(&self, path: impl AsRef<str>) -> Result<RequestBuilder<'_>, Error> {
+    pub fn patch(&self, path: impl AsRef<str>) -> RequestBuilder<'_> {
         self.request(Method::PATCH, path)
     }
 }
 
 pub struct RequestBuilder<'a> {
     client: &'a Client,
-    inner: reqwest::RequestBuilder,
+    inner: Result<reqwest::RequestBuilder, Error>,
     auth: bool,
 }
 
 impl<'a> RequestBuilder<'a> {
     pub fn query(self, query: &(impl Serialize + ?Sized)) -> Self {
         Self {
-            inner: self.inner.query(query),
+            inner: self.inner.map(|inner| inner.query(query)),
             ..self
         }
     }
 
     pub fn json(self, json: &(impl Serialize + ?Sized)) -> Self {
         Self {
-            inner: self.inner.json(json),
+            inner: self.inner.map(|inner| inner.json(json)),
             ..self
         }
     }
@@ -107,7 +106,7 @@ impl<'a> RequestBuilder<'a> {
     }
 
     pub async fn send(self) -> Result<Response, Error> {
-        let mut inner = self.inner;
+        let mut inner = self.inner?;
 
         if self.auth
             && let Some(token) = &self.client.token
@@ -199,7 +198,7 @@ mod tests {
         }
 
         let client = test_client(&server);
-        let user: User = client.get("/api/user/profile").unwrap().ok().await.unwrap();
+        let user: User = client.get("/api/user/profile").ok().await.unwrap();
         assert_eq!(user, User { name: "d1v".into() });
 
         mock.assert();
@@ -220,7 +219,6 @@ mod tests {
         let client = test_client(&server);
         client
             .post("/api/user/verify-code")
-            .unwrap()
             .query(&[("email", "test@example.com")])
             .no_auth()
             .ok::<()>()
@@ -241,12 +239,7 @@ mod tests {
         });
 
         let client = test_client(&server);
-        let err = client
-            .get("/api/resource")
-            .unwrap()
-            .ok::<()>()
-            .await
-            .unwrap_err();
+        let err = client.get("/api/resource").ok::<()>().await.unwrap_err();
         assert_eq!(err.to_string(), "api error 401: unauthorized");
 
         mock.assert();
@@ -265,12 +258,7 @@ mod tests {
         });
 
         let client = test_client(&server);
-        let err = client
-            .post("/api/user/login")
-            .unwrap()
-            .ok::<()>()
-            .await
-            .unwrap_err();
+        let err = client.post("/api/user/login").ok::<()>().await.unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
 
         mock.assert();
@@ -285,12 +273,7 @@ mod tests {
         });
 
         let client = test_client(&server);
-        let err = client
-            .get("/api/missing")
-            .unwrap()
-            .ok::<()>()
-            .await
-            .unwrap_err();
+        let err = client.get("/api/missing").ok::<()>().await.unwrap_err();
         assert_eq!(
             err.to_string(),
             "http status error (404 Not Found): not found"
@@ -313,12 +296,7 @@ mod tests {
 
         let mut client = test_client(&server);
         client.token("secret-token");
-        client
-            .get("/api/protected")
-            .unwrap()
-            .ok::<()>()
-            .await
-            .unwrap();
+        client.get("/api/protected").ok::<()>().await.unwrap();
 
         mock.assert();
     }
@@ -339,7 +317,6 @@ mod tests {
         client.token("secret-token".to_string());
         client
             .get("/api/public")
-            .unwrap()
             .no_auth()
             .ok::<()>()
             .await
@@ -362,7 +339,7 @@ mod tests {
 
         let mut client = test_client(&server);
         client.user_agent("d1v-cli/0.1.0");
-        client.get("/api/test").unwrap().ok::<()>().await.unwrap();
+        client.get("/api/test").ok::<()>().await.unwrap();
 
         mock.assert();
     }
@@ -378,7 +355,7 @@ mod tests {
         });
 
         let client = test_client(&server);
-        let resp = client.get("/api/items").unwrap().send().await.unwrap();
+        let resp = client.get("/api/items").send().await.unwrap();
 
         assert_eq!(resp.total, Some(100));
         let items: Vec<i32> = resp.ok().unwrap();
@@ -418,7 +395,6 @@ mod tests {
         let client = test_client(&server);
         let resp: LoginResponse = client
             .post("/api/user/login")
-            .unwrap()
             .no_auth()
             .json(&body)
             .ok()

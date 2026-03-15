@@ -24,7 +24,7 @@ impl UserApi<'_> {
     /// Sends a verification code to the given email.
     pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
         self.client
-            .post("/api/user/verify-code")?
+            .post("/api/user/verify-code")
             .query(&[("email", email.as_ref())])
             .no_auth()
             .ok()
@@ -38,7 +38,7 @@ impl UserApi<'_> {
         code: impl AsRef<str>,
     ) -> Result<SecretString, Error> {
         self.client
-            .post("/api/user/login")?
+            .post("/api/user/login")
             .json(&LoginRequest {
                 email: email.as_ref(),
                 code: code.as_ref(),
