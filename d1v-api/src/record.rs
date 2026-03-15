@@ -26,7 +26,7 @@ impl From<&reqwest::Request> for Request {
             body: req
                 .body()
                 .and_then(|b| b.as_bytes())
-                .and_then(|bytes| serde_json::from_slice(bytes).ok()),
+                .and_then(|bytes| parse_body(bytes)),
         }
     }
 }
@@ -47,15 +47,19 @@ impl Response {
         Response {
             status: status.as_u16(),
             headers: collect_headers(headers),
-            body: if body.is_empty() {
-                None
-            } else {
-                serde_json::from_slice(body)
-                    .ok()
-                    .or_else(|| Some(Value::String(String::from_utf8_lossy(body).into_owned())))
-            },
+            body: parse_body(body),
         }
     }
+}
+
+fn parse_body(body: &[u8]) -> Option<Value> {
+    if body.is_empty() {
+        return None;
+    }
+
+    serde_json::from_slice(body)
+        .ok()
+        .or_else(|| Some(Value::String(String::from_utf8_lossy(body).into_owned())))
 }
 
 fn collect_headers(headers: &HeaderMap) -> AHashMap<String, String> {
