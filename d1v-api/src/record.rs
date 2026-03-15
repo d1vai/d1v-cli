@@ -124,3 +124,38 @@ pub(crate) async fn execute(
         _ => Err(HttpStatusError::new(status, String::from_utf8_lossy(&bytes)).into()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_headers() {
+        let req = reqwest::Client::new()
+            .post("https://api.example.com/")
+            .header("content-type", "application/json")
+            .header("authorization", "Bearer secret-token")
+            .build()
+            .unwrap();
+
+        let req = Request::from(&req);
+        assert_eq!(req.headers["content-type"], "application/json");
+        assert_eq!(req.headers["authorization"], "Bearer secret-token");
+    }
+
+    #[test]
+    fn test_parse_body() {
+        assert_eq!(
+            parse_body(br#"{"code":0,"msg":"success"}"#),
+            Some(json!({"code": 0, "msg": "success"}))
+        );
+
+        assert_eq!(
+            parse_body(b"plain text"),
+            Some(Value::String("plain text".into()))
+        );
+
+        assert_eq!(parse_body(b""), None);
+    }
+}
