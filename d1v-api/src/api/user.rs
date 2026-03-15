@@ -21,7 +21,7 @@ struct LoginRequest<'a> {
 }
 
 impl UserApi<'_> {
-    /// Sends a verification code to the given email address.
+    /// Sends a verification code to the given email.
     pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
         self.client
             .post("/api/user/verify-code")?
@@ -31,7 +31,7 @@ impl UserApi<'_> {
             .await
     }
 
-    /// Logs in with the email and verification code, returns a token.
+    /// Logs in with email and verification code, returns a token.
     pub async fn login(
         &self,
         email: impl AsRef<str>,
