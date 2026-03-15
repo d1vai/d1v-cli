@@ -5,7 +5,7 @@ pub mod error;
 pub mod record;
 pub mod response;
 
-pub use crate::client::{Client, RequestBuilder};
+pub use crate::client::{Client, ClientBuilder, RequestBuilder};
 pub use crate::error::{Error, HttpStatusError, Location, ValidationDetail, ValidationError};
 pub use crate::response::Response;
 

@@ -56,7 +56,7 @@ mod tests {
     use secrecy::ExposeSecret;
 
     fn test_client(server: &MockServer) -> Client {
-        Client::new(reqwest::Client::new(), server.base_url()).unwrap()
+        Client::new(server.base_url()).unwrap()
     }
 
     #[tokio::test]

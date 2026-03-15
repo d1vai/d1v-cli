@@ -12,14 +12,13 @@ use std::sync::LazyLock;
 pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
     let config = Config::load().expect("failed to load config");
 
-    let client =
-        Client::new(reqwest::Client::new(), config.base_url).expect("invalid base URL");
+    let mut client = Client::builder(config.base_url);
 
     if let Ok(Some(token)) = TokenChain::default().load() {
-        client.token(token);
+        client = client.token(token);
     }
 
-    client
+    client.build().expect("invalid base URL")
 });
 
 #[derive(Parser)]

@@ -17,29 +17,65 @@ pub struct Client {
 struct ClientInner {
     http: reqwest::Client,
     base_url: Url,
+    user_agent: Option<String>,
     token: RwLock<Option<SecretString>>,
-    user_agent: RwLock<Option<String>>,
+}
+
+pub struct ClientBuilder {
+    http: Option<reqwest::Client>,
+    base_url: String,
+    user_agent: Option<String>,
+    token: Option<SecretString>,
+}
+
+impl ClientBuilder {
+    pub fn new(base_url: impl Into<String>) -> Self {
+        ClientBuilder {
+            http: None,
+            base_url: base_url.into(),
+            user_agent: None,
+            token: None,
+        }
+    }
+
+    pub fn client(mut self, client: reqwest::Client) -> Self {
+        self.http = Some(client);
+        self
+    }
+
+    pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    pub fn token(mut self, token: impl Into<SecretString>) -> Self {
+        self.token = Some(token.into());
+        self
+    }
+
+    pub fn build(self) -> Result<Client, Error> {
+        Ok(Client {
+            inner: Arc::new(ClientInner {
+                http: self.http.unwrap_or_default(),
+                base_url: Url::parse(&self.base_url)?,
+                user_agent: self.user_agent,
+                token: RwLock::new(self.token),
+            }),
+        })
+    }
 }
 
 impl Client {
-    pub fn new(http: reqwest::Client, base_url: impl AsRef<str>) -> Result<Self, Error> {
-        Ok(Client {
-            inner: Arc::new(ClientInner {
-                http,
-                base_url: Url::parse(base_url.as_ref())?,
-                token: RwLock::new(None),
-                user_agent: RwLock::new(None),
-            }),
-        })
+    pub fn new(base_url: impl Into<String>) -> Result<Self, Error> {
+        ClientBuilder::new(base_url).build()
+    }
+
+    pub fn builder(base_url: impl Into<String>) -> ClientBuilder {
+        ClientBuilder::new(base_url)
     }
 
     pub fn token(&self, token: impl Into<SecretString>) -> &Self {
         *self.inner.token.write() = Some(token.into());
-        self
-    }
-
-    pub fn user_agent(&self, user_agent: impl Into<String>) -> &Self {
-        *self.inner.user_agent.write() = Some(user_agent.into());
         self
     }
 
@@ -51,7 +87,7 @@ impl Client {
         let inner = self.url(path).map(|url| {
             let mut builder = self.inner.http.request(method, url);
 
-            if let Some(ua) = self.inner.user_agent.read().as_deref() {
+            if let Some(ua) = self.inner.user_agent.as_deref() {
                 builder = builder.header(USER_AGENT, ua);
             }
 
@@ -161,8 +197,10 @@ mod tests {
 
     #[test]
     fn test_debug_redacts_token() {
-        let client = Client::new(reqwest::Client::new(), "https://api.example.com").unwrap();
-        client.token("secret-token");
+        let client = Client::builder("https://api.example.com")
+            .token("secret-token")
+            .build()
+            .unwrap();
 
         let debug = format!("{:#?}", client);
         assert!(
@@ -176,18 +214,18 @@ mod tests {
     }
 
     fn test_client(server: &MockServer) -> Client {
-        Client::new(reqwest::Client::new(), server.base_url()).unwrap()
+        Client::new(server.base_url()).unwrap()
     }
 
     #[test]
     fn test_new_invalid_url() {
-        let err = Client::new(reqwest::Client::new(), "not a url").unwrap_err();
+        let err = Client::new("not a url").unwrap_err();
         assert!(matches!(err, Error::Url(_)));
     }
 
     #[test]
     fn test_new_valid_url() {
-        let client = Client::new(reqwest::Client::new(), "https://api.example.com").unwrap();
+        let client = Client::new("https://api.example.com").unwrap();
         assert_eq!(client.inner.base_url.as_str(), "https://api.example.com/");
     }
 
@@ -303,8 +341,10 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let client = test_client(&server);
-        client.token("secret-token");
+        let client = Client::builder(server.base_url())
+            .token("secret-token")
+            .build()
+            .unwrap();
         client.get("/api/protected").ok::<()>().await.unwrap();
 
         mock.assert();
@@ -322,8 +362,10 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let client = test_client(&server);
-        client.token("secret-token".to_string());
+        let client = Client::builder(server.base_url())
+            .token("secret-token")
+            .build()
+            .unwrap();
         client
             .get("/api/public")
             .no_auth()
@@ -346,8 +388,10 @@ mod tests {
                 .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
         });
 
-        let client = test_client(&server);
-        client.user_agent("d1v-cli/0.1.0");
+        let client = Client::builder(server.base_url())
+            .user_agent("d1v-cli/0.1.0")
+            .build()
+            .unwrap();
         client.get("/api/test").ok::<()>().await.unwrap();
 
         mock.assert();
