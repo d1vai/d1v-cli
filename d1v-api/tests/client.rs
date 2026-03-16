@@ -130,7 +130,8 @@ async fn test_bearer_auth() {
             .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
     });
 
-    let client = Client::builder(server.base_url())
+    let client = Client::builder()
+        .base_url(server.base_url())
         .token("secret-token")
         .build()
         .unwrap();
@@ -151,7 +152,8 @@ async fn test_no_auth_skips_token() {
             .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
     });
 
-    let client = Client::builder(server.base_url())
+    let client = Client::builder()
+        .base_url(server.base_url())
         .token("secret-token")
         .build()
         .unwrap();
@@ -177,7 +179,8 @@ async fn test_user_agent() {
             .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
     });
 
-    let client = Client::builder(server.base_url())
+    let client = Client::builder()
+        .base_url(server.base_url())
         .user_agent("d1v-cli/0.1.0")
         .build()
         .unwrap();

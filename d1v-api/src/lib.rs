@@ -11,3 +11,6 @@ pub use crate::response::Response;
 
 #[cfg(feature = "record")]
 pub use crate::record::{set_recorder, Recorder, SetRecorderError};
+
+/// Default base URL for D1V API.
+pub const DEFAULT_BASE_URL: &str = "https://api.d1v.ai";

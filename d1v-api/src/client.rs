@@ -29,13 +29,18 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
-    pub fn new(base_url: impl Into<String>) -> Self {
+    pub fn new() -> Self {
         ClientBuilder {
             http: None,
-            base_url: base_url.into(),
+            base_url: crate::DEFAULT_BASE_URL.to_string(),
             user_agent: None,
             token: None,
         }
+    }
+
+    pub fn base_url(mut self, url: impl Into<String>) -> Self {
+        self.base_url = url.into();
+        self
     }
 
     pub fn client(mut self, client: reqwest::Client) -> Self {
@@ -66,12 +71,12 @@ impl ClientBuilder {
 }
 
 impl Client {
-    pub fn new(base_url: impl Into<String>) -> Result<Self, Error> {
-        ClientBuilder::new(base_url).build()
+    pub fn new() -> Result<Self, Error> {
+        ClientBuilder::new().build()
     }
 
-    pub fn builder(base_url: impl Into<String>) -> ClientBuilder {
-        ClientBuilder::new(base_url)
+    pub fn builder() -> ClientBuilder {
+        ClientBuilder::new()
     }
 
     pub fn token(&self, token: impl Into<SecretString>) -> &Self {
@@ -195,7 +200,8 @@ mod tests {
 
     #[test]
     fn test_debug_redacts_token() {
-        let client = Client::builder("https://api.example.com")
+        let client = Client::builder()
+            .base_url("https://api.example.com")
             .token("secret-token")
             .build()
             .unwrap();
@@ -212,14 +218,26 @@ mod tests {
     }
 
     #[test]
-    fn test_new_invalid_url() {
-        let err = Client::new("not a url").unwrap_err();
+    fn test_new_uses_default_url() {
+        let client = Client::new().unwrap();
+        assert_eq!(
+            client.inner.base_url.as_str(),
+            format!("{}/", crate::DEFAULT_BASE_URL)
+        );
+    }
+
+    #[test]
+    fn test_builder_invalid_url() {
+        let err = Client::builder().base_url("not a url").build().unwrap_err();
         assert!(matches!(err, Error::Url(_)));
     }
 
     #[test]
-    fn test_new_valid_url() {
-        let client = Client::new("https://api.example.com").unwrap();
+    fn test_builder_valid_url() {
+        let client = Client::builder()
+            .base_url("https://api.example.com")
+            .build()
+            .unwrap();
         assert_eq!(client.inner.base_url.as_str(), "https://api.example.com/");
     }
 }

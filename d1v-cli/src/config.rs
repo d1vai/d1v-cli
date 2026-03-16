@@ -17,7 +17,7 @@ pub struct Config {
 }
 
 fn default_base_url() -> String {
-    "https://api.d1v.ai".to_string()
+    d1v_api::DEFAULT_BASE_URL.to_string()
 }
 
 fn serialize_token<S>(token: &Option<SecretString>, serializer: S) -> Result<S::Ok, S::Error>
