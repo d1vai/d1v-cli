@@ -1,11 +1,11 @@
 use crate::{Error, HttpStatusError, Response, ValidationError};
 use parking_lot::RwLock;
-use reqwest::header::USER_AGENT;
 use reqwest::{Method, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
+use std::time::Duration;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -17,23 +17,24 @@ pub struct Client {
 struct ClientInner {
     http: reqwest::Client,
     base_url: Url,
-    user_agent: Option<String>,
     token: RwLock<Option<SecretString>>,
 }
 
 pub struct ClientBuilder {
-    http: Option<reqwest::Client>,
+    inner: reqwest::ClientBuilder,
     base_url: String,
-    user_agent: Option<String>,
     token: Option<SecretString>,
 }
 
 impl ClientBuilder {
     pub fn new() -> Self {
+        Self::from_reqwest(reqwest::Client::builder())
+    }
+
+    pub fn from_reqwest(builder: reqwest::ClientBuilder) -> Self {
         ClientBuilder {
-            http: None,
+            inner: builder,
             base_url: crate::DEFAULT_BASE_URL.to_string(),
-            user_agent: None,
             token: None,
         }
     }
@@ -43,13 +44,8 @@ impl ClientBuilder {
         self
     }
 
-    pub fn client(mut self, client: reqwest::Client) -> Self {
-        self.http = Some(client);
-        self
-    }
-
-    pub fn user_agent(mut self, user_agent: impl Into<String>) -> Self {
-        self.user_agent = Some(user_agent.into());
+    pub fn user_agent(mut self, user_agent: impl AsRef<str>) -> Self {
+        self.inner = self.inner.user_agent(user_agent.as_ref());
         self
     }
 
@@ -58,15 +54,30 @@ impl ClientBuilder {
         self
     }
 
+    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
+        self.inner = self.inner.connect_timeout(timeout);
+        self
+    }
+
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.inner = self.inner.timeout(timeout);
+        self
+    }
+
     pub fn build(self) -> Result<Client, Error> {
         Ok(Client {
             inner: Arc::new(ClientInner {
-                http: self.http.unwrap_or_default(),
+                http: self.inner.build()?,
                 base_url: Url::parse(&self.base_url)?,
-                user_agent: self.user_agent,
                 token: RwLock::new(self.token),
             }),
         })
+    }
+}
+
+impl From<reqwest::ClientBuilder> for ClientBuilder {
+    fn from(builder: reqwest::ClientBuilder) -> Self {
+        Self::from_reqwest(builder)
     }
 }
 
@@ -79,6 +90,16 @@ impl Client {
         ClientBuilder::new()
     }
 
+    pub fn from_reqwest(client: reqwest::Client, base_url: impl AsRef<str>) -> Result<Self, Error> {
+        Ok(Client {
+            inner: Arc::new(ClientInner {
+                http: client,
+                base_url: Url::parse(base_url.as_ref())?,
+                token: RwLock::new(None),
+            }),
+        })
+    }
+
     pub fn token(&self, token: impl Into<SecretString>) -> &Self {
         *self.inner.token.write() = Some(token.into());
         self
@@ -89,15 +110,9 @@ impl Client {
     }
 
     pub fn request(&self, method: Method, path: impl AsRef<str>) -> RequestBuilder {
-        let inner = self.url(path).map(|url| {
-            let mut builder = self.inner.http.request(method, url);
-
-            if let Some(ua) = self.inner.user_agent.as_deref() {
-                builder = builder.header(USER_AGENT, ua);
-            }
-
-            builder
-        });
+        let inner = self
+            .url(path)
+            .map(|url| self.inner.http.request(method, url));
 
         RequestBuilder {
             client: self.clone(),
