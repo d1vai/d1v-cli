@@ -405,7 +405,6 @@ dependencies = [
  "inquire",
  "keyring",
  "parking_lot",
- "reqwest",
  "secrecy",
  "serde",
  "serde_json",
