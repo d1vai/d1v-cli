@@ -33,3 +33,10 @@ tasks:
   test:
     cmds:
       - cargo test
+
+  record:
+    desc: Record HTTP exchanges to a JSON file
+    vars:
+      RECORD_FILE: '{{.RECORD_FILE | default "recordings.json"}}'
+    cmds:
+      - cargo run --features record -- --record {{.RECORD_FILE}} {{.CLI_ARGS}}

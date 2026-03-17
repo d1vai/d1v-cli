@@ -1,5 +1,7 @@
 mod auth;
 mod config;
+#[cfg(feature = "record")]
+mod recorder;
 mod token;
 
 use crate::config::Config;
@@ -24,6 +26,11 @@ pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
 struct Cli {
+    /// Save HTTP exchanges to a JSON file
+    #[cfg(feature = "record")]
+    #[arg(long, env = "D1V_RECORD_FILE")]
+    record: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -47,6 +54,12 @@ enum AuthCommand {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    #[cfg(feature = "record")]
+    if let Some(path) = cli.record {
+        let recorder = recorder::FileRecorder::new(path);
+        d1v_api::set_recorder(recorder).ok();
+    }
 
     match cli.command {
         Command::Auth { command } => match command {
