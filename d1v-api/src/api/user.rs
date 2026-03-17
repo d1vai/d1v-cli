@@ -1,5 +1,5 @@
 use secrecy::SecretString;
-use serde::Serialize;
+use serde_json::json;
 
 use crate::{Client, Error};
 
@@ -13,13 +13,6 @@ impl Client {
             client: self.clone(),
         }
     }
-}
-
-#[derive(Debug, Serialize)]
-struct LoginRequest<'a> {
-    email: &'a str,
-    #[serde(rename = "verify_code")]
-    code: &'a str,
 }
 
 impl UserApi {
@@ -41,10 +34,10 @@ impl UserApi {
     ) -> Result<SecretString, Error> {
         self.client
             .post("/api/user/login")
-            .json(&LoginRequest {
-                email: email.as_ref(),
-                code: code.as_ref(),
-            })
+            .json(&json!({
+                "email": email.as_ref(),
+                "verify_code": code.as_ref(),
+            }))
             .no_auth()
             .ok()
             .await
