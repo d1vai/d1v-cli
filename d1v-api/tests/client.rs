@@ -1,6 +1,6 @@
 mod common;
 
-use d1v_api::{Client, Error};
+use d1v_api::Client;
 use httpmock::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -220,7 +220,7 @@ async fn test_validation_error() {
 
     let client = test_client(&server);
     let err = client.post("/api/user/login").ok::<()>().await.unwrap_err();
-    assert!(matches!(err, Error::Validation(_)));
+    assert!(err.is_validation());
 
     mock.assert();
 }

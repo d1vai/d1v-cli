@@ -25,6 +25,42 @@ pub enum Error {
     HttpStatus(#[from] HttpStatusError),
 }
 
+impl Error {
+    pub fn is_api(&self) -> bool {
+        matches!(self, Error::Api { .. })
+    }
+
+    pub fn api_code(&self) -> Option<i64> {
+        match self {
+            Error::Api { code, .. } => Some(*code),
+            _ => None,
+        }
+    }
+
+    pub fn is_validation(&self) -> bool {
+        matches!(self, Error::Validation(_))
+    }
+
+    pub fn is_status(&self) -> bool {
+        matches!(self, Error::HttpStatus(_))
+    }
+
+    pub fn status_code(&self) -> Option<StatusCode> {
+        match self {
+            Error::HttpStatus(e) => Some(e.status),
+            _ => None,
+        }
+    }
+
+    pub fn is_network(&self) -> bool {
+        matches!(self, Error::Http(_))
+    }
+
+    pub fn is_timeout(&self) -> bool {
+        matches!(self, Error::Http(e) if e.is_timeout())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Location {
@@ -143,5 +179,45 @@ mod tests {
                 "Field required [type=missing, location=body.verify_code]"
             )
         );
+    }
+
+    #[test]
+    fn test_api_inspection() {
+        let err = Error::Api {
+            code: 1,
+            message: "fail".into(),
+        };
+
+        assert!(err.is_api());
+        assert_eq!(err.api_code(), Some(1));
+        assert!(!err.is_validation());
+        assert!(!err.is_status());
+        assert!(!err.is_network());
+    }
+
+    #[test]
+    fn test_validation_inspection() {
+        let err = Error::Validation(ValidationError { detail: vec![] });
+
+        assert!(err.is_validation());
+        assert!(!err.is_api());
+    }
+
+    #[test]
+    fn test_status_inspection() {
+        let err = Error::HttpStatus(HttpStatusError::new(StatusCode::NOT_FOUND, "not found"));
+
+        assert!(err.is_status());
+        assert_eq!(err.status_code(), Some(StatusCode::NOT_FOUND));
+    }
+
+    #[test]
+    fn test_status_code_returns_none() {
+        let err = Error::Api {
+            code: 1,
+            message: "fail".into(),
+        };
+
+        assert_eq!(err.status_code(), None);
     }
 }
