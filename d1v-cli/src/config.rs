@@ -24,10 +24,9 @@ fn serialize_token<S>(token: &Option<SecretString>, serializer: S) -> Result<S::
 where
     S: serde::Serializer,
 {
-    if let Some(token) = token {
-        serializer.serialize_str(token.expose_secret())
-    } else {
-        serializer.serialize_none()
+    match token {
+        Some(token) => serializer.serialize_str(token.expose_secret()),
+        None => serializer.serialize_none(),
     }
 }
 
