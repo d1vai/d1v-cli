@@ -56,10 +56,9 @@ async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     #[cfg(feature = "record")]
-    if let Some(path) = cli.record {
-        let recorder = recorder::FileRecorder::new(path);
-        d1v_api::set_recorder(recorder).ok();
-    }
+    let _recorder = cli.record.map(|path| {
+        d1v_api::set_recorder(recorder::FileRecorder::new(path)).expect("recorder already set")
+    });
 
     match cli.command {
         Command::Auth { command } => match command {

@@ -1,10 +1,10 @@
 use crate::{HttpStatusError, ValidationError};
 use ahash::AHashMap;
+use parking_lot::Mutex;
 use reqwest::header::HeaderMap;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::OnceLock;
 
 /// HTTP request metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,15 +83,27 @@ pub trait Recorder: Send + Sync {
     fn record(&self, request: &Request, response: &Response);
 }
 
-static RECORDER: OnceLock<Box<dyn Recorder>> = OnceLock::new();
+static RECORDER: Mutex<Option<Box<dyn Recorder>>> = Mutex::new(None);
 
-/// Sets the global [`Recorder`].
-///
-/// Returns `Err` if a recorder has already been set.
-pub fn set_recorder(recorder: impl Recorder + 'static) -> Result<(), SetRecorderError> {
-    RECORDER
-        .set(Box::new(recorder))
-        .map_err(|_| SetRecorderError)
+/// Sets the global [`Recorder`], returning a guard that removes it on drop.
+pub fn set_recorder(recorder: impl Recorder + 'static) -> Result<RecorderGuard, SetRecorderError> {
+    let mut lock = RECORDER.lock();
+    if lock.is_some() {
+        return Err(SetRecorderError);
+    }
+    *lock = Some(Box::new(recorder));
+
+    Ok(RecorderGuard)
+}
+
+/// A guard that removes the global [`Recorder`] on drop.
+#[must_use]
+pub struct RecorderGuard;
+
+impl Drop for RecorderGuard {
+    fn drop(&mut self) {
+        RECORDER.lock().take();
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -112,7 +124,7 @@ pub(crate) async fn execute(
     let bytes = resp.bytes().await?;
 
     let recorded_resp = Response::new(status, &resp_headers, &bytes);
-    if let Some(recorder) = RECORDER.get() {
+    if let Some(recorder) = RECORDER.lock().as_ref() {
         recorder.record(&recorded_req, &recorded_resp);
     }
 
