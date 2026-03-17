@@ -4,24 +4,41 @@ mod config;
 mod recorder;
 mod token;
 
-use crate::config::Config;
-use crate::token::{TokenChain, TokenLoader};
+use std::time::Duration;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use d1v_api::Client;
-use std::sync::LazyLock;
 
-pub static CLIENT: LazyLock<Client> = LazyLock::new(|| {
-    let config = Config::load().expect("failed to load config");
+use crate::config::Config;
+use crate::token::{TokenChain, TokenLoader};
 
-    let mut client = Client::builder().base_url(config.base_url);
+pub struct Context {
+    pub client: Client,
+    pub tokens: TokenChain,
+}
 
-    if let Ok(Some(token)) = TokenChain::default().load() {
-        client = client.token(token);
+impl Context {
+    fn new() -> Result<Self> {
+        let config = Config::load()?;
+        let tokens = TokenChain::default();
+
+        let mut builder = Client::builder()
+            .base_url(config.base_url)
+            .user_agent(concat!("d1v-cli/", env!("CARGO_PKG_VERSION")))
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30));
+
+        if let Ok(Some(token)) = tokens.load() {
+            builder = builder.token(token);
+        }
+
+        Ok(Self {
+            client: builder.build()?,
+            tokens,
+        })
     }
-
-    client.build().expect("invalid base URL")
-});
+}
 
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
@@ -60,10 +77,12 @@ async fn run() -> Result<()> {
         d1v_api::set_recorder(recorder::FileRecorder::new(path)).expect("recorder already set")
     });
 
+    let ctx = Context::new()?;
+
     match cli.command {
         Command::Auth { command } => match command {
-            AuthCommand::Login => auth::login().await,
-            AuthCommand::Logout => auth::logout().await,
+            AuthCommand::Login => auth::login(&ctx).await,
+            AuthCommand::Logout => auth::logout(&ctx).await,
         },
     }
 }

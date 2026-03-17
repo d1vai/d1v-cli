@@ -1,10 +1,10 @@
 use anyhow::Result;
 use inquire::Text;
 
-use crate::token::{TokenChain, TokenStore};
-use crate::CLIENT;
+use crate::Context;
+use crate::token::TokenStore;
 
-pub async fn login() -> Result<()> {
+pub async fn login(ctx: &Context) -> Result<()> {
     let email = Text::new("Email:")
         .with_validator(|input: &str| {
             let valid = input
@@ -21,7 +21,7 @@ pub async fn login() -> Result<()> {
         })
         .prompt()?;
 
-    CLIENT.user().send_code(&email).await?;
+    ctx.client.user().send_code(&email).await?;
     println!("Verification code sent to {email}");
 
     let code = Text::new("Verification code:")
@@ -36,16 +36,17 @@ pub async fn login() -> Result<()> {
         })
         .prompt()?;
 
-    let token = CLIENT.user().login(&email, &code).await?;
+    let token = ctx.client.user().login(&email, &code).await?;
 
-    TokenChain::default().save(&token)?;
+    ctx.tokens.save(&token)?;
+    ctx.client.token(token);
     println!("Login successful!");
 
     Ok(())
 }
 
-pub async fn logout() -> Result<()> {
-    TokenChain::default().delete()?;
+pub async fn logout(ctx: &Context) -> Result<()> {
+    ctx.tokens.delete()?;
     println!("Logged out.");
 
     Ok(())
