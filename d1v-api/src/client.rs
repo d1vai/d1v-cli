@@ -28,15 +28,11 @@ pub struct ClientBuilder {
 
 impl ClientBuilder {
     pub fn new() -> Self {
-        Self::from_reqwest(reqwest::Client::builder())
+        Self::default()
     }
 
     pub fn from_reqwest(builder: reqwest::ClientBuilder) -> Self {
-        ClientBuilder {
-            inner: builder,
-            base_url: crate::DEFAULT_BASE_URL.to_string(),
-            token: None,
-        }
+        builder.into()
     }
 
     pub fn base_url(mut self, url: impl Into<String>) -> Self {
@@ -75,9 +71,19 @@ impl ClientBuilder {
     }
 }
 
+impl Default for ClientBuilder {
+    fn default() -> Self {
+        reqwest::Client::builder().into()
+    }
+}
+
 impl From<reqwest::ClientBuilder> for ClientBuilder {
     fn from(builder: reqwest::ClientBuilder) -> Self {
-        Self::from_reqwest(builder)
+        ClientBuilder {
+            inner: builder,
+            base_url: crate::DEFAULT_BASE_URL.to_string(),
+            token: None,
+        }
     }
 }
 
