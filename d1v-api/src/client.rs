@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::debug;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -186,6 +187,7 @@ impl RequestBuilder {
         }
 
         let request = inner.build()?;
+        debug!(method = %request.method(), url = %request.url(), "request");
 
         #[cfg(feature = "record")]
         let req_record = crate::record::Request::from(&request);
@@ -204,7 +206,16 @@ impl RequestBuilder {
             &crate::record::Response::new(status, &resp_headers, &bytes),
         );
 
-        Self::parse_response(status, &bytes)
+        match Self::parse_response(status, &bytes) {
+            Ok(resp) => {
+                debug!(status = status.as_u16(), code = resp.code, msg = %resp.message, "response");
+                Ok(resp)
+            }
+            Err(err) => {
+                debug!(status = status.as_u16(), "response");
+                Err(err)
+            }
+        }
     }
 
     fn parse_response(status: StatusCode, bytes: &[u8]) -> Result<Response, Error> {
