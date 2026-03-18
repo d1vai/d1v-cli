@@ -185,25 +185,35 @@ impl RequestBuilder {
             inner = inner.bearer_auth(token.expose_secret());
         }
 
+        let request = inner.build()?;
+
         #[cfg(feature = "record")]
-        {
-            crate::record::execute(&self.client.inner.http, inner).await
-        }
+        let req_record = crate::record::Request::from(&request);
 
-        #[cfg(not(feature = "record"))]
-        {
-            let resp = inner.send().await?;
-            let status = resp.status();
+        let resp = self.client.inner.http.execute(request).await?;
+        let status = resp.status();
 
-            match status {
-                StatusCode::OK => Ok(resp.json::<Response>().await?),
-                StatusCode::UNPROCESSABLE_ENTITY => {
-                    Err(resp.json::<ValidationError>().await?.into())
-                }
-                _ => {
-                    Err(HttpStatusError::new(status, resp.text().await.unwrap_or_default()).into())
-                }
+        #[cfg(feature = "record")]
+        let resp_headers = resp.headers().clone();
+
+        let bytes = resp.bytes().await?;
+
+        #[cfg(feature = "record")]
+        crate::record::dispatch(
+            &req_record,
+            &crate::record::Response::new(status, &resp_headers, &bytes),
+        );
+
+        Self::parse_response(status, &bytes)
+    }
+
+    fn parse_response(status: StatusCode, bytes: &[u8]) -> Result<Response, Error> {
+        match status {
+            StatusCode::OK => Ok(serde_json::from_slice(bytes)?),
+            StatusCode::UNPROCESSABLE_ENTITY => {
+                Err(serde_json::from_slice::<ValidationError>(bytes)?.into())
             }
+            _ => Err(HttpStatusError::new(status, String::from_utf8_lossy(bytes)).into()),
         }
     }
 

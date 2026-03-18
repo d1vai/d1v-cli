@@ -1,4 +1,3 @@
-use crate::{HttpStatusError, ValidationError};
 use ahash::AHashMap;
 use parking_lot::Mutex;
 use reqwest::header::HeaderMap;
@@ -110,30 +109,10 @@ impl Drop for RecorderGuard {
 #[error("a global recorder has already been set")]
 pub struct SetRecorderError;
 
-/// Executes a request, dispatches to the global [`Recorder`], and parses the response.
-pub(crate) async fn execute(
-    http: &reqwest::Client,
-    builder: reqwest::RequestBuilder,
-) -> Result<crate::response::Response, crate::Error> {
-    let request = builder.build()?;
-    let recorded_req = Request::from(&request);
-
-    let resp = http.execute(request).await?;
-    let status = resp.status();
-    let resp_headers = resp.headers().clone();
-    let bytes = resp.bytes().await?;
-
-    let recorded_resp = Response::new(status, &resp_headers, &bytes);
+/// Dispatches a request/response pair to the global [`Recorder`].
+pub(crate) fn dispatch(request: &Request, response: &Response) {
     if let Some(recorder) = RECORDER.lock().as_ref() {
-        recorder.record(&recorded_req, &recorded_resp);
-    }
-
-    match status {
-        StatusCode::OK => Ok(serde_json::from_slice(&bytes)?),
-        StatusCode::UNPROCESSABLE_ENTITY => {
-            Err(serde_json::from_slice::<ValidationError>(&bytes)?.into())
-        }
-        _ => Err(HttpStatusError::new(status, String::from_utf8_lossy(&bytes)).into()),
+        recorder.record(request, response);
     }
 }
 
