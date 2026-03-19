@@ -34,7 +34,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_deserialize() {
+    fn deserialize() {
         let json = r#"{"code": 0, "msg": "success", "data": "success", "total": null}"#;
         let resp: Response = serde_json::from_str(json).unwrap();
 
@@ -50,7 +50,7 @@ mod tests {
     }
 
     #[test]
-    fn test_api_error() {
+    fn api_error() {
         let json = r#"{"code": 401, "msg": "unauthorized", "data": null, "total": null}"#;
         let resp: Response = serde_json::from_str(json).unwrap();
 
@@ -65,7 +65,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_data() {
+    fn invalid_data() {
         let json = r#"{"code": 0, "msg": "ok"}"#;
         let resp: Response = serde_json::from_str(json).unwrap();
 

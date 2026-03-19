@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_first_found() {
+    fn load_first_found() {
         let chain = TokenChain::new(
             vec![
                 Box::new(InMemoryProvider::new("empty")),
@@ -327,13 +327,13 @@ mod tests {
     }
 
     #[test]
-    fn test_load_empty_chain() {
+    fn load_empty_chain() {
         let chain = TokenChain::new(vec![], vec![]);
         assert!(chain.load().unwrap().is_none());
     }
 
     #[test]
-    fn test_load_skips_errors() {
+    fn load_skips_errors() {
         let chain = TokenChain::new(
             vec![
                 Box::new(FailingLoader),
@@ -346,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_round_trip() {
+    fn round_trip() {
         let (loader, store) = InMemoryProvider::pair("mem");
         let chain = TokenChain::new(vec![Box::new(loader)], vec![Box::new(store)]);
 
@@ -360,7 +360,7 @@ mod tests {
     }
 
     #[test]
-    fn test_save_skips_errors() {
+    fn save_skips_errors() {
         let (loader, store) = InMemoryProvider::pair("fallback");
         let chain = TokenChain::new(
             vec![Box::new(loader)],
@@ -375,14 +375,14 @@ mod tests {
     }
 
     #[test]
-    fn test_save_no_stores() {
+    fn save_no_stores() {
         let chain = TokenChain::new(vec![], vec![]);
         let token = SecretString::from("test-token");
         assert!(chain.save(&token).is_err());
     }
 
     #[test]
-    fn test_delete_all_stores() {
+    fn delete_all_stores() {
         let (loader1, store1) = InMemoryProvider::pair("s1");
         let (loader2, store2) = InMemoryProvider::pair("s2");
 

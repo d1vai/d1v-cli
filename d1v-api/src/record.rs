@@ -122,7 +122,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn test_headers() {
+    fn headers() {
         let req = reqwest::Client::new()
             .post("https://api.example.com/")
             .header("content-type", "application/json")
@@ -136,17 +136,17 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_body() {
+    fn parse_body() {
         assert_eq!(
-            parse_body(br#"{"code":0,"msg":"success"}"#),
+            super::parse_body(br#"{"code":0,"msg":"success"}"#),
             Some(json!({"code": 0, "msg": "success"}))
         );
 
         assert_eq!(
-            parse_body(b"plain text"),
+            super::parse_body(b"plain text"),
             Some(Value::String("plain text".into()))
         );
 
-        assert_eq!(parse_body(b""), None);
+        assert_eq!(super::parse_body(b""), None);
     }
 }

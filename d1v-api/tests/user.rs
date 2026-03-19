@@ -6,7 +6,7 @@ use secrecy::ExposeSecret;
 use serde_json::json;
 
 #[tokio::test]
-async fn test_send_verification_code() {
+async fn send_verification_code() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST)
@@ -25,7 +25,7 @@ async fn test_send_verification_code() {
 }
 
 #[tokio::test]
-async fn test_login() {
+async fn login() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST)
@@ -53,7 +53,7 @@ async fn test_login() {
 }
 
 #[tokio::test]
-async fn test_login_wrong_code() {
+async fn login_wrong_code() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST).path("/api/user/login");

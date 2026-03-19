@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::common::test_client;
 
 #[tokio::test]
-async fn test_get_ok() {
+async fn get_ok() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET).path("/api/user/profile");
@@ -29,7 +29,7 @@ async fn test_get_ok() {
 }
 
 #[tokio::test]
-async fn test_post_void() {
+async fn post_void() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST)
@@ -53,7 +53,7 @@ async fn test_post_void() {
 }
 
 #[tokio::test]
-async fn test_post_json_body() {
+async fn post_json_body() {
     let server = MockServer::start();
 
     #[derive(Debug, Serialize)]
@@ -101,7 +101,7 @@ async fn test_post_json_body() {
 }
 
 #[tokio::test]
-async fn test_send_returns_response() {
+async fn send_returns_response() {
     let server = MockServer::start();
     server.mock(|when, then| {
         when.method(GET).path("/api/items");
@@ -119,7 +119,7 @@ async fn test_send_returns_response() {
 }
 
 #[tokio::test]
-async fn test_bearer_auth() {
+async fn bearer_auth() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET)
@@ -141,7 +141,7 @@ async fn test_bearer_auth() {
 }
 
 #[tokio::test]
-async fn test_no_auth_skips_token() {
+async fn no_auth_skips_token() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET)
@@ -168,7 +168,7 @@ async fn test_no_auth_skips_token() {
 }
 
 #[tokio::test]
-async fn test_user_agent() {
+async fn user_agent() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET)
@@ -190,7 +190,7 @@ async fn test_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_user_agent() {
+async fn default_user_agent() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET).path("/api/test").header(
@@ -209,7 +209,7 @@ async fn test_default_user_agent() {
 }
 
 #[tokio::test]
-async fn test_api_error() {
+async fn api_error() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET).path("/api/resource");
@@ -226,7 +226,7 @@ async fn test_api_error() {
 }
 
 #[tokio::test]
-async fn test_validation_error() {
+async fn validation_error() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST).path("/api/user/login");
@@ -245,7 +245,7 @@ async fn test_validation_error() {
 }
 
 #[tokio::test]
-async fn test_http_status_error() {
+async fn http_status_error() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(GET).path("/api/missing");

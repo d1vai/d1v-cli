@@ -141,7 +141,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_http_status_error() {
+    fn http_status_error() {
         assert_eq!(
             HttpStatusError::new(StatusCode::NOT_FOUND, "not found").to_string(),
             "http status error (404 Not Found): not found"
@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_error() {
+    fn validation_error() {
         let json = r#"{
             "detail": [
                 {
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_api_inspection() {
+    fn api_inspection() {
         let err = Error::Api {
             code: 1,
             message: "fail".into(),
@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_inspection() {
+    fn validation_inspection() {
         let err = Error::Validation(ValidationError { detail: vec![] });
 
         assert!(err.is_validation());
@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn test_status_inspection() {
+    fn status_inspection() {
         let err = Error::HttpStatus(HttpStatusError::new(StatusCode::NOT_FOUND, "not found"));
 
         assert!(err.is_status());
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_status_code_returns_none() {
+    fn status_code_returns_none() {
         let err = Error::Api {
             code: 1,
             message: "fail".into(),

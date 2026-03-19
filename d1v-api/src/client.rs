@@ -243,7 +243,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_debug_redacts_token() {
+    fn debug_redacts_token() {
         let client = Client::builder()
             .base_url("https://api.example.com")
             .token("secret-token")
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_new_uses_default_url() {
+    fn new_uses_default_url() {
         let client = Client::new().unwrap();
         assert_eq!(
             client.inner.base_url.as_str(),
@@ -271,13 +271,13 @@ mod tests {
     }
 
     #[test]
-    fn test_builder_invalid_url() {
+    fn builder_invalid_url() {
         let err = Client::builder().base_url("not a url").build().unwrap_err();
         assert!(matches!(err, Error::Url(_)));
     }
 
     #[test]
-    fn test_builder_valid_url() {
+    fn builder_valid_url() {
         let client = Client::builder()
             .base_url("https://api.example.com")
             .build()
