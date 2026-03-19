@@ -22,6 +22,7 @@ use std::fmt::{Display, Formatter};
 /// let ua = UserAgent::new("d1v-api", "0.1.0").lang("python", "3.14.3");
 /// assert!(ua.to_string().ends_with("python/3.14.3"));
 /// ```
+#[derive(Debug, Clone)]
 pub struct UserAgent {
     product: String,
     version: String,
