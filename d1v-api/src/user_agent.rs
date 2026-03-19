@@ -81,3 +81,30 @@ impl From<UserAgent> for String {
         ua.to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_format() {
+        let ua = UserAgent::new("d1v-cli", "0.1.0").to_string();
+
+        assert!(ua.starts_with("d1v-cli/0.1.0 ("), "{ua}");
+        assert!(ua.contains(std::env::consts::ARCH), "{ua}");
+        assert!(
+            ua.ends_with(&format!("rust/{}", env!("D1V_RUSTC_VERSION"))),
+            "{ua}"
+        );
+    }
+
+    #[test]
+    fn override_lang() {
+        let ua = UserAgent::new("d1v-api", "0.1.0")
+            .lang("python", "3.14.3")
+            .to_string();
+
+        assert!(ua.starts_with("d1v-api/0.1.0 ("), "{ua}");
+        assert!(ua.ends_with("python/3.14.3"), "{ua}");
+    }
+}
