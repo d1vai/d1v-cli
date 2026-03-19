@@ -4,6 +4,8 @@
 
 Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 <br><br>
+<a href="https://github.com/fhluo/d1v-cli/actions/workflows/ci.yaml">
+<img src="https://github.com/fhluo/d1v-cli/actions/workflows/ci.yaml/badge.svg" alt="ci workflow"></a>
 
 <samp>
 
