@@ -88,6 +88,13 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
+    fn print() {
+        println!("{}", UserAgent::new("d1v-api", "0.1.0"));
+        println!("{}", UserAgent::new("d1v-cli", "0.1.0"));
+    }
+
+    #[test]
     fn default_format() {
         let ua = UserAgent::new("d1v-cli", "0.1.0").to_string();
 
