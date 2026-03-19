@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_base_url")]
     pub base_url: String,
@@ -14,6 +14,15 @@ pub struct Config {
         skip_serializing_if = "Option::is_none"
     )]
     pub token: Option<SecretString>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            base_url: default_base_url(),
+            token: None,
+        }
+    }
 }
 
 fn default_base_url() -> String {
