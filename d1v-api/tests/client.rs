@@ -1,6 +1,6 @@
 mod common;
 
-use d1v_api::Client;
+use d1v_api::{Client, UserAgent};
 use httpmock::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -173,7 +173,7 @@ async fn test_user_agent() {
     let mock = server.mock(|when, then| {
         when.method(GET)
             .path("/api/test")
-            .header("user-agent", "d1v-cli/0.1.0");
+            .header("user-agent", UserAgent::new("d1v-cli", "0.1.0"));
         then.status(200)
             .header("content-type", "application/json")
             .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
@@ -181,9 +181,28 @@ async fn test_user_agent() {
 
     let client = Client::builder()
         .base_url(server.base_url())
-        .user_agent("d1v-cli/0.1.0")
+        .user_agent(UserAgent::new("d1v-cli", "0.1.0"))
         .build()
         .unwrap();
+    client.get("/api/test").ok::<()>().await.unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn test_default_user_agent() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET).path("/api/test").header(
+            "user-agent",
+            UserAgent::new("d1v-api", env!("CARGO_PKG_VERSION")),
+        );
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "ok", "data": null}"#);
+    });
+
+    let client = test_client(&server);
     client.get("/api/test").ok::<()>().await.unwrap();
 
     mock.assert();

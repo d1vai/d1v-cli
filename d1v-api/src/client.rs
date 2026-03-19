@@ -1,4 +1,4 @@
-use crate::{Error, HttpStatusError, Response, ValidationError};
+use crate::{Error, HttpStatusError, Response, UserAgent, ValidationError};
 use parking_lot::RwLock;
 use reqwest::{Method, StatusCode};
 use secrecy::{ExposeSecret, SecretString};
@@ -41,8 +41,8 @@ impl ClientBuilder {
         self
     }
 
-    pub fn user_agent(mut self, user_agent: impl AsRef<str>) -> Self {
-        self.inner = self.inner.user_agent(user_agent.as_ref());
+    pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
+        self.inner = self.inner.user_agent(user_agent.to_string());
         self
     }
 
@@ -74,7 +74,9 @@ impl ClientBuilder {
 
 impl Default for ClientBuilder {
     fn default() -> Self {
-        reqwest::Client::builder().into()
+        reqwest::Client::builder()
+            .user_agent(UserAgent::new("d1v-api", env!("CARGO_PKG_VERSION")).to_string())
+            .into()
     }
 }
 

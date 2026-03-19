@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use d1v_api::Client;
+use d1v_api::{Client, UserAgent};
 
 use crate::config::Config;
 use crate::token::{TokenChain, TokenLoader};
@@ -25,7 +25,7 @@ impl Context {
 
         let mut builder = Client::builder()
             .base_url(config.base_url)
-            .user_agent(concat!("d1v-cli/", env!("CARGO_PKG_VERSION")))
+            .user_agent(UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
 
