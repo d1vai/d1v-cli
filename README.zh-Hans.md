@@ -2,7 +2,7 @@
 
 # D1V CLI
 
-Experimental CLI for [d1v.ai](https://www.d1v.ai/).
+[d1v.ai](https://www.d1v.ai/) 实验性命令行工具。
 <br><br>
 
 <samp>
@@ -13,32 +13,32 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 </div>
 
-## Development
+## 开发
 
-### Prerequisites
+### 前置要求
 
-- [Rust](https://www.rust-lang.org/) (latest stable)
-- [Task](https://taskfile.dev/) (optional)
+- [Rust](https://www.rust-lang.org/)（最新稳定版）
+- [Task](https://taskfile.dev/)（可选）
 
-### Build
+### 构建
 
 ```sh
 cargo build
 ```
 
-### Test
+### 测试
 
 ```sh
 cargo test
 ```
 
-### Run
+### 运行
 
 ```sh
 cargo run
 ```
 
-### Install
+### 安装
 
 ```sh
 cargo install --path d1v-cli
