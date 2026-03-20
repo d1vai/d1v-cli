@@ -31,6 +31,14 @@ tasks:
     cmds:
       - task: cli:install
 
+  install-record:
+    cmds:
+      - task: cli:install-record
+
+  record:
+    cmds:
+      - task: cli:record
+
   test:
     cmds:
       - cargo test --workspace

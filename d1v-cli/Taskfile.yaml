@@ -30,6 +30,11 @@ tasks:
     cmds:
       - cargo install --path .
 
+  install-record:
+    desc: Install with record feature enabled
+    cmds:
+      - cargo install --path . --features record
+
   test:
     cmds:
       - cargo test
