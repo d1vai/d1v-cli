@@ -62,3 +62,45 @@ cargo run
 ```sh
 cargo install --path d1v-cli
 ```
+
+## Debugging
+
+### Environment
+
+Check version, config path, and token status:
+
+```sh
+d1v debug
+```
+
+### Logging
+
+Logs are written to `~/.d1v/d1v.log` by default.
+
+Print debug logs to stderr:
+
+```sh
+RUST_LOG=debug d1v auth login
+```
+
+Write logs to a custom file:
+
+```sh
+d1v --log-file trace.log auth login
+```
+
+### HTTP Recording
+
+Capture HTTP traffic to a JSON file for inspection.
+
+Enable the `record` feature:
+
+```sh
+cargo install --path d1v-cli --features record
+```
+
+Run with recording:
+
+```sh
+d1v --record trace.json auth login
+```

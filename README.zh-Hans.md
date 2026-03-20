@@ -62,3 +62,45 @@ cargo run
 ```sh
 cargo install --path d1v-cli
 ```
+
+## 调试
+
+### 环境信息
+
+检查版本、配置路径和 Token 状态：
+
+```sh
+d1v debug
+```
+
+### 日志
+
+日志默认写入 `~/.d1v/d1v.log`。
+
+输出调试日志到 stderr：
+
+```sh
+RUST_LOG=debug d1v auth login
+```
+
+写入日志到指定文件：
+
+```sh
+d1v --log-file trace.log auth login
+```
+
+### HTTP 录制
+
+将 HTTP 流量保存为 JSON 文件以供排查。
+
+启用 `record` 特性：
+
+```sh
+cargo install --path d1v-cli --features record
+```
+
+运行并录制：
+
+```sh
+d1v --record trace.json auth login
+```
