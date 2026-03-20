@@ -3,6 +3,10 @@ name = "d1v-cli"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "d1v"
+path = "src/main.rs"
+
 [features]
 record = ["d1v-api/record"]
 

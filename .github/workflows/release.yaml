@@ -60,9 +60,9 @@ jobs:
         id: package
         shell: bash
         run: |
-          BIN_NAME="d1v-cli"
+          BIN_NAME="d1v"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            BIN_NAME="d1v-cli.exe"
+            BIN_NAME="d1v.exe"
           fi
 
           TARGET="${{ matrix.target }}"
