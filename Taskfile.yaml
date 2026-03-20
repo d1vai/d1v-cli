@@ -23,6 +23,14 @@ tasks:
     cmds:
       - task: cli:build-release
 
+  run:
+    cmds:
+      - task: cli:run
+
+  install:
+    cmds:
+      - task: cli:install
+
   test:
     cmds:
       - cargo test --workspace
