@@ -15,6 +15,23 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 </div>
 
+## Commands
+
+Run `d1v --help` for all available commands.
+
+### Authentication
+
+| Command           | Description |
+| ----------------- | ----------- |
+| `d1v auth login`  | Log in      |
+| `d1v auth logout` | Log out     |
+
+### Diagnostics
+
+| Command     | Description            |
+| ----------- | ---------------------- |
+| `d1v debug` | Show debug information |
+
 ## Development
 
 ### Prerequisites
