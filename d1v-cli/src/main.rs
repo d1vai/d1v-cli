@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod debug;
+mod logging;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
@@ -44,6 +45,10 @@ impl Context {
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
 struct Cli {
+    /// Log file path [default: ~/.d1v/d1v.log]
+    #[arg(long, env = "D1V_LOG_FILE")]
+    log_file: Option<std::path::PathBuf>,
+
     /// Save HTTP exchanges to a JSON file
     #[cfg(feature = "record")]
     #[arg(long, env = "D1V_RECORD_FILE")]
@@ -74,6 +79,7 @@ enum AuthCommand {
 
 async fn run() -> Result<()> {
     let cli = Cli::parse();
+    let _log = logging::init(cli.log_file)?;
 
     #[cfg(feature = "record")]
     let _recorder = cli.record.map(|path| {
