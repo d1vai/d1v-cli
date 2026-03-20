@@ -147,6 +147,13 @@ impl TokenChain {
     pub fn new(loaders: Vec<Box<dyn TokenLoader>>, stores: Vec<Box<dyn TokenStore>>) -> Self {
         Self { loaders, stores }
     }
+
+    /// Returns the name of the first loader that provides a token.
+    pub fn source(&self) -> Option<&str> {
+        self.loaders
+            .iter()
+            .find_map(|l| matches!(l.load(), Ok(Some(_))).then(|| l.name()))
+    }
 }
 
 impl TokenLoader for TokenChain {

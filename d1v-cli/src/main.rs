@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod debug;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
@@ -59,6 +60,8 @@ enum Command {
         #[command(subcommand)]
         command: AuthCommand,
     },
+    /// Show debug information
+    Debug,
 }
 
 #[derive(Subcommand)]
@@ -84,6 +87,7 @@ async fn run() -> Result<()> {
             AuthCommand::Login => auth::login(&ctx).await,
             AuthCommand::Logout => auth::logout(&ctx).await,
         },
+        Command::Debug => debug::run(),
     }
 }
 
