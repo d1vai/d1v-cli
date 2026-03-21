@@ -29,7 +29,7 @@ pub fn init(log_file: Option<PathBuf>) -> Result<WorkerGuard> {
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
         .with_ansi(false)
-        .with_filter(EnvFilter::new("d1v_api=debug,d1v_cli=debug"));
+        .with_filter(EnvFilter::new("d1v=debug,d1v_api=debug"));
 
     tracing_subscriber::registry()
         .with(stderr_layer)
