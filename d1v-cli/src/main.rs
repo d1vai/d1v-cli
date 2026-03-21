@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod debug;
 mod logging;
+mod output;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
