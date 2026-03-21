@@ -81,3 +81,96 @@ impl Output {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::anyhow;
+    use indoc::indoc;
+
+    #[derive(Debug, Serialize)]
+    struct Info {
+        name: String,
+        version: u32,
+    }
+
+    impl Display for Info {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            writeln!(f, "name:    {}", self.name)?;
+            write!(f, "version: {}", self.version)
+        }
+    }
+
+    fn sample() -> Info {
+        Info {
+            name: "test".into(),
+            version: 1,
+        }
+    }
+
+    #[test]
+    fn default_format() {
+        assert!(matches!(Format::default(), Format::Text));
+    }
+
+    #[test]
+    fn print_text() {
+        let mut buf = Vec::new();
+        Output::new(Format::Text)
+            .print_to(&mut buf, &sample())
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            indoc! {"
+                name:    test
+                version: 1
+            "}
+        );
+    }
+
+    #[test]
+    fn print_json() {
+        let mut buf = Vec::new();
+        Output::new(Format::Json)
+            .print_to(&mut buf, &sample())
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            indoc! {r#"
+                {
+                  "name": "test",
+                  "version": 1
+                }
+            "#}
+        );
+    }
+
+    #[test]
+    fn error_text() {
+        let mut buf = Vec::new();
+        Output::new(Format::Text)
+            .error_to(&mut buf, &anyhow!("something broke"))
+            .unwrap();
+
+        assert_eq!(String::from_utf8(buf).unwrap(), "Error: something broke\n");
+    }
+
+    #[test]
+    fn error_json() {
+        let mut buf = Vec::new();
+        Output::new(Format::Json)
+            .error_to(&mut buf, &anyhow!("something broke"))
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            indoc! {r#"
+                {
+                  "error": "something broke"
+                }
+            "#}
+        );
+    }
+}
