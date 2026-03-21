@@ -14,6 +14,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use d1v_api::{Client, UserAgent};
 use serde::Serialize;
+use tracing::{error, info};
 
 use crate::config::Config;
 use crate::output::{Format, Output};
@@ -98,8 +99,6 @@ enum AuthCommand {
 }
 
 async fn run(cli: Cli) -> Result<()> {
-    let _log = logging::init(cli.log_file)?;
-
     #[cfg(feature = "record")]
     let _recorder = cli.record.map(|path| {
         d1v_api::set_recorder(recorder::FileRecorder::new(path)).expect("recorder already set")
@@ -118,10 +117,14 @@ async fn run(cli: Cli) -> Result<()> {
 
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    let _log = logging::init(cli.log_file.take()).ok();
     let output = Output::new(cli.format);
 
+    info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
+
     if let Err(err) = run(cli).await {
+        error!(%err, "fatal error");
         output.error(&err);
         std::process::exit(1);
     }

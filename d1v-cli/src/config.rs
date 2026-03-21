@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -54,9 +55,11 @@ impl Config {
         let path = Self::path()?;
 
         if !path.exists() {
+            debug!(path = %path.display(), "config not found, using defaults");
             return Ok(Self::default());
         }
 
+        debug!(path = %path.display(), "loading config");
         let content = fs::read_to_string(&path).context("failed to read config file")?;
         toml::from_str(&content).context("failed to parse config file")
     }
