@@ -1,8 +1,8 @@
 use anyhow::Result;
 use inquire::Text;
 
-use crate::Context;
 use crate::token::TokenStore;
+use crate::Context;
 
 pub async fn login(ctx: &Context) -> Result<()> {
     let email = Text::new("Email:")
@@ -22,7 +22,7 @@ pub async fn login(ctx: &Context) -> Result<()> {
         .prompt()?;
 
     ctx.client.user().send_code(&email).await?;
-    println!("Verification code sent to {email}");
+    ctx.message(format_args!("Verification code sent to {email}"));
 
     let code = Text::new("Verification code:")
         .with_validator(|input: &str| {
@@ -40,14 +40,14 @@ pub async fn login(ctx: &Context) -> Result<()> {
 
     ctx.tokens.save(&token)?;
     ctx.client.token(token);
-    println!("Login successful!");
+    ctx.message("Login successful!");
 
     Ok(())
 }
 
 pub async fn logout(ctx: &Context) -> Result<()> {
     ctx.tokens.delete()?;
-    println!("Logged out.");
+    ctx.message("Logged out.");
 
     Ok(())
 }

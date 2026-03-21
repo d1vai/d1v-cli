@@ -7,22 +7,26 @@ mod output;
 mod recorder;
 mod token;
 
+use std::fmt::Display;
 use std::time::Duration;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use d1v_api::{Client, UserAgent};
+use serde::Serialize;
 
 use crate::config::Config;
+use crate::output::{Format, Output};
 use crate::token::{TokenChain, TokenLoader};
 
 pub struct Context {
     pub client: Client,
     pub tokens: TokenChain,
+    pub output: Output,
 }
 
 impl Context {
-    fn new() -> Result<Self> {
+    fn new(format: Format) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
@@ -39,13 +43,28 @@ impl Context {
         Ok(Self {
             client: builder.build()?,
             tokens,
+            output: Output::new(format),
         })
+    }
+
+    /// Writes a status message via the output formatter.
+    pub fn message(&self, msg: impl Display) {
+        self.output.message(msg);
+    }
+
+    /// Writes structured data via the output formatter.
+    pub fn print(&self, value: &(impl Display + Serialize)) -> Result<()> {
+        self.output.print(value)
     }
 }
 
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
 struct Cli {
+    /// Output format
+    #[arg(short, long, global = true, default_value_t, env = "D1V_FORMAT")]
+    format: Format,
+
     /// Log file path [default: ~/.d1v/d1v.log]
     #[arg(long, env = "D1V_LOG_FILE")]
     log_file: Option<std::path::PathBuf>,
@@ -78,8 +97,7 @@ enum AuthCommand {
     Logout,
 }
 
-async fn run() -> Result<()> {
-    let cli = Cli::parse();
+async fn run(cli: Cli) -> Result<()> {
     let _log = logging::init(cli.log_file)?;
 
     #[cfg(feature = "record")]
@@ -87,21 +105,24 @@ async fn run() -> Result<()> {
         d1v_api::set_recorder(recorder::FileRecorder::new(path)).expect("recorder already set")
     });
 
-    let ctx = Context::new()?;
+    let ctx = Context::new(cli.format)?;
 
     match cli.command {
         Command::Auth { command } => match command {
             AuthCommand::Login => auth::login(&ctx).await,
             AuthCommand::Logout => auth::logout(&ctx).await,
         },
-        Command::Debug => debug::run(),
+        Command::Debug => debug::run(&ctx),
     }
 }
 
 #[tokio::main]
 async fn main() {
-    if let Err(err) = run().await {
-        eprintln!("Error: {err:#}");
+    let cli = Cli::parse();
+    let output = Output::new(cli.format);
+
+    if let Err(err) = run(cli).await {
+        output.error(&err);
         std::process::exit(1);
     }
 }
