@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod debug;
+mod i18n;
 mod logging;
 mod output;
 #[cfg(feature = "record")]
