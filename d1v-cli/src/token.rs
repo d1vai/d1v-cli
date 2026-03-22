@@ -215,16 +215,19 @@ impl TokenStore for TokenChain {
     }
 }
 
+const KEYRING_SERVICE: &str = "d1v-cli";
+const KEYRING_USER: &str = "token";
+
 impl Default for TokenChain {
     fn default() -> Self {
         Self::new(
             vec![
                 Box::new(EnvProvider::new("D1V_AUTH_TOKEN")),
-                Box::new(KeyringProvider::new("d1v-cli", "token")),
+                Box::new(KeyringProvider::new(KEYRING_SERVICE, KEYRING_USER)),
                 Box::new(ConfigProvider),
             ],
             vec![
-                Box::new(KeyringProvider::new("d1v-cli", "token")),
+                Box::new(KeyringProvider::new(KEYRING_SERVICE, KEYRING_USER)),
                 Box::new(ConfigProvider),
             ],
         )
