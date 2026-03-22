@@ -105,9 +105,10 @@ enum AuthCommand {
 
 async fn run(cli: Cli) -> Result<()> {
     #[cfg(feature = "record")]
-    let _recorder = cli.record.map(|path| {
-        d1v_api::set_recorder(recorder::FileRecorder::new(path)).expect("recorder already set")
-    });
+    let _recorder = cli
+        .record
+        .map(|path| d1v_api::set_recorder(recorder::FileRecorder::new(path)))
+        .transpose()?;
 
     let ctx = Context::new(cli.format)?;
 
