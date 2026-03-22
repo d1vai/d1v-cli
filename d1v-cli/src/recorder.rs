@@ -44,11 +44,11 @@ impl Drop for FileRecorder {
             return;
         }
 
-        if let Some(parent) = self.path.parent() {
-            if let Err(err) = std::fs::create_dir_all(parent) {
-                eprintln!("{}", t!("error-create-dir", error = err));
-                return;
-            }
+        if let Some(parent) = self.path.parent()
+            && let Err(err) = std::fs::create_dir_all(parent)
+        {
+            eprintln!("{}", t!("error-create-dir", error = err));
+            return;
         }
 
         match serde_json::to_string_pretty(exchanges) {
