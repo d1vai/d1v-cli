@@ -67,6 +67,10 @@ struct Cli {
     #[arg(short, long, global = true, default_value_t, env = "D1V_FORMAT")]
     format: Format,
 
+    /// Language override
+    #[arg(long, global = true)]
+    lang: Option<String>,
+
     /// Log file path [default: ~/.d1v/d1v.log]
     #[arg(long, env = "D1V_LOG_FILE")]
     log_file: Option<std::path::PathBuf>,
@@ -116,10 +120,23 @@ async fn run(cli: Cli) -> Result<()> {
     }
 }
 
+fn locale_sources(cli_lang: &Option<String>) -> impl Iterator<Item = String> {
+    [
+        cli_lang.clone(),
+        std::env::var("D1V_LANG").ok().filter(|s| !s.is_empty()),
+        Config::load().ok().and_then(|c| c.language),
+        sys_locale::get_locale(),
+    ]
+    .into_iter()
+    .flatten()
+}
+
 #[tokio::main]
 async fn main() {
     let mut cli = Cli::parse();
     let _log = logging::init(cli.log_file.take()).ok();
+    i18n::init(locale_sources(&cli.lang));
+
     let output = Output::new(cli.format);
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");

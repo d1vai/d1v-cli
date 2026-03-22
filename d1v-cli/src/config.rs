@@ -10,11 +10,15 @@ use tracing::debug;
 pub struct Config {
     #[serde(default = "default_base_url")]
     pub base_url: String,
+
     #[serde(
         serialize_with = "serialize_token",
         skip_serializing_if = "Option::is_none"
     )]
     pub token: Option<SecretString>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
 }
 
 impl Default for Config {
@@ -22,6 +26,7 @@ impl Default for Config {
         Self {
             base_url: default_base_url(),
             token: None,
+            language: None,
         }
     }
 }
