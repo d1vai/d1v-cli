@@ -86,3 +86,88 @@ macro_rules! t {
         ])
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lookup_lang(lang: &LanguageIdentifier, id: &str, args: &[(&'static str, String)]) -> String {
+        LOCALES
+            .try_lookup_complete(lang, id, fluent_args(args).as_ref())
+            .unwrap_or_else(|| id.to_string())
+    }
+
+    #[test]
+    fn en() {
+        assert_eq!(
+            lookup_lang(&langid!("en"), "auth-login-success", &[]),
+            "Login successful!"
+        );
+    }
+
+    #[test]
+    fn zh() {
+        assert_eq!(
+            lookup_lang(&langid!("zh-Hans"), "auth-login-success", &[]),
+            "登录成功！"
+        );
+    }
+
+    #[test]
+    fn en_args() {
+        assert_eq!(
+            lookup_lang(
+                &langid!("en"),
+                "auth-code-sent",
+                &[("email", "test@example.com".into())]
+            ),
+            "Verification code sent to test@example.com"
+        );
+    }
+
+    #[test]
+    fn zh_args() {
+        assert_eq!(
+            lookup_lang(
+                &langid!("zh-Hans"),
+                "auth-code-sent",
+                &[("email", "test@example.com".into())]
+            ),
+            "验证码已发送至 test@example.com"
+        );
+    }
+
+    #[test]
+    fn fallback() {
+        assert_eq!(
+            lookup_lang(&langid!("fr"), "auth-login-success", &[]),
+            "Login successful!"
+        );
+    }
+
+    #[test]
+    fn missing_key() {
+        assert_eq!(
+            lookup_lang(&langid!("en"), "nonexistent-key", &[]),
+            "nonexistent-key"
+        );
+    }
+
+    #[test]
+    fn resolve_default() {
+        let resolver = LocaleResolver::new();
+        assert_eq!(resolver.resolve(std::iter::empty::<&str>()), langid!("en"));
+    }
+
+    #[test]
+    fn resolve_override() {
+        let resolver = LocaleResolver::new();
+        assert_eq!(resolver.resolve(["zh-Hans"]).language.as_str(), "zh");
+    }
+
+    #[test]
+    fn resolve_priority() {
+        let resolver = LocaleResolver::new();
+        assert_eq!(resolver.resolve(["en", "zh-Hans"]).language.as_str(), "en");
+    }
+}
