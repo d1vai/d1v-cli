@@ -59,15 +59,19 @@ impl LocaleResolver {
     }
 }
 
-pub fn lookup(id: &str, args: &[(&'static str, String)]) -> String {
-    let map = (!args.is_empty()).then(|| {
+fn fluent_args<'a>(
+    args: &'a [(&'static str, String)],
+) -> Option<HashMap<Cow<'static, str>, FluentValue<'a>>> {
+    (!args.is_empty()).then(|| {
         args.iter()
             .map(|(k, v)| (Cow::Borrowed(*k), FluentValue::from(v.as_str())))
             .collect()
-    });
+    })
+}
 
+pub fn lookup(id: &str, args: &[(&'static str, String)]) -> String {
     LOCALES
-        .try_lookup_complete(&locale(), id, map.as_ref())
+        .try_lookup_complete(&locale(), id, fluent_args(args).as_ref())
         .unwrap_or_else(|| id.to_string())
 }
 
