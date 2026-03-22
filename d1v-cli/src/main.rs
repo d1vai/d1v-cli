@@ -121,9 +121,9 @@ async fn run(cli: Cli) -> Result<()> {
     }
 }
 
-fn locale_sources(cli_lang: &Option<String>) -> impl Iterator<Item = String> {
+fn locale_sources(cli_lang: Option<&str>) -> impl Iterator<Item = String> {
     [
-        cli_lang.clone(),
+        cli_lang.map(ToOwned::to_owned),
         std::env::var("D1V_LANG").ok().filter(|s| !s.is_empty()),
         Config::load().ok().and_then(|c| c.language),
         sys_locale::get_locale(),
@@ -136,7 +136,7 @@ fn locale_sources(cli_lang: &Option<String>) -> impl Iterator<Item = String> {
 async fn main() {
     let mut cli = Cli::parse();
     let _log = logging::init(cli.log_file.take()).ok();
-    i18n::init(locale_sources(&cli.lang));
+    i18n::init(locale_sources(cli.lang.as_deref()));
 
     let output = Output::new(cli.format);
 
