@@ -32,8 +32,3 @@ error-no-home-dir = could not determine home directory
 error-read-config = failed to read config file
 error-parse-config = failed to parse config file
 error-serialize-config = failed to serialize config
-
-## Recorder
-error-create-dir = [d1v] failed to create directory: { $error }
-error-write-recordings = [d1v] failed to write recordings: { $error }
-error-serialize-recordings = [d1v] failed to serialize recordings: { $error }

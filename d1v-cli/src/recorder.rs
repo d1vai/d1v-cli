@@ -3,8 +3,7 @@ use d1v_api::Recorder;
 use parking_lot::Mutex;
 use serde::Serialize;
 use std::path::PathBuf;
-
-use crate::t;
+use tracing::warn;
 
 /// A [`Recorder`] that collects HTTP exchanges in memory and writes them
 /// to a single JSON file on drop.
@@ -47,17 +46,17 @@ impl Drop for FileRecorder {
         if let Some(parent) = self.path.parent()
             && let Err(err) = std::fs::create_dir_all(parent)
         {
-            eprintln!("{}", t!("error-create-dir", error = err));
+            warn!(%err, "failed to create recording directory");
             return;
         }
 
         match serde_json::to_string_pretty(exchanges) {
             Ok(json) => {
                 if let Err(err) = std::fs::write(&self.path, json) {
-                    eprintln!("{}", t!("error-write-recordings", error = err));
+                    warn!(%err, "failed to write recordings");
                 }
             }
-            Err(err) => eprintln!("{}", t!("error-serialize-recordings", error = err)),
+            Err(err) => warn!(%err, "failed to serialize recordings"),
         }
     }
 }

@@ -32,8 +32,3 @@ error-no-home-dir = 无法确定主目录
 error-read-config = 读取配置文件失败
 error-parse-config = 解析配置文件失败
 error-serialize-config = 序列化配置失败
-
-## 录制
-error-create-dir = [d1v] 创建目录失败：{ $error }
-error-write-recordings = [d1v] 写入录制数据失败：{ $error }
-error-serialize-recordings = [d1v] 序列化录制数据失败：{ $error }
