@@ -6,6 +6,8 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
+use crate::t;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default = "default_base_url")]
@@ -49,7 +51,7 @@ impl Config {
     pub fn dir() -> Result<PathBuf> {
         dirs::home_dir()
             .map(|p| p.join(".d1v"))
-            .context("could not determine home directory")
+            .context(t!("error-no-home-dir"))
     }
 
     pub fn path() -> Result<PathBuf> {
@@ -65,8 +67,8 @@ impl Config {
         }
 
         debug!(path = %path.display(), "loading config");
-        let content = fs::read_to_string(&path).context("failed to read config file")?;
-        toml::from_str(&content).context("failed to parse config file")
+        let content = fs::read_to_string(&path).context(t!("error-read-config"))?;
+        toml::from_str(&content).context(t!("error-parse-config"))
     }
 
     pub fn save(&self) -> Result<()> {
@@ -74,7 +76,7 @@ impl Config {
         fs::create_dir_all(&dir)?;
 
         let path = dir.join("config.toml");
-        let content = toml::to_string_pretty(self).context("failed to serialize config")?;
+        let content = toml::to_string_pretty(self).context(t!("error-serialize-config"))?;
         fs::write(&path, &content)?;
 
         Ok(())

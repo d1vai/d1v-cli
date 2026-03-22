@@ -3,6 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 use tracing::{debug, warn};
 
 use crate::config::Config;
+use crate::t;
 
 /// A source that provides authentication tokens.
 pub trait TokenLoader {
@@ -79,10 +80,10 @@ impl TokenStore for KeyringProvider {
     }
 
     fn save(&self, token: &SecretString) -> Result<()> {
-        let entry = self.entry().context("keyring is not available")?;
+        let entry = self.entry().context(t!("error-keyring-unavailable"))?;
         entry
             .set_password(token.expose_secret())
-            .context("failed to save to keyring")
+            .context(t!("error-keyring-save"))
     }
 
     fn delete(&self) -> Result<()> {
@@ -199,7 +200,7 @@ impl TokenStore for TokenChain {
             }
         }
 
-        bail!("no writable token store available")
+        bail!(t!("error-no-token-store"))
     }
 
     fn delete(&self) -> Result<()> {

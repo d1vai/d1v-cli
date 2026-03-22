@@ -4,6 +4,8 @@ use parking_lot::Mutex;
 use serde::Serialize;
 use std::path::PathBuf;
 
+use crate::t;
+
 /// A [`Recorder`] that collects HTTP exchanges in memory and writes them
 /// to a single JSON file on drop.
 pub struct FileRecorder {
@@ -44,7 +46,7 @@ impl Drop for FileRecorder {
 
         if let Some(parent) = self.path.parent() {
             if let Err(err) = std::fs::create_dir_all(parent) {
-                eprintln!("[d1v] failed to create directory: {err}");
+                eprintln!("{}", t!("error-create-dir", error = err));
                 return;
             }
         }
@@ -52,10 +54,10 @@ impl Drop for FileRecorder {
         match serde_json::to_string_pretty(exchanges) {
             Ok(json) => {
                 if let Err(err) = std::fs::write(&self.path, json) {
-                    eprintln!("[d1v] failed to write recordings: {err}");
+                    eprintln!("{}", t!("error-write-recordings", error = err));
                 }
             }
-            Err(err) => eprintln!("[d1v] failed to serialize recordings: {err}"),
+            Err(err) => eprintln!("{}", t!("error-serialize-recordings", error = err)),
         }
     }
 }

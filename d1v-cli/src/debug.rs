@@ -5,6 +5,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use crate::config::Config;
+use crate::t;
 use crate::token::TokenChain;
 use crate::Context;
 
@@ -19,11 +20,11 @@ struct DebugInfo {
 
 impl Display for DebugInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "version:     {}", self.version)?;
-        writeln!(f, "user-agent:  {}", self.user_agent)?;
-        writeln!(f, "config:      {}", self.config)?;
-        writeln!(f, "base-url:    {}", self.base_url)?;
-        write!(f, "token:       {}", self.token)
+        writeln!(f, "{:<13}{}", t!("debug-label-version"), self.version)?;
+        writeln!(f, "{:<13}{}", t!("debug-label-user-agent"), self.user_agent)?;
+        writeln!(f, "{:<13}{}", t!("debug-label-config"), self.config)?;
+        writeln!(f, "{:<13}{}", t!("debug-label-base-url"), self.base_url)?;
+        write!(f, "{:<13}{}", t!("debug-label-token"), self.token)
     }
 }
 
@@ -33,11 +34,11 @@ pub fn run(ctx: &Context) -> Result<()> {
     let config = Config::load()?;
     let config_path = Config::path()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "unknown".into());
+        .unwrap_or_else(|_| t!("debug-unknown"));
 
     let token_status = match TokenChain::default().source() {
-        Some(source) => format!("✓ ({source})"),
-        None => "✗".into(),
+        Some(source) => t!("debug-token-found", source = source),
+        None => t!("debug-token-missing"),
     };
 
     let info = DebugInfo {

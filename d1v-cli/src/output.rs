@@ -6,6 +6,8 @@ use clap::ValueEnum;
 use serde::Serialize;
 use serde_json::json;
 
+use crate::t;
+
 /// Output format.
 #[derive(Debug, Copy, Clone, Default, ValueEnum)]
 pub enum Format {
@@ -72,7 +74,7 @@ impl Output {
     /// Writes an error to the given writer.
     pub fn error_to(&self, w: &mut impl Write, err: &anyhow::Error) -> io::Result<()> {
         match self.format {
-            Format::Text => writeln!(w, "Error: {err:#}"),
+            Format::Text => writeln!(w, "{}", t!("error-prefix", message = format!("{err:#}"))),
             Format::Json => {
                 serde_json::to_writer_pretty(&mut *w, &json!({ "error": format!("{err:#}") }))
                     .map_err(io::Error::other)?;
