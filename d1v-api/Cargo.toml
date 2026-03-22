@@ -15,9 +15,9 @@ secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
-tokio = { version = "1.50", features = ["full"] }
 tracing = "0.1"
 url = "2.5"
 
 [dev-dependencies]
 httpmock = "0.8"
+tokio = { version = "1.50", features = ["rt", "macros"] }
