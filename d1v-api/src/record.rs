@@ -22,10 +22,7 @@ impl From<&reqwest::Request> for Request {
             method: req.method().to_string(),
             url: req.url().to_string(),
             headers: collect_headers(req.headers()),
-            body: req
-                .body()
-                .and_then(|b| b.as_bytes())
-                .and_then(|bytes| parse_body(bytes)),
+            body: req.body().and_then(|b| b.as_bytes()).and_then(parse_body),
         }
     }
 }
