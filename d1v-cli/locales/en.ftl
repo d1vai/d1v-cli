@@ -36,3 +36,9 @@ error-serialize-config = failed to serialize config
 
 ## User
 user-info-updated = User info updated.
+
+## Password
+password-new-prompt = New password:
+password-set-success = Password set.
+password-forgot-sent = Password reset email sent to { $email }.
+password-reset-success = Password reset successful.

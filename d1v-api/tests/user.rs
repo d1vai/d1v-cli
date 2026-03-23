@@ -273,3 +273,79 @@ async fn all_users() {
 
     mock.assert();
 }
+
+#[tokio::test]
+async fn set_password() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/password/set")
+            .header("content-type", "application/json")
+            .json_body(json!({ "password": "password123" }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client.user().set_password("password123").await.unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn send_forgot_password_email() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/password/forgot/send")
+            .header("content-type", "application/json")
+            .json_body(json!({ "email": "test@example.com" }))
+            .header_missing("authorization");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = test_client(&server);
+    client
+        .user()
+        .send_forgot_password_email("test@example.com")
+        .await
+        .unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn reset_password() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/password/reset")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "email": "test@example.com",
+                "code": "123456",
+                "new_password": "password123",
+            }))
+            .header_missing("authorization");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = test_client(&server);
+    client
+        .user()
+        .reset_password("test@example.com", "123456", "password123")
+        .await
+        .unwrap();
+
+    mock.assert();
+}

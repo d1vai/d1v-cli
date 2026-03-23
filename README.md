@@ -35,6 +35,14 @@ Run `d1v --help` for all available commands.
 | `d1v user get`    | Get a public user        |
 | `d1v user list`   | List all users           |
 
+### Password
+
+| Command                | Description                      |
+| ---------------------- | -------------------------------- |
+| `d1v user password set`   | Set a password                |
+| `d1v user password forgot`| Send a forgot-password email  |
+| `d1v user password reset` | Reset password with code      |
+
 ### Diagnostics
 
 | Command     | Description            |

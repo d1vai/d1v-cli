@@ -1,4 +1,5 @@
 mod info;
+mod password;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -18,6 +19,11 @@ pub enum UserCommand {
     },
     /// List all users
     List,
+    /// Password management
+    Password {
+        #[command(subcommand)]
+        command: PasswordCommand,
+    },
 }
 
 #[derive(Args)]
@@ -50,11 +56,26 @@ pub enum GetArgs {
     Slug { slug: String },
 }
 
+#[derive(Subcommand)]
+pub enum PasswordCommand {
+    /// Set a password
+    Set,
+    /// Send a forgot-password email
+    Forgot,
+    /// Reset password with verification code
+    Reset,
+}
+
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,
         UserCommand::Update(args) => info::update(ctx, args).await,
         UserCommand::Get { target } => info::get(ctx, target).await,
         UserCommand::List => info::list(ctx).await,
+        UserCommand::Password { command } => match command {
+            PasswordCommand::Set => password::set(ctx).await,
+            PasswordCommand::Forgot => password::forgot(ctx).await,
+            PasswordCommand::Reset => password::reset(ctx).await,
+        },
     }
 }

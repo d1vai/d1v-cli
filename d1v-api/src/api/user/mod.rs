@@ -115,4 +115,42 @@ impl UserApi {
     pub async fn all_users(&self) -> Result<Vec<User>, Error> {
         self.client.get("/api/user/all").ok().await
     }
+
+    /// Sets a password for the current user.
+    pub async fn set_password(&self, password: impl AsRef<str>) -> Result<(), Error> {
+        self.client
+            .post("/api/user/password/set")
+            .json(&json!({ "password": password.as_ref() }))
+            .ok()
+            .await
+    }
+
+    /// Sends a forgot-password email.
+    pub async fn send_forgot_password_email(&self, email: impl AsRef<str>) -> Result<(), Error> {
+        self.client
+            .post("/api/user/password/forgot/send")
+            .json(&json!({ "email": email.as_ref() }))
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    /// Resets password with email, verification code, and new password.
+    pub async fn reset_password(
+        &self,
+        email: impl AsRef<str>,
+        code: impl AsRef<str>,
+        new_password: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        self.client
+            .post("/api/user/password/reset")
+            .json(&json!({
+                "email": email.as_ref(),
+                "code": code.as_ref(),
+                "new_password": new_password.as_ref(),
+            }))
+            .no_auth()
+            .ok()
+            .await
+    }
 }
