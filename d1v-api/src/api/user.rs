@@ -26,6 +26,25 @@ impl UserApi {
             .await
     }
 
+    /// Checks a verification code without logging in.
+    pub async fn check_code(
+        &self,
+        email: impl AsRef<str>,
+        code: impl AsRef<str>,
+        purpose: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        self.client
+            .post("/api/user/verify-code/check")
+            .json(&json!({
+                "email": email.as_ref(),
+                "code": code.as_ref(),
+                "purpose": purpose.as_ref(),
+            }))
+            .no_auth()
+            .ok()
+            .await
+    }
+
     /// Logs in with email and verification code, returns a token.
     pub async fn login(
         &self,
@@ -37,6 +56,23 @@ impl UserApi {
             .json(&json!({
                 "email": email.as_ref(),
                 "verify_code": code.as_ref(),
+            }))
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    /// Logs in with email and password, returns a token.
+    pub async fn login_password(
+        &self,
+        email: impl AsRef<str>,
+        password: impl AsRef<str>,
+    ) -> Result<SecretString, Error> {
+        self.client
+            .post("/api/user/login/password")
+            .json(&json!({
+                "email": email.as_ref(),
+                "password": password.as_ref(),
             }))
             .no_auth()
             .ok()

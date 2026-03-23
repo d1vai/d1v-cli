@@ -6,6 +6,7 @@ auth-email-invalid = 请输入有效的邮箱地址
 auth-code-sent = 验证码已发送至 { $email }
 auth-code-prompt = 验证码：
 auth-code-invalid = 请输入 6 位数字验证码
+auth-password-prompt = 密码：
 auth-login-success = 登录成功！
 auth-logout-success = 已退出登录。
 

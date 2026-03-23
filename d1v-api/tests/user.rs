@@ -6,7 +6,7 @@ use secrecy::ExposeSecret;
 use serde_json::json;
 
 #[tokio::test]
-async fn send_verification_code() {
+async fn send_code() {
     let server = MockServer::start();
     let mock = server.mock(|when, then| {
         when.method(POST)
@@ -20,6 +20,34 @@ async fn send_verification_code() {
 
     let client = test_client(&server);
     client.user().send_code("test@example.com").await.unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn check_code() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/verify-code/check")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "email": "test@example.com",
+                "code": "123456",
+                "purpose": "login",
+            }))
+            .header_missing("authorization");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = test_client(&server);
+    client
+        .user()
+        .check_code("test@example.com", "123456", "login")
+        .await
+        .unwrap();
 
     mock.assert();
 }
@@ -72,6 +100,55 @@ async fn login_wrong_code() {
         err.to_string(),
         "api error 1: verification code is incorrect"
     );
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn login_password() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/login/password")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "email": "test@example.com",
+                "password": "123456",
+            }))
+            .header_missing("authorization");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": "abc123"}"#);
+    });
+
+    let client = test_client(&server);
+    let token = client
+        .user()
+        .login_password("test@example.com", "123456")
+        .await
+        .unwrap();
+    assert_eq!(token.expose_secret(), "abc123");
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn login_password_wrong() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST).path("/api/user/login/password");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 1, "msg": "password is incorrect", "data": null}"#);
+    });
+
+    let client = test_client(&server);
+    let err = client
+        .user()
+        .login_password("test@example.com", "wrong")
+        .await
+        .unwrap_err();
+    assert_eq!(err.to_string(), "api error 1: password is incorrect");
 
     mock.assert();
 }

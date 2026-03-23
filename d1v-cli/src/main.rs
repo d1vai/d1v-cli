@@ -98,7 +98,11 @@ enum Command {
 #[derive(Subcommand)]
 enum AuthCommand {
     /// Log in with email and verification code
-    Login,
+    Login {
+        /// Use password instead of verification code
+        #[arg(short, long)]
+        password: bool,
+    },
     /// Log out and clear stored credentials
     Logout,
 }
@@ -114,7 +118,7 @@ async fn run(cli: Cli) -> Result<()> {
 
     match cli.command {
         Command::Auth { command } => match command {
-            AuthCommand::Login => auth::login(&ctx).await,
+            AuthCommand::Login { password } => auth::login(&ctx, password).await,
             AuthCommand::Logout => auth::logout(&ctx).await,
         },
         Command::Debug => debug::run(&ctx),
