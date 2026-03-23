@@ -80,14 +80,14 @@ pub struct PromptDailyActivity {
 
 impl Display for PromptDailyActivity {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(
+        write!(
             f,
             "{} ~ {} ({} days)",
             self.start_date, self.end_date, self.days
         )?;
 
         for entry in &self.counts {
-            writeln!(f, "  {}: {}", entry.date, entry.count)?;
+            write!(f, "\n  {}: {}", entry.date, entry.count)?;
         }
 
         Ok(())
