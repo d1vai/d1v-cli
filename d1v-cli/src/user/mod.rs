@@ -60,9 +60,7 @@ pub enum GetArgs {
 pub enum PasswordCommand {
     /// Set a password
     Set,
-    /// Send a forgot-password email
-    Forgot,
-    /// Reset password with verification code
+    /// Reset password
     Reset,
 }
 
@@ -74,7 +72,6 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
         UserCommand::List => info::list(ctx).await,
         UserCommand::Password { command } => match command {
             PasswordCommand::Set => password::set(ctx).await,
-            PasswordCommand::Forgot => password::forgot(ctx).await,
             PasswordCommand::Reset => password::reset(ctx).await,
         },
     }

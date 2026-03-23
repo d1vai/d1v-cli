@@ -18,17 +18,26 @@ pub async fn set(ctx: &Context) -> Result<()> {
     Ok(())
 }
 
-pub async fn forgot(ctx: &Context) -> Result<()> {
-    let email = Text::new(&t!("auth-email-prompt")).prompt()?;
+pub async fn reset(ctx: &Context) -> Result<()> {
+    let email = Text::new(&t!("auth-email-prompt"))
+        .with_validator(|input: &str| {
+            let valid = input
+                .split_once('@')
+                .is_some_and(|(user, domain)| !user.is_empty() && domain.contains('.'));
+
+            if valid {
+                Ok(inquire::validator::Validation::Valid)
+            } else {
+                Ok(inquire::validator::Validation::Invalid(
+                    t!("auth-email-invalid").into(),
+                ))
+            }
+        })
+        .prompt()?;
 
     ctx.client.user().send_forgot_password_email(&email).await?;
     ctx.message(t!("password-forgot-sent", email = email));
 
-    Ok(())
-}
-
-pub async fn reset(ctx: &Context) -> Result<()> {
-    let email = Text::new(&t!("auth-email-prompt")).prompt()?;
     let code = Text::new(&t!("auth-code-prompt")).prompt()?;
     let new_password = SecretString::from(
         inquire::Password::new(&t!("password-new-prompt"))

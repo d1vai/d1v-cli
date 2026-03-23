@@ -40,8 +40,7 @@
 | 命令                      | 描述               |
 | ------------------------- | ------------------ |
 | `d1v user password set`   | 设置密码           |
-| `d1v user password forgot`| 发送忘记密码邮件   |
-| `d1v user password reset` | 通过验证码重置密码 |
+| `d1v user password reset` | 重置密码           |
 
 ### 诊断
 

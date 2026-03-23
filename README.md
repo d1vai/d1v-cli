@@ -40,8 +40,7 @@ Run `d1v --help` for all available commands.
 | Command                | Description                      |
 | ---------------------- | -------------------------------- |
 | `d1v user password set`   | Set a password                |
-| `d1v user password forgot`| Send a forgot-password email  |
-| `d1v user password reset` | Reset password with code      |
+| `d1v user password reset` | Reset password                |
 
 ### Diagnostics
 
