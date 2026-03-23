@@ -57,6 +57,12 @@ Run `d1v --help` for all available commands.
 | `d1v user invitation list`      | List invited users          |
 | `d1v user onboard`              | Mark onboarding as complete |
 
+### Activity
+
+| Command              | Description                |
+| -------------------- | -------------------------- |
+| `d1v user activity`  | View prompt daily activity |
+
 ### Diagnostics
 
 | Command     | Description            |

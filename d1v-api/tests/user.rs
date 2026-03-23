@@ -547,3 +547,114 @@ async fn set_onboarded() {
 
     mock.assert();
 }
+
+fn activity_json() -> serde_json::Value {
+    json!({
+        "start_date": "2026-03-21",
+        "end_date": "2026-03-23",
+        "days": 3,
+        "counts": [
+            { "date": "2026-03-21", "count": 5 },
+            { "date": "2026-03-22", "count": 3 },
+            { "date": "2026-03-23", "count": 0 }
+        ]
+    })
+}
+
+#[tokio::test]
+async fn prompt_daily_activity() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/activity/prompt-daily")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": activity_json() }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    let activity = client.user().prompt_daily_activity(None).await.unwrap();
+    assert_eq!(activity.days, 3);
+    assert_eq!(activity.counts.len(), 3);
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn prompt_daily_activity_with_days() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/activity/prompt-daily")
+            .query_param("days", "7")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": activity_json() }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client.user().prompt_daily_activity(Some(7)).await.unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn prompt_daily_activity_by_slug() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/activity/prompt-daily/slug/d1v");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": activity_json() }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .build()
+        .unwrap();
+    let activity = client
+        .user()
+        .prompt_daily_activity_by_slug("d1v", None)
+        .await
+        .unwrap();
+    assert_eq!(activity.start_date, "2026-03-21");
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn prompt_daily_activity_by_user() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/activity/prompt-daily/user/42")
+            .query_param("days", "30");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": activity_json() }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .build()
+        .unwrap();
+    let activity = client
+        .user()
+        .prompt_daily_activity_by_user(42, Some(30))
+        .await
+        .unwrap();
+    assert_eq!(activity.counts[0].count, 5);
+
+    mock.assert();
+}

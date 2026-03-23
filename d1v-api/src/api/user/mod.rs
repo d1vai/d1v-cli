@@ -1,6 +1,6 @@
 mod types;
 
-pub use types::{UpdateUser, User};
+pub use types::{DailyCount, PromptDailyActivity, UpdateUser, User};
 
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
@@ -225,5 +225,51 @@ impl UserApi {
             .json(&json!({ "value": value }))
             .ok()
             .await
+    }
+
+    /// Returns the current user's daily prompt activity.
+    pub async fn prompt_daily_activity(
+        &self,
+        days: Option<i32>,
+    ) -> Result<PromptDailyActivity, Error> {
+        let mut req = self.client.get("/api/user/activity/prompt-daily");
+        if let Some(days) = days {
+            req = req.query(&[("days", days)]);
+        }
+
+        req.ok().await
+    }
+
+    /// Returns daily prompt activity for a user by slug.
+    pub async fn prompt_daily_activity_by_slug(
+        &self,
+        slug: impl AsRef<str>,
+        days: Option<i32>,
+    ) -> Result<PromptDailyActivity, Error> {
+        let mut req = self.client.get(format!(
+            "/api/user/activity/prompt-daily/slug/{}",
+            slug.as_ref()
+        ));
+        if let Some(days) = days {
+            req = req.query(&[("days", days)]);
+        }
+
+        req.no_auth().ok().await
+    }
+
+    /// Returns daily prompt activity for a user by ID.
+    pub async fn prompt_daily_activity_by_user(
+        &self,
+        user_id: i64,
+        days: Option<i32>,
+    ) -> Result<PromptDailyActivity, Error> {
+        let mut req = self
+            .client
+            .get(format!("/api/user/activity/prompt-daily/user/{user_id}"));
+        if let Some(days) = days {
+            req = req.query(&[("days", days)]);
+        }
+
+        req.no_auth().ok().await
     }
 }

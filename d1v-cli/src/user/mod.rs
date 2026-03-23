@@ -1,3 +1,4 @@
+mod activity;
 mod email;
 mod info;
 mod invitation;
@@ -38,6 +39,8 @@ pub enum UserCommand {
     },
     /// Mark onboarding as complete
     Onboard,
+    /// View prompt daily activity
+    Activity(ActivityArgs),
 }
 
 #[derive(Args)]
@@ -97,6 +100,23 @@ pub enum InvitationCommand {
     List,
 }
 
+#[derive(Args)]
+pub struct ActivityArgs {
+    /// Number of days to include (max 365)
+    #[arg(long)]
+    pub days: Option<i32>,
+    #[command(subcommand)]
+    pub target: Option<ActivityTarget>,
+}
+
+#[derive(Subcommand)]
+pub enum ActivityTarget {
+    /// Look up by user ID
+    User { user_id: i64 },
+    /// Look up by slug
+    Slug { slug: String },
+}
+
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,
@@ -122,5 +142,6 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
             ctx.message(t!("onboard-success"));
             Ok(())
         }
+        UserCommand::Activity(args) => activity::run(ctx, args).await,
     }
 }

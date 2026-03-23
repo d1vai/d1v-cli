@@ -69,3 +69,33 @@ pub struct UpdateUser {
     pub industry: Option<String>,
     pub referral_code: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptDailyActivity {
+    pub start_date: String,
+    pub end_date: String,
+    pub days: i32,
+    pub counts: Vec<DailyCount>,
+}
+
+impl Display for PromptDailyActivity {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "{} ~ {} ({} days)",
+            self.start_date, self.end_date, self.days
+        )?;
+
+        for entry in &self.counts {
+            writeln!(f, "  {}: {}", entry.date, entry.count)?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DailyCount {
+    pub date: String,
+    pub count: i32,
+}
