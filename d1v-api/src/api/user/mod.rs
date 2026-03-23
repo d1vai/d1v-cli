@@ -249,12 +249,11 @@ impl UserApi {
         &self,
         days: Option<i32>,
     ) -> Result<PromptDailyActivity, Error> {
-        let mut req = self.client.get("/api/user/activity/prompt-daily");
-        if let Some(days) = days {
-            req = req.query(&[("days", days)]);
-        }
-
-        req.ok().await
+        self.client
+            .get("/api/user/activity/prompt-daily")
+            .query_if_some("days", days)
+            .ok()
+            .await
     }
 
     /// Returns daily prompt activity for a user by slug.
@@ -263,16 +262,17 @@ impl UserApi {
         slug: impl AsRef<str>,
         days: Option<i32>,
     ) -> Result<PromptDailyActivity, Error> {
-        let mut req = self.client.get(format!(
-            "/api/user/activity/prompt-daily/slug/{}",
-            slug.as_ref()
-        ));
-        if let Some(days) = days {
-            req = req.query(&[("days", days)]);
-        }
-
-        req.no_auth().ok().await
+        self.client
+            .get(format!(
+                "/api/user/activity/prompt-daily/slug/{}",
+                slug.as_ref()
+            ))
+            .query_if_some("days", days)
+            .no_auth()
+            .ok()
+            .await
     }
+    
 
     /// Returns daily prompt activity for a user by ID.
     pub async fn prompt_daily_activity_by_user(
@@ -280,13 +280,11 @@ impl UserApi {
         user_id: i64,
         days: Option<i32>,
     ) -> Result<PromptDailyActivity, Error> {
-        let mut req = self
-            .client
-            .get(format!("/api/user/activity/prompt-daily/user/{user_id}"));
-        if let Some(days) = days {
-            req = req.query(&[("days", days)]);
-        }
-
-        req.no_auth().ok().await
+        self.client
+            .get(format!("/api/user/activity/prompt-daily/user/{user_id}"))
+            .query_if_some("days", days)
+            .no_auth()
+            .ok()
+            .await
     }
 }
