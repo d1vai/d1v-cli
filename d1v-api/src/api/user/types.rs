@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
@@ -58,18 +59,13 @@ impl Display for User {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateUser {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_company: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub company_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub company_website: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub picture: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub industry: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub referral_code: Option<String>,
 }
