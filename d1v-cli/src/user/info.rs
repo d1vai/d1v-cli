@@ -2,8 +2,8 @@ use anyhow::Result;
 use d1v_api::UpdateUser;
 
 use super::{GetArgs, UpdateArgs};
-use crate::Context;
 use crate::t;
+use crate::Context;
 
 impl From<UpdateArgs> for UpdateUser {
     fn from(args: UpdateArgs) -> Self {
@@ -40,8 +40,5 @@ pub async fn get(ctx: &Context, target: GetArgs) -> Result<()> {
 
 pub async fn list(ctx: &Context) -> Result<()> {
     let users = ctx.client.user().all_users().await?;
-    for user in &users {
-        ctx.print(user)?;
-    }
-    Ok(())
+    ctx.print_list(&users)
 }

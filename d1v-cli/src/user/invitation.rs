@@ -11,10 +11,5 @@ pub async fn accept(ctx: &Context, invite_code: &str) -> Result<()> {
 
 pub async fn list(ctx: &Context) -> Result<()> {
     let invitees = ctx.client.user().list_invitees().await?;
-
-    for user in &invitees {
-        ctx.print(user)?;
-    }
-
-    Ok(())
+    ctx.print_list(&invitees)
 }
