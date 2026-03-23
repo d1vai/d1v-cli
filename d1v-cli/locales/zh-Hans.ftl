@@ -47,3 +47,7 @@ password-reset-success = 密码重置成功。
 email-code-sent = 验证码已发送至 { $email }。
 email-bind-success = 邮箱绑定成功。
 email-change-success = 邮箱更换成功。
+
+## 邀请与引导
+invitation-accepted = 邀请已接受。
+onboard-success = 引导已标记为完成。

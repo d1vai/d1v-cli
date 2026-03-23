@@ -49,6 +49,14 @@ Run `d1v --help` for all available commands.
 | `d1v user email bind`  | Bind an email       |
 | `d1v user email change`| Change email        |
 
+### Invitation & Onboarding
+
+| Command                         | Description                 |
+| ------------------------------- | --------------------------- |
+| `d1v user invitation accept`    | Accept an invitation        |
+| `d1v user invitation list`      | List invited users          |
+| `d1v user onboard`              | Mark onboarding as complete |
+
 ### Diagnostics
 
 | Command     | Description            |

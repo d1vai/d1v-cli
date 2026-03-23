@@ -47,3 +47,7 @@ password-reset-success = Password reset successful.
 email-code-sent = Verification code sent to { $email }.
 email-bind-success = Email bound successfully.
 email-change-success = Email changed successfully.
+
+## Invitation & Onboarding
+invitation-accepted = Invitation accepted.
+onboard-success = Onboarding marked as complete.

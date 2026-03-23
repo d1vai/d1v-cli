@@ -358,7 +358,6 @@ async fn reset_password() {
     mock.assert();
 }
 
-
 #[tokio::test]
 async fn send_bind_email_code() {
     let server = MockServer::start();
@@ -473,6 +472,78 @@ async fn confirm_change_email() {
         .confirm_change_email("new@example.com", "123456")
         .await
         .unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn accept_invitation() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/invitation/accept")
+            .header("content-type", "application/json")
+            .json_body(json!({ "invite_code": "ABC123" }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client.user().accept_invitation("ABC123").await.unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn list_invitees() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/invitations")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": [user_json()] }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    let invitees = client.user().list_invitees().await.unwrap();
+    assert_eq!(invitees.len(), 1);
+    assert_eq!(invitees[0].slug, "d1v");
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn set_onboarded() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/onboarded/set")
+            .header("content-type", "application/json")
+            .json_body(json!({ "value": true }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client.user().set_onboarded(true).await.unwrap();
 
     mock.assert();
 }

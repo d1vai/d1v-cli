@@ -49,6 +49,14 @@
 | `d1v user email bind`    | 绑定邮箱   |
 | `d1v user email change`  | 更换邮箱   |
 
+### 邀请与引导
+
+| 命令                            | 描述             |
+| ------------------------------- | ---------------- |
+| `d1v user invitation accept`    | 接受邀请         |
+| `d1v user invitation list`      | 查看邀请列表     |
+| `d1v user onboard`              | 标记引导完成     |
+
 ### 诊断
 
 | 命令        | 描述         |

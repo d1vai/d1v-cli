@@ -1,11 +1,12 @@
 mod email;
 mod info;
+mod invitation;
 mod password;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::Context;
+use crate::{t, Context};
 
 #[derive(Subcommand)]
 pub enum UserCommand {
@@ -30,6 +31,13 @@ pub enum UserCommand {
         #[command(subcommand)]
         command: EmailCommand,
     },
+    /// Invitation management
+    Invitation {
+        #[command(subcommand)]
+        command: InvitationCommand,
+    },
+    /// Mark onboarding as complete
+    Onboard,
 }
 
 #[derive(Args)]
@@ -78,6 +86,17 @@ pub enum EmailCommand {
     Change,
 }
 
+#[derive(Subcommand)]
+pub enum InvitationCommand {
+    /// Accept an invitation
+    Accept {
+        /// Invitation code
+        invite_code: String,
+    },
+    /// List invited users
+    List,
+}
+
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,
@@ -92,5 +111,16 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
             EmailCommand::Bind => email::bind(ctx).await,
             EmailCommand::Change => email::change(ctx).await,
         },
+        UserCommand::Invitation { command } => match command {
+            InvitationCommand::Accept { invite_code } => {
+                invitation::accept(ctx, &invite_code).await
+            }
+            InvitationCommand::List => invitation::list(ctx).await,
+        },
+        UserCommand::Onboard => {
+            ctx.client.user().set_onboarded(true).await?;
+            ctx.message(t!("onboard-success"));
+            Ok(())
+        }
     }
 }

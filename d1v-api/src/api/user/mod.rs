@@ -180,10 +180,7 @@ impl UserApi {
     }
 
     /// Sends a verification code to change email.
-    pub async fn send_change_email_code(
-        &self,
-        new_email: impl AsRef<str>,
-    ) -> Result<(), Error> {
+    pub async fn send_change_email_code(&self, new_email: impl AsRef<str>) -> Result<(), Error> {
         self.client
             .post("/api/user/email/change/send")
             .json(&json!({ "new_email": new_email.as_ref() }))
@@ -203,6 +200,29 @@ impl UserApi {
                 "new_email": new_email.as_ref(),
                 "code": code.as_ref(),
             }))
+            .ok()
+            .await
+    }
+
+    /// Accepts an invitation with the given invite code.
+    pub async fn accept_invitation(&self, invite_code: impl AsRef<str>) -> Result<(), Error> {
+        self.client
+            .post("/api/user/invitation/accept")
+            .json(&json!({ "invite_code": invite_code.as_ref() }))
+            .ok()
+            .await
+    }
+
+    /// Lists users invited by the current user.
+    pub async fn list_invitees(&self) -> Result<Vec<User>, Error> {
+        self.client.get("/api/user/invitations").ok().await
+    }
+
+    /// Sets the onboarded status.
+    pub async fn set_onboarded(&self, value: bool) -> Result<(), Error> {
+        self.client
+            .post("/api/user/onboarded/set")
+            .json(&json!({ "value": value }))
             .ok()
             .await
     }
