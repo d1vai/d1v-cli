@@ -3,7 +3,8 @@ use std::io::{self, Write};
 
 use anyhow::Result;
 use clap::ValueEnum;
-use serde::Serialize;
+use serde::ser::SerializeSeq;
+use serde::{Serialize, Serializer};
 use serde_json::json;
 
 use crate::t;
@@ -52,12 +53,47 @@ impl Output {
         self.print_to(&mut io::stdout(), value)
     }
 
+    /// Writes a list of structured data to stdout.
+    pub fn print_list(
+        &self,
+        values: impl IntoIterator<Item = impl Display + Serialize>,
+    ) -> Result<()> {
+        self.print_list_to(&mut io::stdout(), values)
+    }
+
     /// Writes structured data to the given writer.
     pub fn print_to(&self, w: &mut impl Write, value: &(impl Display + Serialize)) -> Result<()> {
         match self.format {
             Format::Text => writeln!(w, "{value}")?,
             Format::Json => {
                 serde_json::to_writer_pretty(&mut *w, value)?;
+                writeln!(w)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes a list of structured data to the given writer.
+    pub fn print_list_to(
+        &self,
+        w: &mut impl Write,
+        values: impl IntoIterator<Item = impl Display + Serialize>,
+    ) -> Result<()> {
+        match self.format {
+            Format::Text => {
+                for value in values {
+                    writeln!(w, "{value}")?;
+                }
+            }
+            Format::Json => {
+                let mut serializer = serde_json::Serializer::pretty(&mut *w);
+                let mut seq = serializer.serialize_seq(None)?;
+
+                for value in values {
+                    seq.serialize_element(&value)?;
+                }
+
+                seq.end()?;
                 writeln!(w)?;
             }
         }
@@ -158,6 +194,48 @@ mod tests {
                   "name": "test",
                   "version": 1
                 }
+            "#}
+        );
+    }
+
+    #[test]
+    fn print_list_text() {
+        let mut buf = Vec::new();
+        Output::new(Format::Text)
+            .print_list_to(&mut buf, [sample(), sample()])
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            indoc! {"
+                name:    test
+                version: 1
+                name:    test
+                version: 1
+            "}
+        );
+    }
+
+    #[test]
+    fn print_list_json() {
+        let mut buf = Vec::new();
+        Output::new(Format::Json)
+            .print_list_to(&mut buf, [sample(), sample()])
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            indoc! {r#"
+                [
+                  {
+                    "name": "test",
+                    "version": 1
+                  },
+                  {
+                    "name": "test",
+                    "version": 1
+                  }
+                ]
             "#}
         );
     }

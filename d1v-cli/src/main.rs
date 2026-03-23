@@ -63,6 +63,14 @@ impl Context {
     pub fn print(&self, value: &(impl Display + Serialize)) -> Result<()> {
         self.output.print(value)
     }
+
+    /// Writes a list of structured data via the output formatter.
+    pub fn print_list(
+        &self,
+        values: impl IntoIterator<Item = impl Display + Serialize>,
+    ) -> Result<()> {
+        self.output.print_list(values)
+    }
 }
 
 #[derive(Parser)]
