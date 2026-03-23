@@ -165,6 +165,16 @@ impl RequestBuilder {
         }
     }
 
+    pub fn query_if_some<T>(self, key: &str, value: Option<T>) -> Self
+    where
+        T: Serialize,
+    {
+        match value {
+            Some(value) => self.query(&[(key, value)]),
+            None => self,
+        }
+    }
+
     pub fn json(self, json: &(impl Serialize + ?Sized)) -> Self {
         Self {
             inner: self.inner.map(|inner| inner.json(json)),
@@ -283,5 +293,43 @@ mod tests {
             .build()
             .unwrap();
         assert_eq!(client.inner.base_url.as_str(), "https://api.example.com/");
+    }
+
+    #[test]
+    fn query_if_some_adds() {
+        let client = Client::builder()
+            .base_url("https://api.example.com")
+            .build()
+            .unwrap();
+
+        let request = client
+            .get("/api/items")
+            .query_if_some("days", Some(7))
+            .inner
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(request.url().path(), "/api/items");
+        assert_eq!(request.url().query(), Some("days=7"));
+    }
+
+    #[test]
+    fn query_if_some_none() {
+        let client = Client::builder()
+            .base_url("https://api.example.com")
+            .build()
+            .unwrap();
+
+        let request = client
+            .get("/api/items")
+            .query_if_some("days", None::<i32>)
+            .inner
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(request.url().path(), "/api/items");
+        assert_eq!(request.url().query(), None);
     }
 }
