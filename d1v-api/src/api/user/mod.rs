@@ -83,6 +83,23 @@ impl UserApi {
             .await
     }
 
+    /// Logs in with email and password, returns a token.
+    pub async fn password_login(
+        &self,
+        email: impl AsRef<str>,
+        password: &SecretString,
+    ) -> Result<SecretString, Error> {
+        self.client
+            .post("/api/user/password/login")
+            .json(&json!({
+                "email": email.as_ref(),
+                "password": password.expose_secret(),
+            }))
+            .no_auth()
+            .ok()
+            .await
+    }
+
     /// Returns the current user's info.
     pub async fn info(&self) -> Result<User, Error> {
         self.client.get("/api/user/info").ok().await

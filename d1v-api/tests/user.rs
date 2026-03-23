@@ -154,6 +154,36 @@ async fn login_password_wrong() {
     mock.assert();
 }
 
+#[tokio::test]
+async fn password_login() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/password/login")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "email": "test@example.com",
+                "password": "secret123"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": "token123"}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .build()
+        .unwrap();
+    let token = client
+        .user()
+        .password_login("test@example.com", &SecretString::from("secret123"))
+        .await
+        .unwrap();
+    assert_eq!(token.expose_secret(), "token123");
+
+    mock.assert();
+}
+
 fn user_json() -> serde_json::Value {
     json!({
         "id": 1,
