@@ -66,9 +66,11 @@ async fn authenticate_code(ctx: &Context, email: &str) -> Result<SecretString> {
 }
 
 async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretString> {
-    let password = inquire::Password::new(&t!("auth-password-prompt"))
-        .without_confirmation()
-        .prompt()?;
+    let password = SecretString::from(
+        inquire::Password::new(&t!("auth-password-prompt"))
+            .without_confirmation()
+            .prompt()?,
+    );
 
     debug!("logging in with password");
     Ok(ctx.client.user().login_password(email, &password).await?)

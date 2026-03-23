@@ -3,7 +3,7 @@ mod common;
 use crate::common::test_client;
 use d1v_api::{Client, UpdateUser};
 use httpmock::prelude::*;
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
 
 #[tokio::test]
@@ -125,7 +125,7 @@ async fn login_password() {
     let client = test_client(&server);
     let token = client
         .user()
-        .login_password("test@example.com", "123456")
+        .login_password("test@example.com", &SecretString::from("123456"))
         .await
         .unwrap();
     assert_eq!(token.expose_secret(), "abc123");
@@ -146,7 +146,7 @@ async fn login_password_wrong() {
     let client = test_client(&server);
     let err = client
         .user()
-        .login_password("test@example.com", "wrong")
+        .login_password("test@example.com", &SecretString::from("wrong"))
         .await
         .unwrap_err();
     assert_eq!(err.to_string(), "api error 1: password is incorrect");
@@ -293,7 +293,11 @@ async fn set_password() {
         .token("token123")
         .build()
         .unwrap();
-    client.user().set_password("password123").await.unwrap();
+    client
+        .user()
+        .set_password(&SecretString::from("password123"))
+        .await
+        .unwrap();
 
     mock.assert();
 }
@@ -343,7 +347,11 @@ async fn reset_password() {
     let client = test_client(&server);
     client
         .user()
-        .reset_password("test@example.com", "123456", "password123")
+        .reset_password(
+            "test@example.com",
+            "123456",
+            &SecretString::from("password123"),
+        )
         .await
         .unwrap();
 

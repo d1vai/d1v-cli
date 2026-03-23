@@ -2,7 +2,7 @@ mod types;
 
 pub use types::{UpdateUser, User};
 
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
 
 use crate::{Client, Error};
@@ -70,13 +70,13 @@ impl UserApi {
     pub async fn login_password(
         &self,
         email: impl AsRef<str>,
-        password: impl AsRef<str>,
+        password: &SecretString,
     ) -> Result<SecretString, Error> {
         self.client
             .post("/api/user/login/password")
             .json(&json!({
                 "email": email.as_ref(),
-                "password": password.as_ref(),
+                "password": password.expose_secret(),
             }))
             .no_auth()
             .ok()
@@ -117,10 +117,10 @@ impl UserApi {
     }
 
     /// Sets a password for the current user.
-    pub async fn set_password(&self, password: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn set_password(&self, password: &SecretString) -> Result<(), Error> {
         self.client
             .post("/api/user/password/set")
-            .json(&json!({ "password": password.as_ref() }))
+            .json(&json!({ "password": password.expose_secret() }))
             .ok()
             .await
     }
@@ -140,14 +140,14 @@ impl UserApi {
         &self,
         email: impl AsRef<str>,
         code: impl AsRef<str>,
-        new_password: impl AsRef<str>,
+        new_password: &SecretString,
     ) -> Result<(), Error> {
         self.client
             .post("/api/user/password/reset")
             .json(&json!({
                 "email": email.as_ref(),
                 "code": code.as_ref(),
-                "new_password": new_password.as_ref(),
+                "new_password": new_password.expose_secret(),
             }))
             .no_auth()
             .ok()
