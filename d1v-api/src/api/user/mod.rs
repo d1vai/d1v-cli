@@ -153,4 +153,57 @@ impl UserApi {
             .ok()
             .await
     }
+
+    /// Sends a verification code to bind an email.
+    pub async fn send_bind_email_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
+        self.client
+            .post("/api/user/bind-email/send")
+            .json(&json!({ "email": email.as_ref() }))
+            .ok()
+            .await
+    }
+
+    /// Confirms binding an email with a verification code.
+    pub async fn confirm_bind_email(
+        &self,
+        email: impl AsRef<str>,
+        code: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        self.client
+            .post("/api/user/bind-email/confirm")
+            .json(&json!({
+                "email": email.as_ref(),
+                "code": code.as_ref(),
+            }))
+            .ok()
+            .await
+    }
+
+    /// Sends a verification code to change email.
+    pub async fn send_change_email_code(
+        &self,
+        new_email: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        self.client
+            .post("/api/user/email/change/send")
+            .json(&json!({ "new_email": new_email.as_ref() }))
+            .ok()
+            .await
+    }
+
+    /// Confirms changing email with a verification code.
+    pub async fn confirm_change_email(
+        &self,
+        new_email: impl AsRef<str>,
+        code: impl AsRef<str>,
+    ) -> Result<(), Error> {
+        self.client
+            .post("/api/user/email/change/confirm")
+            .json(&json!({
+                "new_email": new_email.as_ref(),
+                "code": code.as_ref(),
+            }))
+            .ok()
+            .await
+    }
 }

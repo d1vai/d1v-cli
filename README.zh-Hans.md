@@ -42,6 +42,13 @@
 | `d1v user password set`   | 设置密码           |
 | `d1v user password reset` | 重置密码           |
 
+### 邮箱
+
+| 命令                     | 描述       |
+| ------------------------ | ---------- |
+| `d1v user email bind`    | 绑定邮箱   |
+| `d1v user email change`  | 更换邮箱   |
+
 ### 诊断
 
 | 命令        | 描述         |

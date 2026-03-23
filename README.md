@@ -42,6 +42,13 @@ Run `d1v --help` for all available commands.
 | `d1v user password set`   | Set a password                |
 | `d1v user password reset` | Reset password                |
 
+### Email
+
+| Command                | Description         |
+| ---------------------- | ------------------- |
+| `d1v user email bind`  | Bind an email       |
+| `d1v user email change`| Change email        |
+
 ### Diagnostics
 
 | Command     | Description            |

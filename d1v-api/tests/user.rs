@@ -357,3 +357,122 @@ async fn reset_password() {
 
     mock.assert();
 }
+
+
+#[tokio::test]
+async fn send_bind_email_code() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/bind-email/send")
+            .header("content-type", "application/json")
+            .json_body(json!({ "email": "new@example.com" }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client
+        .user()
+        .send_bind_email_code("new@example.com")
+        .await
+        .unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn confirm_bind_email() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/bind-email/confirm")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "email": "new@example.com",
+                "code": "123456",
+            }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client
+        .user()
+        .confirm_bind_email("new@example.com", "123456")
+        .await
+        .unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn send_change_email_code() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/email/change/send")
+            .header("content-type", "application/json")
+            .json_body(json!({ "new_email": "new@example.com" }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client
+        .user()
+        .send_change_email_code("new@example.com")
+        .await
+        .unwrap();
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn confirm_change_email() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/email/change/confirm")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "new_email": "new@example.com",
+                "code": "123456",
+            }))
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success", "data": null}"#);
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    client
+        .user()
+        .confirm_change_email("new@example.com", "123456")
+        .await
+        .unwrap();
+
+    mock.assert();
+}

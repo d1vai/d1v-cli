@@ -42,3 +42,8 @@ password-new-prompt = New password:
 password-set-success = Password set.
 password-forgot-sent = Password reset email sent to { $email }.
 password-reset-success = Password reset successful.
+
+## Email
+email-code-sent = Verification code sent to { $email }.
+email-bind-success = Email bound successfully.
+email-change-success = Email changed successfully.

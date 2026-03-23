@@ -1,3 +1,4 @@
+mod email;
 mod info;
 mod password;
 
@@ -23,6 +24,11 @@ pub enum UserCommand {
     Password {
         #[command(subcommand)]
         command: PasswordCommand,
+    },
+    /// Email management
+    Email {
+        #[command(subcommand)]
+        command: EmailCommand,
     },
 }
 
@@ -64,6 +70,14 @@ pub enum PasswordCommand {
     Reset,
 }
 
+#[derive(Subcommand)]
+pub enum EmailCommand {
+    /// Bind an email address
+    Bind,
+    /// Change email address
+    Change,
+}
+
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,
@@ -73,6 +87,10 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
         UserCommand::Password { command } => match command {
             PasswordCommand::Set => password::set(ctx).await,
             PasswordCommand::Reset => password::reset(ctx).await,
+        },
+        UserCommand::Email { command } => match command {
+            EmailCommand::Bind => email::bind(ctx).await,
+            EmailCommand::Change => email::change(ctx).await,
         },
     }
 }
