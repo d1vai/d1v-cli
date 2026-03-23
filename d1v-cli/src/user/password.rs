@@ -1,9 +1,7 @@
 use anyhow::Result;
-use inquire::Text;
 use secrecy::SecretString;
 
-use crate::t;
-use crate::Context;
+use crate::{prompt, t, Context};
 
 pub async fn set(ctx: &Context) -> Result<()> {
     let password = SecretString::from(
@@ -19,26 +17,12 @@ pub async fn set(ctx: &Context) -> Result<()> {
 }
 
 pub async fn reset(ctx: &Context) -> Result<()> {
-    let email = Text::new(&t!("auth-email-prompt"))
-        .with_validator(|input: &str| {
-            let valid = input
-                .split_once('@')
-                .is_some_and(|(user, domain)| !user.is_empty() && domain.contains('.'));
-
-            if valid {
-                Ok(inquire::validator::Validation::Valid)
-            } else {
-                Ok(inquire::validator::Validation::Invalid(
-                    t!("auth-email-invalid").into(),
-                ))
-            }
-        })
-        .prompt()?;
+    let email = prompt::email()?;
 
     ctx.client.user().send_forgot_password_email(&email).await?;
     ctx.message(t!("password-forgot-sent", email = email));
 
-    let code = Text::new(&t!("auth-code-prompt")).prompt()?;
+    let code = prompt::code()?;
     let new_password = SecretString::from(
         inquire::Password::new(&t!("password-new-prompt"))
             .with_display_mode(inquire::PasswordDisplayMode::Masked)

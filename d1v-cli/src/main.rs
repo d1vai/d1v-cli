@@ -4,6 +4,7 @@ mod debug;
 mod i18n;
 mod logging;
 mod output;
+mod prompt;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
