@@ -22,6 +22,12 @@ debug-token-missing = ✗
 
 ## Output
 error-prefix = Error: { $message }
+hint-prefix = Hint: { $message }
+
+## CLI Errors
+error-not-logged-in = not logged in
+hint-not-logged-in = Run `d1v auth login` to authenticate.
+cancelled = Cancelled.
 
 ## Token
 error-no-token-store = no writable token store available

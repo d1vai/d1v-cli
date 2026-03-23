@@ -488,6 +488,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sys-locale",
+ "thiserror 2.0.18",
  "tokio",
  "toml",
  "tracing",

@@ -22,6 +22,12 @@ debug-token-missing = ✗
 
 ## 输出
 error-prefix = 错误：{ $message }
+hint-prefix = 提示：{ $message }
+
+## CLI 错误
+error-not-logged-in = 未登录
+hint-not-logged-in = 请运行 `d1v auth login` 进行认证。
+cancelled = 已取消。
 
 ## 令牌
 error-no-token-store = 没有可用的令牌存储

@@ -82,6 +82,19 @@ impl Output {
             }
         }
     }
+
+    pub fn hint(&self, message: &str) {
+        if let Err(write_err) = self.hint_to(&mut io::stderr(), message) {
+            tracing::warn!(%write_err, "failed to write hint");
+        }
+    }
+
+    pub fn hint_to(&self, w: &mut impl Write, message: &str) -> io::Result<()> {
+        match self.format {
+            Format::Text => writeln!(w, "{}", t!("hint-prefix", message = message)),
+            Format::Json => Ok(()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -174,5 +187,28 @@ mod tests {
                 }
             "#}
         );
+    }
+
+    #[test]
+    fn hint_text() {
+        let mut buf = Vec::new();
+        Output::new(Format::Text)
+            .hint_to(&mut buf, "Run `d1v auth login` to authenticate.")
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "Hint: Run `d1v auth login` to authenticate.\n"
+        );
+    }
+
+    #[test]
+    fn hint_json_is_silent() {
+        let mut buf = Vec::new();
+        Output::new(Format::Json)
+            .hint_to(&mut buf, "some hint")
+            .unwrap();
+
+        assert!(buf.is_empty());
     }
 }

@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod debug;
+mod error;
 mod i18n;
 mod logging;
 mod output;
@@ -11,6 +12,7 @@ mod token;
 mod user;
 
 use std::fmt::Display;
+use std::process::exit;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -20,6 +22,7 @@ use serde::Serialize;
 use tracing::{error, info};
 
 use crate::config::Config;
+use crate::error::CliError;
 use crate::output::{Format, Output};
 use crate::token::{TokenChain, TokenLoader};
 
@@ -155,8 +158,31 @@ async fn main() {
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 
     if let Err(err) = run(cli).await {
-        error!(%err, "fatal error");
-        output.error(&err);
-        std::process::exit(1);
+        handle_error(&output, err);
+    }
+}
+
+fn handle_error(output: &Output, err: anyhow::Error) -> ! {
+    match err.downcast_ref::<CliError>() {
+        Some(CliError::Cancelled) => {
+            output.message(t!("cancelled"));
+            exit(CliError::Cancelled.exit_code());
+        }
+        Some(cli_err) => {
+            error!(%err, "fatal error");
+            output.error(&err);
+
+            if let Some(hint) = cli_err.hint() {
+                output.hint(&hint);
+            }
+
+            exit(cli_err.exit_code());
+        }
+        None => {
+            error!(%err, "fatal error");
+            output.error(&err);
+
+            exit(1);
+        }
     }
 }
