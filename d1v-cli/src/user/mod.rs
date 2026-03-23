@@ -117,6 +117,19 @@ pub enum ActivityTarget {
     Slug { slug: String },
 }
 
+impl UserCommand {
+    pub fn requires_auth(&self) -> bool {
+        match self {
+            Self::Get { .. } => false,
+            Self::Password {
+                command: PasswordCommand::Reset,
+            } => false,
+            Self::Activity(args) => args.target.is_none(),
+            _ => true,
+        }
+    }
+}
+
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,

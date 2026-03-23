@@ -105,6 +105,15 @@ enum Command {
     Debug,
 }
 
+impl Command {
+    fn requires_auth(&self) -> bool {
+        match self {
+            Command::Auth { .. } | Command::Debug => false,
+            Command::User { command } => command.requires_auth(),
+        }
+    }
+}
+
 #[derive(Subcommand)]
 enum AuthCommand {
     /// Log in with email and verification code
@@ -125,6 +134,10 @@ async fn run(cli: Cli) -> Result<()> {
         .transpose()?;
 
     let ctx = Context::new(cli.format)?;
+
+    if cli.command.requires_auth() && ctx.tokens.load()?.is_none() {
+        return Err(CliError::NotLoggedIn.into());
+    }
 
     match cli.command {
         Command::Auth { command } => match command {
