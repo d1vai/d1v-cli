@@ -7,6 +7,7 @@ mod output;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
+mod user;
 
 use std::fmt::Display;
 use std::time::Duration;
@@ -91,6 +92,11 @@ enum Command {
         #[command(subcommand)]
         command: AuthCommand,
     },
+    /// Manage user account
+    User {
+        #[command(subcommand)]
+        command: user::UserCommand,
+    },
     /// Show debug information
     Debug,
 }
@@ -121,6 +127,7 @@ async fn run(cli: Cli) -> Result<()> {
             AuthCommand::Login { password } => auth::login(&ctx, password).await,
             AuthCommand::Logout => auth::logout(&ctx).await,
         },
+        Command::User { command } => user::run(&ctx, command).await,
         Command::Debug => debug::run(&ctx),
     }
 }

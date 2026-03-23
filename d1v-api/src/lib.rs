@@ -11,6 +11,8 @@ pub use crate::error::{Error, HttpStatusError, Location, ValidationDetail, Valid
 pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 
+pub use crate::api::user::{UpdateUser, User};
+
 #[cfg(feature = "record")]
 pub use crate::record::{set_recorder, Recorder, RecorderGuard, SetRecorderError};
 

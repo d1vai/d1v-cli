@@ -1,3 +1,7 @@
+mod types;
+
+pub use types::{UpdateUser, User};
+
 use secrecy::SecretString;
 use serde_json::json;
 
@@ -77,5 +81,38 @@ impl UserApi {
             .no_auth()
             .ok()
             .await
+    }
+
+    /// Returns the current user's info.
+    pub async fn info(&self) -> Result<User, Error> {
+        self.client.get("/api/user/info").ok().await
+    }
+
+    /// Updates the current user's info.
+    pub async fn update_info(&self, update: &UpdateUser) -> Result<User, Error> {
+        self.client.put("/api/user/info").json(update).ok().await
+    }
+
+    /// Returns a public user by ID.
+    pub async fn public_user(&self, user_id: i64) -> Result<User, Error> {
+        self.client
+            .get(format!("/api/user/public/{user_id}"))
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    /// Returns a public user by slug.
+    pub async fn public_user_by_slug(&self, slug: impl AsRef<str>) -> Result<User, Error> {
+        self.client
+            .get(format!("/api/user/public/slug/{}", slug.as_ref()))
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    /// Returns all users.
+    pub async fn all_users(&self) -> Result<Vec<User>, Error> {
+        self.client.get("/api/user/all").ok().await
     }
 }

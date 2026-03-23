@@ -26,6 +26,15 @@ Run `d1v --help` for all available commands.
 | `d1v auth login`  | Log in      |
 | `d1v auth logout` | Log out     |
 
+### User
+
+| Command           | Description              |
+| ----------------- | ------------------------ |
+| `d1v user info`   | Show current user info   |
+| `d1v user update` | Update user info         |
+| `d1v user get`    | Get a public user        |
+| `d1v user list`   | List all users           |
+
 ### Diagnostics
 
 | Command     | Description            |

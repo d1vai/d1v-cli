@@ -33,3 +33,6 @@ error-no-home-dir = 无法确定主目录
 error-read-config = 读取配置文件失败
 error-parse-config = 解析配置文件失败
 error-serialize-config = 序列化配置失败
+
+## 用户
+user-info-updated = 用户信息已更新。
