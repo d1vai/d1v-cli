@@ -65,10 +65,7 @@ impl Output {
     pub fn print_to(&self, w: &mut impl Write, value: &(impl Display + Serialize)) -> Result<()> {
         match self.format {
             Format::Text => writeln!(w, "{value}")?,
-            Format::Json => {
-                serde_json::to_writer_pretty(&mut *w, value)?;
-                writeln!(w)?;
-            }
+            Format::Json => Self::write_json(w, value)?,
         }
         Ok(())
     }
@@ -85,17 +82,7 @@ impl Output {
                     writeln!(w, "{value}")?;
                 }
             }
-            Format::Json => {
-                let mut serializer = serde_json::Serializer::pretty(&mut *w);
-                let mut seq = serializer.serialize_seq(None)?;
-
-                for value in values {
-                    seq.serialize_element(&value)?;
-                }
-
-                seq.end()?;
-                writeln!(w)?;
-            }
+            Format::Json => Self::write_json_seq(w, values)?,
         }
         Ok(())
     }
@@ -111,11 +98,7 @@ impl Output {
     pub fn error_to(&self, w: &mut impl Write, err: &anyhow::Error) -> io::Result<()> {
         match self.format {
             Format::Text => writeln!(w, "{}", t!("error-prefix", message = format!("{err:#}"))),
-            Format::Json => {
-                serde_json::to_writer_pretty(&mut *w, &json!({ "error": format!("{err:#}") }))
-                    .map_err(io::Error::other)?;
-                writeln!(w)
-            }
+            Format::Json => Self::write_json(w, &json!({ "error": format!("{err:#}") })),
         }
     }
 
@@ -130,6 +113,26 @@ impl Output {
             Format::Text => writeln!(w, "{}", t!("hint-prefix", message = message)),
             Format::Json => Ok(()),
         }
+    }
+
+    fn write_json(w: &mut impl Write, value: &(impl Serialize + ?Sized)) -> io::Result<()> {
+        serde_json::to_writer_pretty(&mut *w, value).map_err(io::Error::other)?;
+        writeln!(w)
+    }
+
+    fn write_json_seq(
+        w: &mut impl Write,
+        values: impl IntoIterator<Item = impl Serialize>,
+    ) -> io::Result<()> {
+        let mut serializer = serde_json::Serializer::pretty(&mut *w);
+        let mut seq = serializer.serialize_seq(None).map_err(io::Error::other)?;
+
+        for value in values {
+            seq.serialize_element(&value).map_err(io::Error::other)?;
+        }
+
+        seq.end().map_err(io::Error::other)?;
+        writeln!(w)
     }
 }
 
