@@ -19,6 +19,13 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 Run `d1v --help` for all available commands.
 
+### Global Options
+
+| Option     | Description                | Default         |
+| ---------- | -------------------------- | --------------- |
+| `--format` | Output format (text, json) | text            |
+| `--lang`   | Display language           | System / Config |
+
 ### Authentication
 
 | Command           | Description |
