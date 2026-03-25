@@ -28,40 +28,40 @@ Run `d1v --help` for all available commands.
 
 ### User
 
-| Command           | Description              |
-| ----------------- | ------------------------ |
-| `d1v user info`   | Show current user info   |
-| `d1v user update` | Update user info         |
-| `d1v user get`    | Get a public user        |
-| `d1v user list`   | List all users           |
+| Command           | Description            |
+| ----------------- | ---------------------- |
+| `d1v user info`   | Show current user info |
+| `d1v user update` | Update user info       |
+| `d1v user get`    | Get a public user      |
+| `d1v user list`   | List all users         |
 
 ### Password
 
-| Command                | Description                      |
-| ---------------------- | -------------------------------- |
-| `d1v user password set`   | Set a password                |
-| `d1v user password reset` | Reset password                |
+| Command                   | Description    |
+| ------------------------- | -------------- |
+| `d1v user password set`   | Set a password |
+| `d1v user password reset` | Reset password |
 
 ### Email
 
-| Command                | Description         |
-| ---------------------- | ------------------- |
-| `d1v user email bind`  | Bind an email       |
-| `d1v user email change`| Change email        |
+| Command                 | Description   |
+| ----------------------- | ------------- |
+| `d1v user email bind`   | Bind an email |
+| `d1v user email change` | Change email  |
 
 ### Invitation & Onboarding
 
-| Command                         | Description                 |
-| ------------------------------- | --------------------------- |
-| `d1v user invitation accept`    | Accept an invitation        |
-| `d1v user invitation list`      | List invited users          |
-| `d1v user onboard`              | Mark onboarding as complete |
+| Command                      | Description                 |
+| ---------------------------- | --------------------------- |
+| `d1v user invitation accept` | Accept an invitation        |
+| `d1v user invitation list`   | List invited users          |
+| `d1v user onboard`           | Mark onboarding as complete |
 
 ### Activity
 
-| Command              | Description                |
-| -------------------- | -------------------------- |
-| `d1v user activity`  | View prompt daily activity |
+| Command             | Description                |
+| ------------------- | -------------------------- |
+| `d1v user activity` | View prompt daily activity |
 
 ### Diagnostics
 

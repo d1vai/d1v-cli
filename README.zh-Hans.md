@@ -37,31 +37,31 @@
 
 ### 密码
 
-| 命令                      | 描述               |
-| ------------------------- | ------------------ |
-| `d1v user password set`   | 设置密码           |
-| `d1v user password reset` | 重置密码           |
+| 命令                      | 描述     |
+| ------------------------- | -------- |
+| `d1v user password set`   | 设置密码 |
+| `d1v user password reset` | 重置密码 |
 
 ### 邮箱
 
-| 命令                     | 描述       |
-| ------------------------ | ---------- |
-| `d1v user email bind`    | 绑定邮箱   |
-| `d1v user email change`  | 更换邮箱   |
+| 命令                    | 描述     |
+| ----------------------- | -------- |
+| `d1v user email bind`   | 绑定邮箱 |
+| `d1v user email change` | 更换邮箱 |
 
 ### 邀请与引导
 
-| 命令                            | 描述             |
-| ------------------------------- | ---------------- |
-| `d1v user invitation accept`    | 接受邀请         |
-| `d1v user invitation list`      | 查看邀请列表     |
-| `d1v user onboard`              | 标记引导完成     |
+| 命令                         | 描述         |
+| ---------------------------- | ------------ |
+| `d1v user invitation accept` | 接受邀请     |
+| `d1v user invitation list`   | 查看邀请列表 |
+| `d1v user onboard`           | 标记引导完成 |
 
 ### 活动统计
 
-| 命令                 | 描述             |
-| -------------------- | ---------------- |
-| `d1v user activity`  | 查看每日活动统计 |
+| 命令                | 描述             |
+| ------------------- | ---------------- |
+| `d1v user activity` | 查看每日活动统计 |
 
 ### 诊断
 
