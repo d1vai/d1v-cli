@@ -12,7 +12,7 @@ mod token;
 mod user;
 
 use std::fmt::Display;
-use std::process::exit;
+use std::process::ExitCode;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -169,7 +169,7 @@ fn locale_sources(cli_lang: Option<&str>) -> impl Iterator<Item = String> {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     let mut cli = Cli::parse();
     let _log = logging::init(cli.log_file.take()).ok();
     i18n::init(locale_sources(cli.lang.as_deref()));
@@ -178,15 +178,16 @@ async fn main() {
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 
-    if let Err(err) = run(cli).await {
-        handle_error(&output, err);
+    match run(cli).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => handle_error(&output, err),
     }
 }
 
-fn handle_error(output: &Output, err: anyhow::Error) -> ! {
+fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
     if is_cancelled(&err) {
         output.message(t!("cancelled"));
-        exit(CliError::Cancelled.exit_code());
+        return CliError::Cancelled.exit_code();
     }
 
     match err.downcast_ref::<CliError>() {
@@ -198,13 +199,13 @@ fn handle_error(output: &Output, err: anyhow::Error) -> ! {
                 output.hint(&hint);
             }
 
-            exit(cli_err.exit_code());
+            cli_err.exit_code()
         }
         None => {
             error!(%err, "fatal error");
             output.error(&err);
 
-            exit(1);
+            ExitCode::FAILURE
         }
     }
 }

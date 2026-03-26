@@ -1,4 +1,5 @@
 use crate::t;
+use std::process::ExitCode;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,10 +14,10 @@ pub enum CliError {
 }
 
 impl CliError {
-    pub fn exit_code(&self) -> i32 {
+    pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::NotLoggedIn => 4,
-            Self::Cancelled => 2,
+            Self::NotLoggedIn => ExitCode::from(4),
+            Self::Cancelled => ExitCode::from(2),
         }
     }
 
