@@ -184,11 +184,12 @@ async fn main() {
 }
 
 fn handle_error(output: &Output, err: anyhow::Error) -> ! {
+    if is_cancelled(&err) {
+        output.message(t!("cancelled"));
+        exit(CliError::Cancelled.exit_code());
+    }
+
     match err.downcast_ref::<CliError>() {
-        Some(CliError::Cancelled) => {
-            output.message(t!("cancelled"));
-            exit(CliError::Cancelled.exit_code());
-        }
         Some(cli_err) => {
             error!(%err, "fatal error");
             output.error(&err);
@@ -206,4 +207,23 @@ fn handle_error(output: &Output, err: anyhow::Error) -> ! {
             exit(1);
         }
     }
+}
+
+/// Checks if the error is a user-initiated cancellation.
+fn is_cancelled(err: &anyhow::Error) -> bool {
+    if err
+        .downcast_ref::<CliError>()
+        .is_some_and(|e| matches!(e, CliError::Cancelled))
+    {
+        return true;
+    }
+
+    err.downcast_ref::<inquire::InquireError>()
+        .is_some_and(|e| {
+            matches!(
+                e,
+                inquire::InquireError::OperationCanceled
+                    | inquire::InquireError::OperationInterrupted
+            )
+        })
 }
