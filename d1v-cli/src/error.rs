@@ -5,7 +5,7 @@ use thiserror::Error;
 use tracing::error;
 
 #[derive(Debug, Error)]
-pub enum CliError {
+pub enum Error {
     /// Not logged in.
     #[error("{}", t!("error-not-logged-in"))]
     NotLoggedIn,
@@ -15,7 +15,7 @@ pub enum CliError {
     Cancelled,
 }
 
-impl CliError {
+impl Error {
     const EXIT_NOT_LOGGED_IN: u8 = 4;
     const EXIT_CANCELLED: u8 = 2;
 
@@ -37,13 +37,13 @@ impl CliError {
 pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
     if is_cancelled(&err) {
         output.message(t!("cancelled"));
-        return CliError::Cancelled.exit_code();
+        return Error::Cancelled.exit_code();
     }
 
     error!(%err, "fatal error");
     output.error(&err);
 
-    match err.downcast_ref::<CliError>() {
+    match err.downcast_ref::<Error>() {
         Some(cli_err) => {
             if let Some(hint) = cli_err.hint() {
                 output.hint(&hint);
@@ -57,8 +57,8 @@ pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
 /// Checks if the error is a user-initiated cancellation.
 fn is_cancelled(err: &anyhow::Error) -> bool {
     if err
-        .downcast_ref::<CliError>()
-        .is_some_and(|e| matches!(e, CliError::Cancelled))
+        .downcast_ref::<Error>()
+        .is_some_and(|e| matches!(e, Error::Cancelled))
     {
         return true;
     }

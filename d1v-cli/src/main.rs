@@ -22,7 +22,7 @@ use serde::Serialize;
 use tracing::info;
 
 use crate::config::Config;
-use crate::error::{handle_error, CliError};
+use crate::error::{handle_error, Error};
 use crate::output::{Format, Output};
 use crate::token::{TokenChain, TokenLoader};
 
@@ -144,7 +144,7 @@ async fn run(cli: Cli) -> Result<()> {
     let ctx = Context::new(cli.format)?;
 
     if cli.command.requires_auth() && ctx.tokens.load()?.is_none() {
-        return Err(CliError::NotLoggedIn.into());
+        return Err(Error::NotLoggedIn.into());
     }
 
     match cli.command {
