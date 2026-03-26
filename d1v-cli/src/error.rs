@@ -11,15 +11,18 @@ pub enum CliError {
     NotLoggedIn,
 
     /// User canceled the operation.
-    #[error("")]
+    #[error("cancelled")]
     Cancelled,
 }
 
 impl CliError {
+    const EXIT_NOT_LOGGED_IN: u8 = 4;
+    const EXIT_CANCELLED: u8 = 2;
+
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::NotLoggedIn => ExitCode::from(4),
-            Self::Cancelled => ExitCode::from(2),
+            Self::NotLoggedIn => ExitCode::from(Self::EXIT_NOT_LOGGED_IN),
+            Self::Cancelled => ExitCode::from(Self::EXIT_CANCELLED),
         }
     }
 
@@ -37,23 +40,17 @@ pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
         return CliError::Cancelled.exit_code();
     }
 
+    error!(%err, "fatal error");
+    output.error(&err);
+
     match err.downcast_ref::<CliError>() {
         Some(cli_err) => {
-            error!(%err, "fatal error");
-            output.error(&err);
-
             if let Some(hint) = cli_err.hint() {
                 output.hint(&hint);
             }
-
             cli_err.exit_code()
         }
-        None => {
-            error!(%err, "fatal error");
-            output.error(&err);
-
-            ExitCode::FAILURE
-        }
+        None => ExitCode::FAILURE,
     }
 }
 
