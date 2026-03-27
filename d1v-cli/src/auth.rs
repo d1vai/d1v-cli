@@ -2,7 +2,7 @@ use anyhow::Result;
 use secrecy::SecretString;
 use tracing::debug;
 
-use crate::token::TokenStore;
+use crate::token::{TokenLoader, TokenStore};
 use crate::{prompt, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
@@ -45,6 +45,11 @@ async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretStrin
 }
 
 pub async fn logout(ctx: &Context) -> Result<()> {
+    if ctx.tokens.load()?.is_none() {
+        ctx.message(t!("auth-not-logged-in"));
+        return Ok(());
+    }
+
     ctx.tokens.delete()?;
     debug!("logged out");
     ctx.message(t!("auth-logout-success"));

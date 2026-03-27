@@ -9,6 +9,7 @@ auth-code-invalid = please enter a 6-digit code
 auth-password-prompt = Password:
 auth-login-success = Login successful!
 auth-logout-success = Logged out.
+auth-not-logged-in = Not logged in.
 
 ## Debug
 debug-label-version = version:
