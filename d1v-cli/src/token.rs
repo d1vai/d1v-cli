@@ -87,10 +87,18 @@ impl TokenStore for KeyringProvider {
     }
 
     fn delete(&self) -> Result<()> {
-        if let Some(entry) = self.entry()
-            && let Err(err) = entry.delete_credential()
-        {
-            warn!(error = %err, "failed to delete keyring credential");
+        let Some(entry) = self.entry() else {
+            return Ok(());
+        };
+
+        match entry.delete_credential() {
+            Ok(()) => {}
+            Err(keyring::Error::NoEntry) => {
+                debug!("no keyring credential to delete");
+            }
+            Err(err) => {
+                warn!(error = %err, "failed to delete keyring credential");
+            }
         }
 
         Ok(())
