@@ -1,8 +1,9 @@
 use std::fmt::{self, Display, Formatter};
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 
 use anyhow::Result;
 use clap::ValueEnum;
+use owo_colors::{OwoColorize, Style};
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::json;
@@ -28,15 +29,65 @@ impl Display for Format {
     }
 }
 
+/// Color output preference.
+#[derive(Debug, Copy, Clone, Default, ValueEnum)]
+pub enum Color {
+    /// Enable colors when writing to a terminal
+    #[default]
+    Auto,
+    /// Always emit ANSI color codes
+    Always,
+    /// Never emit ANSI color codes
+    Never,
+}
+
+impl Color {
+    /// Resolves to a concrete boolean based on terminal capabilities.
+    pub fn resolve(self) -> bool {
+        match self {
+            Self::Always => true,
+            Self::Never => false,
+            Self::Auto => std::env::var_os("NO_COLOR").is_none() && io::stderr().is_terminal(),
+        }
+    }
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Color::Auto => write!(f, "auto"),
+            Color::Always => write!(f, "always"),
+            Color::Never => write!(f, "never"),
+        }
+    }
+}
+
 /// Structured output formatter.
 #[derive(Debug, Clone)]
 pub struct Output {
     pub format: Format,
+    pub color: bool,
 }
 
 impl Output {
-    pub fn new(format: Format) -> Self {
-        Self { format }
+    pub fn new(format: Format, color: bool) -> Self {
+        Self { format, color }
+    }
+
+    fn error_style(&self) -> Style {
+        if self.color {
+            Style::new().red().bold()
+        } else {
+            Style::new()
+        }
+    }
+
+    fn hint_style(&self) -> Style {
+        if self.color {
+            Style::new().yellow().bold()
+        } else {
+            Style::new()
+        }
     }
 
     /// Writes a status message (stdout in text mode, stderr in JSON mode).
@@ -97,7 +148,11 @@ impl Output {
     /// Writes an error to the given writer.
     pub fn error_to(&self, w: &mut impl Write, err: &anyhow::Error) -> io::Result<()> {
         match self.format {
-            Format::Text => writeln!(w, "{}", t!("error-prefix", message = format!("{err:#}"))),
+            Format::Text => {
+                let label = t!("error-label");
+                let label = label.style(self.error_style());
+                writeln!(w, "{label} {err:#}")
+            }
             Format::Json => Self::write_json(w, &json!({ "error": format!("{err:#}") })),
         }
     }
@@ -110,7 +165,11 @@ impl Output {
 
     pub fn hint_to(&self, w: &mut impl Write, message: &str) -> io::Result<()> {
         match self.format {
-            Format::Text => writeln!(w, "{}", t!("hint-prefix", message = message)),
+            Format::Text => {
+                let label = t!("hint-label");
+                let label = label.style(self.hint_style());
+                writeln!(w, "{label} {message}")
+            }
             Format::Json => Ok(()),
         }
     }
@@ -170,7 +229,7 @@ mod tests {
     #[test]
     fn print_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text)
+        Output::new(Format::Text, false)
             .print_to(&mut buf, &sample())
             .unwrap();
 
@@ -186,7 +245,7 @@ mod tests {
     #[test]
     fn print_json() {
         let mut buf = Vec::new();
-        Output::new(Format::Json)
+        Output::new(Format::Json, false)
             .print_to(&mut buf, &sample())
             .unwrap();
 
@@ -204,7 +263,7 @@ mod tests {
     #[test]
     fn print_list_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text)
+        Output::new(Format::Text, false)
             .print_list_to(&mut buf, [sample(), sample()])
             .unwrap();
 
@@ -222,7 +281,7 @@ mod tests {
     #[test]
     fn print_list_json() {
         let mut buf = Vec::new();
-        Output::new(Format::Json)
+        Output::new(Format::Json, false)
             .print_list_to(&mut buf, [sample(), sample()])
             .unwrap();
 
@@ -246,7 +305,7 @@ mod tests {
     #[test]
     fn error_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text)
+        Output::new(Format::Text, false)
             .error_to(&mut buf, &anyhow!("something broke"))
             .unwrap();
 
@@ -256,7 +315,7 @@ mod tests {
     #[test]
     fn error_json() {
         let mut buf = Vec::new();
-        Output::new(Format::Json)
+        Output::new(Format::Json, false)
             .error_to(&mut buf, &anyhow!("something broke"))
             .unwrap();
 
@@ -273,7 +332,7 @@ mod tests {
     #[test]
     fn hint_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text)
+        Output::new(Format::Text, false)
             .hint_to(&mut buf, "Run `d1v auth login` to authenticate.")
             .unwrap();
 
@@ -286,7 +345,7 @@ mod tests {
     #[test]
     fn hint_json_is_silent() {
         let mut buf = Vec::new();
-        Output::new(Format::Json)
+        Output::new(Format::Json, false)
             .hint_to(&mut buf, "some hint")
             .unwrap();
 

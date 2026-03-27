@@ -23,7 +23,7 @@ use tracing::info;
 
 use crate::config::Config;
 use crate::error::{handle_error, Error};
-use crate::output::{Format, Output};
+use crate::output::{Color, Format, Output};
 use crate::token::{TokenChain, TokenLoader};
 
 pub struct Context {
@@ -33,7 +33,7 @@ pub struct Context {
 }
 
 impl Context {
-    fn new(format: Format) -> Result<Self> {
+    fn new(format: Format, color: Color) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
@@ -50,7 +50,7 @@ impl Context {
         Ok(Self {
             client: builder.build()?,
             tokens,
-            output: Output::new(format),
+            output: Output::new(format, color.resolve()),
         })
     }
 
@@ -79,6 +79,10 @@ struct Cli {
     /// Output format
     #[arg(short, long, global = true, default_value_t, env = "D1V_FORMAT")]
     format: Format,
+
+    /// Color output
+    #[arg(long, global = true, default_value_t, env = "D1V_COLOR")]
+    color: Color,
 
     /// Language override
     #[arg(long, global = true)]
@@ -141,7 +145,7 @@ async fn run(cli: Cli) -> Result<()> {
         .map(|path| d1v_api::set_recorder(recorder::FileRecorder::new(path)))
         .transpose()?;
 
-    let ctx = Context::new(cli.format)?;
+    let ctx = Context::new(cli.format, cli.color)?;
 
     if cli.command.requires_auth() && ctx.tokens.load()?.is_none() {
         return Err(Error::NotLoggedIn.into());
@@ -174,7 +178,7 @@ async fn main() -> ExitCode {
     let _log = logging::init(cli.log_file.take()).ok();
     i18n::init(locale_sources(cli.lang.as_deref()));
 
-    let output = Output::new(cli.format);
+    let output = Output::new(cli.format, cli.color.resolve());
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 

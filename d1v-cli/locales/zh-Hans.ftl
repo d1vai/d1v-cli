@@ -21,8 +21,8 @@ debug-token-found = ✓（{ $source }）
 debug-token-missing = ✗
 
 ## 输出
-error-prefix = 错误：{ $message }
-hint-prefix = 提示：{ $message }
+error-label = 错误：
+hint-label = 提示：
 
 ## CLI 错误
 error-not-logged-in = 未登录
