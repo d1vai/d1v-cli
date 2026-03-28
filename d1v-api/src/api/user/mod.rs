@@ -22,9 +22,16 @@ impl Client {
 impl UserApi {
     /// Sends a verification code to the given email.
     pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct Query<'a> {
+            email: &'a str,
+        }
+
         self.client
             .post("/api/user/verify-code")
-            .query(&[("email", email.as_ref())])
+            .query(&Query {
+                email: email.as_ref(),
+            })
             .no_auth()
             .ok()
             .await
