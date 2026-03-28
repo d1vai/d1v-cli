@@ -1,3 +1,4 @@
+use garde::Validate;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::fmt;
@@ -60,11 +61,14 @@ impl Display for User {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
+#[garde(allow_unvalidated)]
 pub struct UpdateUser {
     pub is_company: Option<bool>,
     pub company_name: Option<String>,
+    #[garde(inner(url))]
     pub company_website: Option<String>,
+    #[garde(inner(url))]
     pub picture: Option<String>,
     pub industry: Option<String>,
     pub referral_code: Option<String>,
@@ -98,4 +102,43 @@ impl Display for PromptDailyActivity {
 pub struct DailyCount {
     pub date: String,
     pub count: i32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_user_valid_urls() {
+        let update = UpdateUser {
+            company_website: Some("https://example.com".into()),
+            picture: Some("https://cdn.example.com/pic.jpg".into()),
+            ..Default::default()
+        };
+        assert!(update.validate().is_ok());
+    }
+
+    #[test]
+    fn update_user_none_urls() {
+        let update = UpdateUser::default();
+        assert!(update.validate().is_ok());
+    }
+
+    #[test]
+    fn update_user_invalid_website() {
+        let update = UpdateUser {
+            company_website: Some("not-a-url".into()),
+            ..Default::default()
+        };
+        assert!(update.validate().is_err());
+    }
+
+    #[test]
+    fn update_user_invalid_picture() {
+        let update = UpdateUser {
+            picture: Some("not-a-url".into()),
+            ..Default::default()
+        };
+        assert!(update.validate().is_err());
+    }
 }

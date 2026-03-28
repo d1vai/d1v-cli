@@ -2,9 +2,11 @@ mod types;
 
 pub use types::{DailyCount, PromptDailyActivity, UpdateUser, User};
 
+use garde::Validate;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 
+use crate::validate::{Code, Email};
 use crate::{Client, Error};
 
 pub struct UserApi {
@@ -22,16 +24,21 @@ impl Client {
 impl UserApi {
     /// Sends a verification code to the given email.
     pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Query<'a> {
-            email: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
         }
+
+        let query = Query {
+            email: Email(email.as_ref()),
+        };
+        query.validate()?;
 
         self.client
             .post("/api/user/verify-code")
-            .query(&Query {
-                email: email.as_ref(),
-            })
+            .query(&query)
             .no_auth()
             .ok()
             .await
@@ -44,20 +51,26 @@ impl UserApi {
         code: impl AsRef<str>,
         purpose: impl AsRef<str>,
     ) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
-            code: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
+            #[garde(dive)]
+            code: Code<'a>,
             purpose: &'a str,
         }
 
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            code: Code(code.as_ref()),
+            purpose: purpose.as_ref(),
+        };
+        payload.validate()?;
+
         self.client
             .post("/api/user/verify-code/check")
-            .json(&Payload {
-                email: email.as_ref(),
-                code: code.as_ref(),
-                purpose: purpose.as_ref(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -69,18 +82,24 @@ impl UserApi {
         email: impl AsRef<str>,
         code: impl AsRef<str>,
     ) -> Result<SecretString, Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
-            verify_code: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
+            #[garde(dive)]
+            verify_code: Code<'a>,
         }
+
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            verify_code: Code(code.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/login")
-            .json(&Payload {
-                email: email.as_ref(),
-                verify_code: code.as_ref(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -92,18 +111,23 @@ impl UserApi {
         email: impl AsRef<str>,
         password: &SecretString,
     ) -> Result<SecretString, Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
             password: &'a str,
         }
 
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            password: password.expose_secret(),
+        };
+        payload.validate()?;
+
         self.client
             .post("/api/user/login/password")
-            .json(&Payload {
-                email: email.as_ref(),
-                password: password.expose_secret(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -115,18 +139,23 @@ impl UserApi {
         email: impl AsRef<str>,
         password: &SecretString,
     ) -> Result<SecretString, Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
             password: &'a str,
         }
 
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            password: password.expose_secret(),
+        };
+        payload.validate()?;
+
         self.client
             .post("/api/user/password/login")
-            .json(&Payload {
-                email: email.as_ref(),
-                password: password.expose_secret(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -139,6 +168,8 @@ impl UserApi {
 
     /// Updates the current user's info.
     pub async fn update_info(&self, update: &UpdateUser) -> Result<User, Error> {
+        update.validate()?;
+
         self.client.put("/api/user/info").json(update).ok().await
     }
 
@@ -183,16 +214,21 @@ impl UserApi {
 
     /// Sends a forgot-password email.
     pub async fn send_forgot_password_email(&self, email: impl AsRef<str>) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
         }
+
+        let payload = Payload {
+            email: Email(email.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/password/forgot/send")
-            .json(&Payload {
-                email: email.as_ref(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -205,20 +241,26 @@ impl UserApi {
         code: impl AsRef<str>,
         new_password: &SecretString,
     ) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
-            code: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
+            #[garde(dive)]
+            code: Code<'a>,
             new_password: &'a str,
         }
 
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            code: Code(code.as_ref()),
+            new_password: new_password.expose_secret(),
+        };
+        payload.validate()?;
+
         self.client
             .post("/api/user/password/reset")
-            .json(&Payload {
-                email: email.as_ref(),
-                code: code.as_ref(),
-                new_password: new_password.expose_secret(),
-            })
+            .json(&payload)
             .no_auth()
             .ok()
             .await
@@ -226,16 +268,21 @@ impl UserApi {
 
     /// Sends a verification code to bind an email.
     pub async fn send_bind_email_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
         }
+
+        let payload = Payload {
+            email: Email(email.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/bind-email/send")
-            .json(&Payload {
-                email: email.as_ref(),
-            })
+            .json(&payload)
             .ok()
             .await
     }
@@ -246,34 +293,45 @@ impl UserApi {
         email: impl AsRef<str>,
         code: impl AsRef<str>,
     ) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            email: &'a str,
-            code: &'a str,
+            #[garde(dive)]
+            email: Email<'a>,
+            #[garde(dive)]
+            code: Code<'a>,
         }
+
+        let payload = Payload {
+            email: Email(email.as_ref()),
+            code: Code(code.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/bind-email/confirm")
-            .json(&Payload {
-                email: email.as_ref(),
-                code: code.as_ref(),
-            })
+            .json(&payload)
             .ok()
             .await
     }
 
     /// Sends a verification code to change email.
     pub async fn send_change_email_code(&self, new_email: impl AsRef<str>) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            new_email: &'a str,
+            #[garde(dive)]
+            new_email: Email<'a>,
         }
+
+        let payload = Payload {
+            new_email: Email(new_email.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/email/change/send")
-            .json(&Payload {
-                new_email: new_email.as_ref(),
-            })
+            .json(&payload)
             .ok()
             .await
     }
@@ -284,18 +342,24 @@ impl UserApi {
         new_email: impl AsRef<str>,
         code: impl AsRef<str>,
     ) -> Result<(), Error> {
-        #[derive(Serialize)]
+        #[derive(Serialize, Validate)]
+        #[garde(allow_unvalidated)]
         struct Payload<'a> {
-            new_email: &'a str,
-            code: &'a str,
+            #[garde(dive)]
+            new_email: Email<'a>,
+            #[garde(dive)]
+            code: Code<'a>,
         }
+
+        let payload = Payload {
+            new_email: Email(new_email.as_ref()),
+            code: Code(code.as_ref()),
+        };
+        payload.validate()?;
 
         self.client
             .post("/api/user/email/change/confirm")
-            .json(&Payload {
-                new_email: new_email.as_ref(),
-                code: code.as_ref(),
-            })
+            .json(&payload)
             .ok()
             .await
     }
