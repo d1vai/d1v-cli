@@ -94,7 +94,7 @@ async fn login_wrong_code() {
     let client = test_client(&server);
     let err = client
         .user()
-        .login("test@example.com", "wrong")
+        .login("test@example.com", "999999")
         .await
         .unwrap_err();
     assert_eq!(
