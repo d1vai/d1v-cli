@@ -5,6 +5,7 @@ pub mod error;
 pub mod record;
 pub mod response;
 pub mod user_agent;
+mod validate;
 
 pub use crate::client::{Client, ClientBuilder, RequestBuilder};
 pub use crate::error::{Error, HttpStatusError, Location, ValidationDetail, ValidationError};
@@ -12,6 +13,8 @@ pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 
 pub use crate::api::user::{UpdateUser, User};
+pub use crate::validate::{Code, Email};
+pub use garde::Validate;
 
 #[cfg(feature = "record")]
 pub use crate::record::{set_recorder, Recorder, RecorderGuard, SetRecorderError};

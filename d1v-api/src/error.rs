@@ -18,6 +18,9 @@ pub enum Error {
     #[error(transparent)]
     Url(#[from] url::ParseError),
 
+    #[error("input validation failed:\n{0}")]
+    InputValidation(#[from] garde::Report),
+
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
 
@@ -54,6 +57,10 @@ impl Error {
 
     pub fn is_network(&self) -> bool {
         matches!(self, Error::Http(_))
+    }
+
+    pub fn is_input_validation(&self) -> bool {
+        matches!(self, Error::InputValidation(_))
     }
 
     pub fn is_timeout(&self) -> bool {
