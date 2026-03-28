@@ -46,6 +46,8 @@ user-info-updated = 用户信息已更新。
 
 ## 密码
 password-new-prompt = 新密码：
+password-confirm-prompt = 确认密码：
+password-mismatch = 密码不匹配。
 password-set-success = 密码已设置。
 password-forgot-sent = 密码重置邮件已发送至 { $email }。
 password-reset-success = 密码重置成功。
