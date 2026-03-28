@@ -18,7 +18,7 @@ pub enum Error {
     #[error(transparent)]
     Url(#[from] url::ParseError),
 
-    #[error("input validation failed:\n{0}")]
+    #[error(transparent)]
     InputValidation(#[from] garde::Report),
 
     #[error("http error: {0}")]

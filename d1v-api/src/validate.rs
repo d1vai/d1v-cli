@@ -9,7 +9,15 @@ pub struct Email<'a>(#[garde(email)] pub &'a str);
 #[derive(Debug, Copy, Clone, Serialize, Validate)]
 #[serde(transparent)]
 #[garde(transparent)]
-pub struct Code<'a>(#[garde(pattern(r"^[0-9]{6}$"))] pub &'a str);
+pub struct Code<'a>(#[garde(custom(code))] pub &'a str);
+
+fn code(value: &str, _: &()) -> garde::Result {
+    if value.len() == 6 && value.chars().all(|b| b.is_ascii_digit()) {
+        Ok(())
+    } else {
+        Err(garde::Error::new("must be a 6-digit code"))
+    }
+}
 
 #[cfg(test)]
 mod tests {
