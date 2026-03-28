@@ -1,4 +1,5 @@
 use anyhow::Result;
+use d1v_api::{Code, Email, Validate};
 use inquire::Text;
 
 use crate::t;
@@ -7,11 +8,7 @@ use crate::t;
 pub fn email() -> Result<String> {
     let email = Text::new(&t!("auth-email-prompt"))
         .with_validator(|input: &str| {
-            let valid = input
-                .split_once('@')
-                .is_some_and(|(user, domain)| !user.is_empty() && domain.contains('.'));
-
-            if valid {
+            if Email(input).validate().is_ok() {
                 Ok(inquire::validator::Validation::Valid)
             } else {
                 Ok(inquire::validator::Validation::Invalid(
@@ -28,7 +25,7 @@ pub fn email() -> Result<String> {
 pub fn code() -> Result<String> {
     let code = Text::new(&t!("auth-code-prompt"))
         .with_validator(|input: &str| {
-            if input.len() == 6 && input.chars().all(|c| c.is_ascii_digit()) {
+            if Code(input).validate().is_ok() {
                 Ok(inquire::validator::Validation::Valid)
             } else {
                 Ok(inquire::validator::Validation::Invalid(
