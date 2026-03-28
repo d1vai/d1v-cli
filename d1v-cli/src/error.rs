@@ -2,7 +2,7 @@ use crate::output::Output;
 use crate::t;
 use std::process::ExitCode;
 use thiserror::Error;
-use tracing::error;
+use tracing::{debug, error};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -40,17 +40,22 @@ pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
         return Error::Cancelled.exit_code();
     }
 
-    error!(%err, "fatal error");
     output.error(&err);
 
     match err.downcast_ref::<Error>() {
         Some(cli_err) => {
+            debug!(%err, "cli error");
+
             if let Some(hint) = cli_err.hint() {
                 output.hint(&hint);
             }
+
             cli_err.exit_code()
         }
-        None => ExitCode::FAILURE,
+        None => {
+            error!(%err, "fatal error");
+            ExitCode::FAILURE
+        }
     }
 }
 
