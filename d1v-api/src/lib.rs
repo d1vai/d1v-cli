@@ -1,6 +1,7 @@
 pub mod api;
 pub mod client;
 pub mod error;
+pub mod jwt;
 #[cfg(feature = "record")]
 pub mod record;
 pub mod response;

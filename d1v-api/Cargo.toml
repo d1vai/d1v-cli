@@ -8,6 +8,8 @@ record = ["dep:ahash"]
 
 [dependencies]
 ahash = { version = "0.8", features = ["serde"], optional = true }
+base64 = "0.22"
+jiff = { version = "0.2", features = ["serde"] }
 parking_lot = "0.12"
 os_info = "3.14"
 reqwest = { version = "0.13", features = ["json", "query"] }
