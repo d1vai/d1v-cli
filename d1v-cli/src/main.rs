@@ -147,8 +147,14 @@ async fn run(cli: Cli) -> Result<()> {
 
     let ctx = Context::new(cli.format, cli.color)?;
 
-    if cli.command.requires_auth() && ctx.tokens.load()?.is_none() {
-        return Err(Error::NotLoggedIn.into());
+    if cli.command.requires_auth() {
+        if ctx.tokens.load()?.is_none() {
+            return Err(Error::NotLoggedIn.into());
+        }
+
+        if ctx.client.is_token_expired() == Some(true) {
+            return Err(Error::TokenExpired.into());
+        }
     }
 
     match cli.command {

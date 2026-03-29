@@ -28,6 +28,27 @@ impl Display for DebugInfo {
     }
 }
 
+fn token_status(ctx: &Context) -> String {
+    let tokens = TokenChain::default();
+
+    let Some(source) = tokens.source() else {
+        return t!("debug-token-missing");
+    };
+
+    let base = t!("debug-token-found", source = source);
+
+    let Some(Ok(claims)) = ctx.client.claims() else {
+        return base;
+    };
+
+    let claims = claims.to_string();
+    if claims.is_empty() {
+        return base;
+    }
+
+    format!("{base} {claims}")
+}
+
 pub fn run(ctx: &Context) -> Result<()> {
     let ua = UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION"));
 
@@ -36,17 +57,12 @@ pub fn run(ctx: &Context) -> Result<()> {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| t!("debug-unknown"));
 
-    let token_status = match TokenChain::default().source() {
-        Some(source) => t!("debug-token-found", source = source),
-        None => t!("debug-token-missing"),
-    };
-
     let info = DebugInfo {
         version: env!("CARGO_PKG_VERSION").into(),
         user_agent: ua.to_string(),
         config: config_path,
         base_url: config.base_url,
-        token: token_status,
+        token: token_status(ctx),
     };
 
     ctx.print(&info)

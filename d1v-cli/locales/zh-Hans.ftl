@@ -28,6 +28,8 @@ hint-label = 提示:
 ## CLI 错误
 error-not-logged-in = 未登录
 hint-not-logged-in = 请运行 `d1v auth login` 进行认证。
+error-token-expired = 令牌已过期
+hint-token-expired = 请运行 `d1v auth login` 重新认证。
 cancelled = 已取消。
 
 ## 令牌

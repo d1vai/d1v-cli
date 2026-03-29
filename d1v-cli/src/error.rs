@@ -10,6 +10,10 @@ pub enum Error {
     #[error("{}", t!("error-not-logged-in"))]
     NotLoggedIn,
 
+    /// Token has expired.
+    #[error("{}", t!("error-token-expired"))]
+    TokenExpired,
+
     /// User canceled the operation.
     #[error("cancelled")]
     Cancelled,
@@ -21,7 +25,7 @@ impl Error {
 
     pub fn exit_code(&self) -> ExitCode {
         match self {
-            Self::NotLoggedIn => ExitCode::from(Self::EXIT_NOT_LOGGED_IN),
+            Self::NotLoggedIn | Self::TokenExpired => ExitCode::from(Self::EXIT_NOT_LOGGED_IN),
             Self::Cancelled => ExitCode::from(Self::EXIT_CANCELLED),
         }
     }
@@ -29,6 +33,7 @@ impl Error {
     pub fn hint(&self) -> Option<String> {
         match self {
             Self::NotLoggedIn => Some(t!("hint-not-logged-in")),
+            Self::TokenExpired => Some(t!("hint-token-expired")),
             Self::Cancelled => None,
         }
     }
@@ -40,23 +45,25 @@ pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
         return Error::Cancelled.exit_code();
     }
 
+    let err = match err.downcast::<d1v_api::Error>() {
+        Ok(api_err) if api_err.is_token_expired() => Error::TokenExpired.into(),
+        Ok(api_err) => anyhow::Error::from(api_err),
+        Err(err) => err,
+    };
+
     output.error(&err);
 
-    match err.downcast_ref::<Error>() {
-        Some(cli_err) => {
-            debug!(%err, "cli error");
+    let Some(cli_err) = err.downcast_ref::<Error>() else {
+        error!(%err, "fatal error");
+        return ExitCode::FAILURE;
+    };
 
-            if let Some(hint) = cli_err.hint() {
-                output.hint(&hint);
-            }
-
-            cli_err.exit_code()
-        }
-        None => {
-            error!(%err, "fatal error");
-            ExitCode::FAILURE
-        }
+    debug!(%err, "cli error");
+    if let Some(hint) = cli_err.hint() {
+        output.hint(&hint);
     }
+
+    cli_err.exit_code()
 }
 
 /// Checks if the error is a user-initiated cancellation.

@@ -28,6 +28,8 @@ hint-label = Hint:
 ## CLI Errors
 error-not-logged-in = not logged in
 hint-not-logged-in = Run `d1v auth login` to authenticate.
+error-token-expired = token has expired
+hint-token-expired = Run `d1v auth login` to re-authenticate.
 cancelled = Cancelled.
 
 ## Token
