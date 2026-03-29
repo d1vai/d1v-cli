@@ -1,3 +1,4 @@
+use crate::jwt::{self, Claims, DecodeError};
 use crate::{Error, HttpStatusError, Response, UserAgent, ValidationError};
 use parking_lot::RwLock;
 use reqwest::{Method, StatusCode};
@@ -149,6 +150,18 @@ impl Client {
     pub fn patch(&self, path: impl AsRef<str>) -> RequestBuilder {
         self.request(Method::PATCH, path)
     }
+
+    /// Decodes JWT claims from the current token.
+    pub fn claims(&self) -> Option<Result<Claims, DecodeError>> {
+        let guard = self.inner.token.read();
+        let token = guard.as_ref()?;
+        Some(jwt::decode(token.expose_secret()))
+    }
+
+    /// Returns whether the current token has expired.
+    pub fn is_token_expired(&self) -> Option<bool> {
+        Some(self.claims()?.ok()?.is_expired())
+    }
 }
 
 pub struct RequestBuilder {
@@ -192,10 +205,14 @@ impl RequestBuilder {
     pub async fn send(self) -> Result<Response, Error> {
         let mut inner = self.inner?;
 
-        if self.auth
-            && let Some(token) = self.client.inner.token.read().as_ref()
-        {
-            inner = inner.bearer_auth(token.expose_secret());
+        if self.auth {
+            if self.client.is_token_expired() == Some(true) {
+                return Err(Error::TokenExpired);
+            }
+
+            if let Some(token) = self.client.inner.token.read().as_ref() {
+                inner = inner.bearer_auth(token.expose_secret());
+            }
         }
 
         let request = inner.build()?;

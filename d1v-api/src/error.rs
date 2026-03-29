@@ -26,6 +26,9 @@ pub enum Error {
 
     #[error(transparent)]
     HttpStatus(#[from] HttpStatusError),
+
+    #[error("token expired")]
+    TokenExpired,
 }
 
 impl Error {
@@ -65,6 +68,10 @@ impl Error {
 
     pub fn is_timeout(&self) -> bool {
         matches!(self, Error::Http(e) if e.is_timeout())
+    }
+
+    pub fn is_token_expired(&self) -> bool {
+        matches!(self, Error::TokenExpired)
     }
 }
 
