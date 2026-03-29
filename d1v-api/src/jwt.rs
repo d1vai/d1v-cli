@@ -1,4 +1,4 @@
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64;
 use base64::Engine;
 use jiff::fmt::friendly::{FractionalUnit, SpanPrinter};
 use jiff::fmt::serde::timestamp;
@@ -88,7 +88,7 @@ pub fn decode(token: impl AsRef<str>) -> Result<Claims, DecodeError> {
         .split('.')
         .nth(1)
         .ok_or(DecodeError::InvalidToken)?;
-    let bytes = URL_SAFE_NO_PAD.decode(payload)?;
+    let bytes = BASE64.decode(payload)?;
 
     serde_json::from_slice(&bytes).map_err(DecodeError::Json)
 }
