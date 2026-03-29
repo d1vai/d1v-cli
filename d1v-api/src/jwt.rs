@@ -1,8 +1,11 @@
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use jiff::fmt::friendly::{FractionalUnit, SpanPrinter};
 use jiff::fmt::serde::timestamp;
 use jiff::{SignedDuration, Timestamp};
 use serde::Deserialize;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 /// JWT payload claims decoded from a Bearer token.
 #[derive(Debug, Clone, Deserialize)]
@@ -27,6 +30,28 @@ impl Claims {
         self.expiration_time
             .map(|time| time.duration_since(Timestamp::now()))
             .filter(|duration| duration.is_positive())
+    }
+}
+
+impl Display for Claims {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Some(subject) = &self.subject {
+            write!(f, "{subject}")?;
+        }
+
+        let Some(duration) = self.expires_in() else {
+            if self.is_expired() {
+                write!(f, " (expired)")?;
+            }
+
+            return Ok(());
+        };
+
+        static PRINTER: SpanPrinter = SpanPrinter::new()
+            .fractional(Some(FractionalUnit::Minute))
+            .precision(Some(0));
+
+        write!(f, " (expires in {})", PRINTER.duration_to_string(&duration))
     }
 }
 
