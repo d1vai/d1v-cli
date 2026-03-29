@@ -39,9 +39,19 @@ impl Display for Claims {
             write!(f, "{subject}")?;
         }
 
+        let separator = if self
+            .subject
+            .as_ref()
+            .is_none_or(|subject| subject.is_empty())
+        {
+            ""
+        } else {
+            " "
+        };
+
         let Some(duration) = self.expires_in() else {
             if self.is_expired() {
-                write!(f, " (expired)")?;
+                write!(f, "{separator}(expired)")?;
             }
 
             return Ok(());
@@ -51,7 +61,11 @@ impl Display for Claims {
             .fractional(Some(FractionalUnit::Minute))
             .precision(Some(0));
 
-        write!(f, " (expires in {})", PRINTER.duration_to_string(&duration))
+        write!(
+            f,
+            "{separator}(expires in {})",
+            PRINTER.duration_to_string(&duration)
+        )
     }
 }
 
