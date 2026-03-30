@@ -6,7 +6,6 @@ use std::fmt::{Display, Formatter};
 
 use crate::config::Config;
 use crate::t;
-use crate::token::TokenChain;
 use crate::Context;
 
 #[derive(Debug, Serialize)]
@@ -29,9 +28,7 @@ impl Display for DebugInfo {
 }
 
 fn token_status(ctx: &Context) -> String {
-    let tokens = TokenChain::default();
-
-    let Some(source) = tokens.source() else {
+    let Some(source) = ctx.tokens.source() else {
         return t!("debug-token-missing");
     };
 
