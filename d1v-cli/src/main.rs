@@ -152,7 +152,7 @@ async fn run(cli: Cli) -> Result<()> {
             return Err(Error::NotLoggedIn.into());
         }
 
-        if ctx.client.is_token_expired() == Some(true) {
+        if ctx.client.is_token_expired() {
             return Err(Error::TokenExpired.into());
         }
     }

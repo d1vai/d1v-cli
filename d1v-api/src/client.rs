@@ -159,8 +159,12 @@ impl Client {
     }
 
     /// Returns whether the current token has expired.
-    pub fn is_token_expired(&self) -> Option<bool> {
-        Some(self.inner.token.read().as_ref()?.is_expired())
+    pub fn is_token_expired(&self) -> bool {
+        self.inner
+            .token
+            .read()
+            .as_ref()
+            .is_some_and(|t| t.is_expired())
     }
 }
 
@@ -206,7 +210,7 @@ impl RequestBuilder {
         let mut inner = self.inner?;
 
         if self.auth {
-            if self.client.is_token_expired() == Some(true) {
+            if self.client.is_token_expired() {
                 return Err(Error::TokenExpired);
             }
 
