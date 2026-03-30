@@ -1,4 +1,7 @@
+use std::io::{stdin, IsTerminal};
+
 use anyhow::Result;
+use inquire::Password;
 use secrecy::SecretString;
 use tracing::debug;
 
@@ -17,6 +20,27 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     ctx.tokens.save(&token)?;
     ctx.client.token(token);
     debug!("login successful");
+    ctx.message(t!("auth-login-success"));
+
+    Ok(())
+}
+
+pub fn login_with_token(ctx: &Context) -> Result<()> {
+    let token = if stdin().is_terminal() {
+        SecretString::from(
+            Password::new(&t!("auth-token-prompt"))
+                .without_confirmation()
+                .prompt()?,
+        )
+    } else {
+        let mut buf = String::new();
+        stdin().read_line(&mut buf)?;
+        SecretString::from(buf.trim())
+    };
+
+    ctx.tokens.save(&token)?;
+    ctx.client.token(token);
+    debug!("login with token successful");
     ctx.message(t!("auth-login-success"));
 
     Ok(())

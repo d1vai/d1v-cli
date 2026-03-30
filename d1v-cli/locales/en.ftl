@@ -7,6 +7,7 @@ auth-code-sent = Verification code sent to { $email }
 auth-code-prompt = Verification code:
 auth-code-invalid = please enter a 6-digit code
 auth-password-prompt = Password:
+auth-token-prompt = Token:
 auth-login-success = Login successful!
 auth-logout-success = Logged out.
 auth-not-logged-in = Not logged in.

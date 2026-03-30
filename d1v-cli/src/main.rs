@@ -131,8 +131,11 @@ enum AuthCommand {
     /// Log in with email and verification code
     Login {
         /// Use password instead of verification code
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with = "with_token")]
         password: bool,
+        /// Log in with an authentication token
+        #[arg(long)]
+        with_token: bool,
     },
     /// Log out and clear stored credentials
     Logout,
@@ -159,7 +162,16 @@ async fn run(cli: Cli) -> Result<()> {
 
     match cli.command {
         Command::Auth { command } => match command {
-            AuthCommand::Login { password } => auth::login(&ctx, password).await,
+            AuthCommand::Login {
+                password,
+                with_token,
+            } => {
+                if with_token {
+                    auth::login_with_token(&ctx)
+                } else {
+                    auth::login(&ctx, password).await
+                }
+            }
             AuthCommand::Logout => auth::logout(&ctx).await,
         },
         Command::User { command } => user::run(&ctx, command).await,
