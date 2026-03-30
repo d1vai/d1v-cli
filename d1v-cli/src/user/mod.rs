@@ -6,6 +6,7 @@ mod password;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
+use tracing::debug;
 
 use crate::{t, Context};
 
@@ -151,6 +152,7 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
             InvitationCommand::List => invitation::list(ctx).await,
         },
         UserCommand::Onboard => {
+            debug!("marking user as onboarded");
             ctx.client.user().set_onboarded(true).await?;
             ctx.message(t!("onboard-success"));
             Ok(())

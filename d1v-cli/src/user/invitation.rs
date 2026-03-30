@@ -1,9 +1,12 @@
 use anyhow::Result;
+use tracing::debug;
 
 use crate::{t, Context};
 
 pub async fn accept(ctx: &Context, invite_code: &str) -> Result<()> {
+    debug!(%invite_code, "accepting invitation");
     ctx.client.user().accept_invitation(invite_code).await?;
+    debug!(%invite_code, "invitation accepted");
     ctx.message(t!("invitation-accepted"));
 
     Ok(())

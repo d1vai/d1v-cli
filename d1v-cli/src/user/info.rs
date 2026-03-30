@@ -1,5 +1,6 @@
 use anyhow::Result;
 use d1v_api::UpdateUser;
+use tracing::debug;
 
 use super::{GetArgs, UpdateArgs};
 use crate::t;
@@ -24,6 +25,7 @@ pub async fn info(ctx: &Context) -> Result<()> {
 }
 
 pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
+    debug!("updating user info");
     let user = ctx.client.user().update_info(&args.into()).await?;
     ctx.message(t!("user-info-updated"));
     ctx.print(&user)

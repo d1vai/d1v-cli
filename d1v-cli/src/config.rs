@@ -78,6 +78,7 @@ impl Config {
         let path = dir.join("config.toml");
         let content = toml::to_string_pretty(self).context(t!("error-serialize-config"))?;
         fs::write(&path, &content)?;
+        debug!(path = %path.display(), "config saved");
 
         Ok(())
     }
