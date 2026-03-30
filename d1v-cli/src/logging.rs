@@ -23,7 +23,7 @@ pub fn init(log_file: Option<PathBuf>) -> Result<WorkerGuard> {
         fs::create_dir_all(parent)?;
     }
 
-    let file = File::create(&path)?;
+    let file = File::options().create(true).append(true).open(&path)?;
     let (non_blocking, guard) = tracing_appender::non_blocking(file);
 
     let file_layer = fmt::layer()
