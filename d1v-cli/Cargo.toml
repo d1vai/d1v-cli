@@ -17,7 +17,7 @@ clap = { version = "4.6", features = ["derive", "env"] }
 fluent-templates = "0.13"
 inquire = "0.9"
 dirs = "6.0"
-keyring = "3.6"
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native"] }
 parking_lot = "0.12"
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
