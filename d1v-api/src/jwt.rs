@@ -3,9 +3,10 @@ use base64::Engine;
 use jiff::fmt::friendly::{FractionalUnit, SpanPrinter};
 use jiff::fmt::serde::timestamp;
 use jiff::{SignedDuration, Timestamp};
+use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 /// JWT payload claims decoded from a Bearer token.
 #[derive(Debug, Clone, Deserialize)]
@@ -91,6 +92,57 @@ pub fn decode(token: impl AsRef<str>) -> Result<Claims, DecodeError> {
     let bytes = BASE64.decode(payload)?;
 
     serde_json::from_slice(&bytes).map_err(DecodeError::Json)
+}
+
+/// A JWT bearer token.
+#[derive(Clone)]
+pub struct Token(SecretString);
+
+impl Token {
+    /// Decodes JWT claims without verifying the signature.
+    pub fn claims(&self) -> Result<Claims, DecodeError> {
+        decode(self.0.expose_secret())
+    }
+
+    /// Returns whether the token has expired.
+    pub fn is_expired(&self) -> bool {
+        self.claims().is_ok_and(|c| c.is_expired())
+    }
+
+    /// Returns the remaining validity duration.
+    pub fn expires_in(&self) -> Option<SignedDuration> {
+        self.claims().ok()?.expires_in()
+    }
+}
+
+impl ExposeSecret<str> for Token {
+    fn expose_secret(&self) -> &str {
+        self.0.expose_secret()
+    }
+}
+
+impl Debug for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str("[REDACTED]")
+    }
+}
+
+impl From<SecretString> for Token {
+    fn from(secret: SecretString) -> Self {
+        Token(secret)
+    }
+}
+
+impl From<String> for Token {
+    fn from(s: String) -> Self {
+        Token(SecretString::from(s))
+    }
+}
+
+impl From<&str> for Token {
+    fn from(s: &str) -> Self {
+        Token(SecretString::from(s))
+    }
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
-use crate::jwt::{self, Claims, DecodeError};
+use crate::jwt::{Claims, DecodeError, Token};
 use crate::{Error, HttpStatusError, Response, UserAgent, ValidationError};
 use parking_lot::RwLock;
 use reqwest::{Method, StatusCode};
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
@@ -19,13 +19,13 @@ pub struct Client {
 struct ClientInner {
     http: reqwest::Client,
     base_url: Url,
-    token: RwLock<Option<SecretString>>,
+    token: RwLock<Option<Token>>,
 }
 
 pub struct ClientBuilder {
     inner: reqwest::ClientBuilder,
     base_url: String,
-    token: Option<SecretString>,
+    token: Option<Token>,
 }
 
 impl ClientBuilder {
@@ -47,7 +47,7 @@ impl ClientBuilder {
         self
     }
 
-    pub fn token(mut self, token: impl Into<SecretString>) -> Self {
+    pub fn token(mut self, token: impl Into<Token>) -> Self {
         self.token = Some(token.into());
         self
     }
@@ -110,7 +110,7 @@ impl Client {
         })
     }
 
-    pub fn token(&self, token: impl Into<SecretString>) -> &Self {
+    pub fn token(&self, token: impl Into<Token>) -> &Self {
         *self.inner.token.write() = Some(token.into());
         self
     }
@@ -155,12 +155,12 @@ impl Client {
     pub fn claims(&self) -> Option<Result<Claims, DecodeError>> {
         let guard = self.inner.token.read();
         let token = guard.as_ref()?;
-        Some(jwt::decode(token.expose_secret()))
+        Some(token.claims())
     }
 
     /// Returns whether the current token has expired.
     pub fn is_token_expired(&self) -> Option<bool> {
-        Some(self.claims()?.ok()?.is_expired())
+        Some(self.inner.token.read().as_ref()?.is_expired())
     }
 }
 
