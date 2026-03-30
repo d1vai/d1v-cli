@@ -92,6 +92,10 @@ struct Cli {
     #[arg(long, env = "D1V_LOG_FILE")]
     log_file: Option<std::path::PathBuf>,
 
+    /// Increase log verbosity (-v info, -vv debug, -vvv trace)
+    #[arg(short, long, global = true, action = clap::ArgAction::Count)]
+    verbose: u8,
+
     /// Save HTTP exchanges to a JSON file
     #[cfg(feature = "record")]
     #[arg(long, env = "D1V_RECORD_FILE")]
@@ -193,7 +197,7 @@ fn locale_sources(cli_lang: Option<&str>) -> impl Iterator<Item = String> {
 #[tokio::main]
 async fn main() -> ExitCode {
     let mut cli = Cli::parse();
-    let _log = logging::init(cli.log_file.take()).ok();
+    let _log = logging::init(cli.log_file.take(), cli.verbose).ok();
     i18n::init(locale_sources(cli.lang.as_deref()));
 
     let output = Output::new(cli.format, cli.color.resolve());
