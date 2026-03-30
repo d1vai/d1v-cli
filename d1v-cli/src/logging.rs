@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use std::{fs, io};
 
 use anyhow::Result;
-use tracing_appender::non_blocking::WorkerGuard;
+use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -18,13 +19,7 @@ pub fn init(log_file: Option<PathBuf>) -> Result<WorkerGuard> {
         .without_time()
         .with_filter(stderr_filter);
 
-    let path = log_file.unwrap_or(Config::dir()?.join("d1v.log"));
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let file = File::options().create(true).append(true).open(&path)?;
-    let (non_blocking, guard) = tracing_appender::non_blocking(file);
+    let (non_blocking, guard) = file_writer(log_file)?;
 
     let file_layer = fmt::layer()
         .with_writer(non_blocking)
@@ -38,4 +33,35 @@ pub fn init(log_file: Option<PathBuf>) -> Result<WorkerGuard> {
         .ok();
 
     Ok(guard)
+}
+
+/// Creates a non-blocking file writer for the log layer.
+///
+/// With `--log-file`, appends to the given path.
+/// Otherwise, uses daily rotation under `~/.d1v/` (`d1v.YYYY-MM-DD.log`),
+/// keeping the last 7 days.
+fn file_writer(log_file: Option<PathBuf>) -> Result<(NonBlocking, WorkerGuard)> {
+    match log_file {
+        Some(path) => {
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            let file = File::options().create(true).append(true).open(&path)?;
+            Ok(tracing_appender::non_blocking(file))
+        }
+        None => {
+            let dir = Config::dir()?;
+            fs::create_dir_all(&dir)?;
+
+            let appender = RollingFileAppender::builder()
+                .rotation(Rotation::DAILY)
+                .filename_prefix("d1v")
+                .filename_suffix("log")
+                .max_log_files(8)
+                .build(&dir)?;
+
+            Ok(tracing_appender::non_blocking(appender))
+        }
+    }
 }

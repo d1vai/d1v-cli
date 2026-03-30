@@ -88,7 +88,7 @@ struct Cli {
     #[arg(long, global = true)]
     lang: Option<String>,
 
-    /// Log file path [default: ~/.d1v/d1v.log]
+    /// Log file path [default: ~/.d1v/d1v.YYYY-MM-DD.log]
     #[arg(long, env = "D1V_LOG_FILE")]
     log_file: Option<std::path::PathBuf>,
 
