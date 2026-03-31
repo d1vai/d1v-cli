@@ -24,7 +24,9 @@
 | 选项       | 描述                  | 默认值      |
 | ---------- | --------------------- | ----------- |
 | `--format` | 输出格式 (text, json) | text        |
+| `--color`  | 颜色输出              | auto        |
 | `--lang`   | 显示语言              | 系统 / 配置 |
+| `-v`       | 提高日志详细程度      | warn        |
 
 ### 认证
 
@@ -119,9 +121,15 @@ d1v debug
 
 ### 日志
 
-日志默认写入 `~/.d1v/d1v.log`。
+日志按天写入 `~/.d1v/d1v.YYYY-MM-DD.log`，保留最近 7 天。
 
-输出调试日志到 stderr：
+使用 `-v` 提高 stderr 日志详细程度（`-v` info，`-vv` debug，`-vvv` trace）：
+
+```sh
+d1v -vv auth login
+```
+
+未使用 `-v` 时也支持 `RUST_LOG`：
 
 ```sh
 RUST_LOG=debug d1v auth login

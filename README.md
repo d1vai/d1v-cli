@@ -21,10 +21,12 @@ Run `d1v --help` for all available commands.
 
 ### Global Options
 
-| Option     | Description                | Default         |
-| ---------- | -------------------------- | --------------- |
-| `--format` | Output format (text, json) | text            |
-| `--lang`   | Display language           | System / Config |
+| Option      | Description                | Default         |
+| ----------- | -------------------------- | --------------- |
+| `--format`  | Output format (text, json) | text            |
+| `--color`   | Color output               | auto            |
+| `--lang`    | Display language           | System / Config |
+| `-v`        | Increase log verbosity     | warn            |
 
 ### Authentication
 
@@ -119,9 +121,15 @@ d1v debug
 
 ### Logging
 
-Logs are written to `~/.d1v/d1v.log` by default.
+Daily log files are written to `~/.d1v/d1v.YYYY-MM-DD.log`, keeping the last 7 days.
 
-Print debug logs to stderr:
+Increase stderr verbosity with `-v` (`-v` info, `-vv` debug, `-vvv` trace):
+
+```sh
+d1v -vv auth login
+```
+
+`RUST_LOG` is also supported when `-v` is not set:
 
 ```sh
 RUST_LOG=debug d1v auth login
