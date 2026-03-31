@@ -16,6 +16,10 @@ anyhow = "1.0"
 clap = { version = "4.6", features = ["derive", "env"] }
 fluent-templates = "0.13"
 inquire = "0.9"
+crossterm = "0.29"
+ratatui = "0.30"
+unicode-segmentation = "1.13"
+unicode-width = "0.2"
 dirs = "6.0"
 keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native"] }
 parking_lot = "0.12"

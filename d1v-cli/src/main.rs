@@ -9,6 +9,7 @@ mod prompt;
 #[cfg(feature = "record")]
 mod recorder;
 mod token;
+mod ui;
 mod user;
 
 use std::fmt::Display;
