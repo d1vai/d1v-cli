@@ -62,8 +62,12 @@ impl Config {
         let path = Self::path()?;
 
         if !path.exists() {
-            debug!(path = %path.display(), "config not found, using defaults");
-            return Ok(Self::default());
+            debug!(path = %path.display(), "config not found, creating defaults");
+
+            let config = Self::default();
+            config.save()?;
+
+            return Ok(config);
         }
 
         debug!(path = %path.display(), "loading config");
