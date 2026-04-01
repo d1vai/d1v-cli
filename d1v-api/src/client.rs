@@ -115,6 +115,10 @@ impl Client {
         self
     }
 
+    pub fn base_url(&self) -> &str {
+        self.inner.base_url.as_str()
+    }
+
     fn url(&self, path: impl AsRef<str>) -> Result<Url, Error> {
         self.inner.base_url.join(path.as_ref()).map_err(Error::Url)
     }
