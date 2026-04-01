@@ -1,0 +1,22 @@
+{
+  "id": 1,
+  "slug": "mock-user",
+  "is_agent": false,
+  "picture": "https://example.com/avatar.png",
+  "is_onboarded": true,
+  "is_admin": false,
+  "is_super_admin": false,
+  "is_company": false,
+  "company_name": "",
+  "company_website": "",
+  "industry": "",
+  "invite_code": "MOCK123",
+  "referral_code": "",
+  "sol_wallet": "",
+  "sui_wallet": "",
+  "evm_wallet": "",
+  "sub": "mock-sub",
+  "email": "mock@example.com",
+  "last_login_type": "password",
+  "stripe_customer_id": null
+}
