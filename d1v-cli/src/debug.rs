@@ -49,7 +49,6 @@ fn token_status(ctx: &Context) -> String {
 pub fn run(ctx: &Context) -> Result<()> {
     let ua = UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION"));
 
-    let config = Config::load()?;
     let config_path = Config::path()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|_| t!("debug-unknown"));
@@ -58,7 +57,7 @@ pub fn run(ctx: &Context) -> Result<()> {
         version: env!("CARGO_PKG_VERSION").into(),
         user_agent: ua.to_string(),
         config: config_path,
-        base_url: config.base_url,
+        base_url: ctx.client.base_url().to_string(),
         token: token_status(ctx),
     };
 
