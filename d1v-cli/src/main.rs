@@ -34,12 +34,12 @@ pub struct Context {
 }
 
 impl Context {
-    fn new(format: Format, color: Color) -> Result<Self> {
+    fn new(format: Format, color: Color, base_url: Option<String>) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
         let mut builder = Client::builder()
-            .base_url(config.base_url)
+            .base_url(base_url.unwrap_or(config.base_url))
             .user_agent(UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
@@ -92,6 +92,10 @@ struct Cli {
     /// Log file path [default: ~/.d1v/d1v.YYYY-MM-DD.log]
     #[arg(long, env = "D1V_LOG_FILE")]
     log_file: Option<std::path::PathBuf>,
+
+    /// Override API base URL
+    #[arg(long, global = true, env = "D1V_BASE_URL")]
+    base_url: Option<String>,
 
     /// Increase log verbosity (-v info, -vv debug, -vvv trace)
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
@@ -153,7 +157,7 @@ async fn run(cli: Cli) -> Result<()> {
         .map(|path| d1v_api::set_recorder(recorder::FileRecorder::new(path)))
         .transpose()?;
 
-    let ctx = Context::new(cli.format, cli.color)?;
+    let ctx = Context::new(cli.format, cli.color, cli.base_url)?;
 
     if cli.command.requires_auth() {
         if ctx.tokens.load()?.is_none() {
