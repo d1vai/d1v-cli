@@ -172,3 +172,140 @@ impl From<InputState> for String {
         state.content
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn insert_and_delete() {
+        let mut s = InputState::new();
+        s.insert('h');
+        s.insert('i');
+
+        assert_eq!(s.text(), "hi");
+        assert_eq!(s.display_width(), 2);
+
+        s.delete_prev();
+        assert_eq!(s.text(), "h");
+
+        s.delete_next();
+        assert_eq!(s.text(), "h");
+    }
+
+    #[test]
+    fn insert_middle() {
+        let mut s = InputState::new();
+        s.insert('a');
+        s.insert('c');
+        s.move_left();
+        s.insert('b');
+
+        assert_eq!(s.text(), "abc");
+        assert_eq!(s.display_width(), 2);
+    }
+
+    #[test]
+    fn cjk_width() {
+        let mut s = InputState::new();
+        s.insert('你');
+        s.insert('好');
+
+        assert_eq!(s.display_width(), 4);
+        assert_eq!(s.grapheme_count(), 2);
+    }
+
+    #[test]
+    fn cjk_navigation() {
+        let mut s = InputState::new();
+        for ch in ['你', '好', '世', '界'] {
+            s.insert(ch);
+        }
+
+        s.move_left();
+        s.move_left();
+        assert_eq!(s.display_width(), 4);
+
+        s.delete_next();
+        assert_eq!(s.text(), "你好界");
+
+        s.delete_prev();
+        assert_eq!(s.text(), "你界");
+    }
+
+    #[test]
+    fn move_boundaries() {
+        let mut s = InputState::new();
+        for ch in ['a', 'b', 'c'] {
+            s.insert(ch);
+        }
+
+        s.move_start();
+        assert_eq!(s.display_width(), 0);
+
+        s.move_end();
+        assert_eq!(s.display_width(), 3);
+    }
+
+    #[test]
+    fn masked() {
+        let mut s = InputState::new();
+        s.insert('密');
+        s.insert('码');
+
+        assert_eq!(s.masked('*'), "**");
+        assert_eq!(s.masked_display_width('*'), 2);
+
+        assert_eq!(s.masked('●'), "●●");
+        assert_eq!(s.masked_display_width('●'), 2);
+    }
+
+    #[test]
+    fn empty() {
+        let mut s = InputState::new();
+
+        assert!(s.is_empty());
+        assert!(!s.delete_prev());
+        assert!(!s.delete_next());
+
+        s.move_left();
+        s.move_right();
+        s.move_start();
+        s.move_end();
+
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn clear() {
+        let mut s = InputState::new();
+        s.insert('x');
+        s.insert('y');
+        s.clear();
+
+        assert!(s.is_empty());
+        assert_eq!(s.display_width(), 0);
+    }
+
+    #[test]
+    fn into_string() {
+        let mut s = InputState::new();
+        s.insert('o');
+        s.insert('k');
+
+        let result: String = s.into();
+        assert_eq!(result, "ok");
+    }
+
+    #[test]
+    fn combining_mark() {
+        let mut s = InputState::new();
+        // é
+        s.insert('e');
+        s.insert('\u{0301}');
+
+        assert_eq!(s.text(), "e\u{0301}");
+        assert_eq!(s.grapheme_count(), 1);
+        assert_eq!(s.display_width(), 1);
+    }
+}
