@@ -23,8 +23,8 @@ impl InputState {
         self.content.graphemes(true).count()
     }
 
-    /// Returns the display width (in terminal columns) of text before the cursor.
-    pub fn display_width(&self) -> usize {
+    /// Returns the cursor's column position (display width before cursor).
+    pub fn cursor_col(&self) -> usize {
         self.content[..self.offset].width()
     }
 
@@ -33,8 +33,8 @@ impl InputState {
         self.content.graphemes(true).map(|_| mask).collect()
     }
 
-    /// Returns the display width of the masked text before the cursor.
-    pub fn masked_display_width(&self, mask: char) -> usize {
+    /// Returns the cursor column position in masked representation.
+    pub fn masked_cursor_col(&self, mask: char) -> usize {
         let count = self.content[..self.offset].graphemes(true).count();
         count * mask.width().unwrap_or(1)
     }
@@ -184,7 +184,7 @@ mod tests {
         s.insert('i');
 
         assert_eq!(s.text(), "hi");
-        assert_eq!(s.display_width(), 2);
+        assert_eq!(s.cursor_col(), 2);
 
         s.delete_prev();
         assert_eq!(s.text(), "h");
@@ -202,7 +202,7 @@ mod tests {
         s.insert('b');
 
         assert_eq!(s.text(), "abc");
-        assert_eq!(s.display_width(), 2);
+        assert_eq!(s.cursor_col(), 2);
     }
 
     #[test]
@@ -211,7 +211,7 @@ mod tests {
         s.insert('你');
         s.insert('好');
 
-        assert_eq!(s.display_width(), 4);
+        assert_eq!(s.cursor_col(), 4);
         assert_eq!(s.grapheme_count(), 2);
     }
 
@@ -224,7 +224,7 @@ mod tests {
 
         s.move_left();
         s.move_left();
-        assert_eq!(s.display_width(), 4);
+        assert_eq!(s.cursor_col(), 4);
 
         s.delete_next();
         assert_eq!(s.text(), "你好界");
@@ -241,10 +241,10 @@ mod tests {
         }
 
         s.move_start();
-        assert_eq!(s.display_width(), 0);
+        assert_eq!(s.cursor_col(), 0);
 
         s.move_end();
-        assert_eq!(s.display_width(), 3);
+        assert_eq!(s.cursor_col(), 3);
     }
 
     #[test]
@@ -254,10 +254,10 @@ mod tests {
         s.insert('码');
 
         assert_eq!(s.masked('*'), "**");
-        assert_eq!(s.masked_display_width('*'), 2);
+        assert_eq!(s.masked_cursor_col('*'), 2);
 
         assert_eq!(s.masked('●'), "●●");
-        assert_eq!(s.masked_display_width('●'), 2);
+        assert_eq!(s.masked_cursor_col('●'), 2);
     }
 
     #[test]
@@ -284,7 +284,7 @@ mod tests {
         s.clear();
 
         assert!(s.is_empty());
-        assert_eq!(s.display_width(), 0);
+        assert_eq!(s.cursor_col(), 0);
     }
 
     #[test]
@@ -306,6 +306,6 @@ mod tests {
 
         assert_eq!(s.text(), "e\u{0301}");
         assert_eq!(s.grapheme_count(), 1);
-        assert_eq!(s.display_width(), 1);
+        assert_eq!(s.cursor_col(), 1);
     }
 }
