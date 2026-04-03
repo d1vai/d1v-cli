@@ -1,8 +1,9 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Paragraph, Widget};
 use secrecy::{ExposeSecret, SecretString};
+use std::iter;
 use unicode_width::UnicodeWidthStr;
 
 use super::input::InputState;
@@ -33,33 +34,31 @@ impl Password {
 
     /// Runs the prompt and returns the entered password.
     pub fn prompt(self) -> Result<SecretString, anyhow::Error> {
-        loop {
-            let first = self.read(&self.label)?;
+        let mut error: Option<String> = None;
 
-            let Some(label) = &self.confirmation else {
-                break Ok(first);
+        loop {
+            let first = self.read(&self.label, error.take())?;
+
+            let Some(confirm_label) = &self.confirmation else {
+                return Ok(first);
             };
 
-            match self.read(label) {
+            match self.read(confirm_label, None) {
                 Ok(second) if second.expose_secret() == first.expose_secret() => return Ok(first),
-                Ok(_) => eprintln!("{}", t!("password-mismatch")),
-                Err(e)
-                    if e.downcast_ref::<Error>()
-                        .is_some_and(|e| matches!(e, Error::Cancelled)) =>
-                {
-                    continue;
-                }
+                Ok(_) => error = Some(t!("password-mismatch")),
+                Err(e) if is_cancelled(&e) => continue,
                 Err(e) => return Err(e),
             }
         }
     }
 
-    fn read(&self, label: &str) -> Result<SecretString, anyhow::Error> {
-        let mut guard = TerminalGuard::new(1)?;
+    fn read(&self, label: &str, error: Option<String>) -> Result<SecretString, anyhow::Error> {
+        let height = if error.is_some() { 2 } else { 1 };
+        let mut guard = TerminalGuard::new(height)?;
         let mut input = InputState::new();
 
         loop {
-            Self::draw(&mut guard, &input, label)?;
+            Self::draw(&mut guard, &input, label, error.as_deref())?;
 
             if let Event::Key(key) = event::read()?
                 && key.kind == KeyEventKind::Press
@@ -75,18 +74,32 @@ impl Password {
             }
         }
 
-        guard.terminal.insert_before(1, |_| {})?;
+        // Show answered state
+        let count = input.grapheme_count();
+        guard.terminal.insert_before(1, |buf| {
+            let answered = iter::repeat(MASK).take(count).collect::<String>();
 
-        Ok(SecretString::from({
-            let s: String = input.into();
-            s
-        }))
+            let line = Line::from(vec![
+                Span::styled(
+                    label,
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(answered, Style::default().fg(Color::DarkGray)),
+            ]);
+
+            Widget::render(Paragraph::new(line), buf.area, buf);
+        })?;
+
+        Ok(SecretString::from(String::from(input)))
     }
 
     fn draw(
         guard: &mut TerminalGuard,
         input: &InputState,
         label: &str,
+        error: Option<&str>,
     ) -> Result<(), std::io::Error> {
         let masked = input.masked(MASK);
         let col = input.masked_cursor_col(MASK);
@@ -94,7 +107,16 @@ impl Password {
 
         guard.terminal.draw(|frame| {
             let area = frame.area();
-            let line = Line::from(vec![
+            let mut lines = Vec::new();
+
+            if let Some(msg) = error {
+                lines.push(Line::from(Span::styled(
+                    msg,
+                    Style::default().fg(Color::Red),
+                )));
+            }
+
+            lines.push(Line::from(vec![
                 Span::styled(
                     label,
                     Style::default()
@@ -102,12 +124,19 @@ impl Password {
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(&masked),
-            ]);
+            ]));
 
-            frame.render_widget(Paragraph::new(line), area);
-            frame.set_cursor_position((label_width + col as u16, area.y));
+            frame.render_widget(Paragraph::new(lines), area);
+
+            let error_offset = if error.is_some() { 1 } else { 0 };
+            frame.set_cursor_position((label_width + col as u16, area.y + error_offset));
         })?;
 
         Ok(())
     }
+}
+
+fn is_cancelled(err: &anyhow::Error) -> bool {
+    err.downcast_ref::<Error>()
+        .is_some_and(|e| matches!(e, Error::Cancelled))
 }
