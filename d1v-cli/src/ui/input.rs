@@ -1,3 +1,4 @@
+use crossterm::event::{KeyCode, KeyEvent};
 use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -139,6 +140,24 @@ impl InputState {
     /// Moves the cursor to the end.
     pub fn move_end(&mut self) {
         self.offset = self.content.len();
+    }
+
+    /// Handles editing key events (characters, backspace, delete, navigation).
+    pub fn handle_key(&mut self, key: &KeyEvent) {
+        match key.code {
+            KeyCode::Char(c) => self.insert(c),
+            KeyCode::Backspace => {
+                self.delete_prev();
+            }
+            KeyCode::Delete => {
+                self.delete_next();
+            }
+            KeyCode::Left => self.move_left(),
+            KeyCode::Right => self.move_right(),
+            KeyCode::Home => self.move_start(),
+            KeyCode::End => self.move_end(),
+            _ => {}
+        }
     }
 }
 
