@@ -1,4 +1,5 @@
 pub mod input;
+pub mod password;
 
 use std::io::{self, Stdout};
 
