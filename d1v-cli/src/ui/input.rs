@@ -24,7 +24,7 @@ impl InputState {
 
     /// Returns the display width (in terminal columns) of text before the cursor.
     pub fn display_width(&self) -> usize {
-        UnicodeWidthStr::width(&self.content[..self.offset])
+        self.content[..self.offset].width()
     }
 
     /// Returns a masked representation where each grapheme is replaced by `mask`.
