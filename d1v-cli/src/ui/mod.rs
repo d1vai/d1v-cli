@@ -1,6 +1,8 @@
 pub mod input;
 pub mod password;
 
+pub use password::Password;
+
 use std::io::{self, Stdout};
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};

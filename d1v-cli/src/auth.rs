@@ -1,11 +1,11 @@
 use std::io::{stdin, IsTerminal};
 
 use anyhow::Result;
-use inquire::Password;
 use secrecy::SecretString;
 use tracing::debug;
 
 use crate::token::{TokenLoader, TokenStore};
+use crate::ui::Password;
 use crate::{prompt, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
@@ -27,11 +27,7 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
 
 pub fn login_with_token(ctx: &Context) -> Result<()> {
     let token = if stdin().is_terminal() {
-        SecretString::from(
-            Password::new(&t!("auth-token-prompt"))
-                .without_confirmation()
-                .prompt()?,
-        )
+        Password::new(t!("auth-token-prompt")).prompt()?
     } else {
         let mut buf = String::new();
         stdin().read_line(&mut buf)?;
@@ -58,11 +54,7 @@ async fn authenticate_code(ctx: &Context, email: &str) -> Result<SecretString> {
 }
 
 async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretString> {
-    let password = SecretString::from(
-        inquire::Password::new(&t!("auth-password-prompt"))
-            .without_confirmation()
-            .prompt()?,
-    );
+    let password = Password::new(t!("auth-password-prompt")).prompt()?;
 
     debug!("logging in with password");
     Ok(ctx.client.user().login_password(email, &password).await?)

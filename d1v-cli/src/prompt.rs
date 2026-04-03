@@ -1,10 +1,11 @@
 use anyhow::Result;
 use d1v_api::{Code, Email, Validate};
 use inquire::validator::{ErrorMessage, Validation};
-use inquire::{Password, PasswordDisplayMode, Text};
+use inquire::Text;
 use secrecy::SecretString;
 
 use crate::t;
+use crate::ui::Password;
 
 macro_rules! validator {
     ($type:ident, $msg:expr) => {
@@ -34,11 +35,7 @@ pub fn code() -> Result<String> {
 
 /// Prompts for a new password with masked display and confirmation.
 pub fn new_password() -> Result<SecretString> {
-    Ok(SecretString::from(
-        Password::new(&t!("password-new-prompt"))
-            .with_display_mode(PasswordDisplayMode::Masked)
-            .with_custom_confirmation_message(&t!("password-confirm-prompt"))
-            .with_custom_confirmation_error_message(&t!("password-mismatch"))
-            .prompt()?,
-    ))
+    Ok(Password::new(t!("password-new-prompt"))
+        .with_confirmation(t!("password-confirm-prompt"))
+        .prompt()?)
 }
