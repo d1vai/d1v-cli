@@ -1,9 +1,26 @@
-use anyhow::{bail, Context, Result};
 use secrecy::{ExposeSecret, SecretString};
+use thiserror::Error;
 use tracing::{debug, warn};
 
-use crate::config::Config;
+use crate::config::{Config, ConfigError};
 use crate::t;
+
+type Result<T = (), E = TokenError> = std::result::Result<T, E>;
+
+#[derive(Debug, Error)]
+pub enum TokenError {
+    #[error("{}", t!("error-keyring-unavailable"))]
+    KeyringUnavailable,
+
+    #[error("{}", t!("error-keyring-save"))]
+    KeyringSave(#[from] keyring::Error),
+
+    #[error("{}", t!("error-no-token-store"))]
+    NoStore,
+
+    #[error(transparent)]
+    Config(#[from] ConfigError),
+}
 
 /// A source that provides authentication tokens.
 pub trait TokenLoader {
@@ -14,8 +31,8 @@ pub trait TokenLoader {
 /// Persistent storage for authentication tokens.
 pub trait TokenStore {
     fn name(&self) -> &str;
-    fn save(&self, token: &SecretString) -> Result<()>;
-    fn delete(&self) -> Result<()>;
+    fn save(&self, token: &SecretString) -> Result;
+    fn delete(&self) -> Result;
 }
 
 /// Reads token from an environment variable.
@@ -79,14 +96,14 @@ impl TokenStore for KeyringProvider {
         "keyring"
     }
 
-    fn save(&self, token: &SecretString) -> Result<()> {
-        let entry = self.entry().context(t!("error-keyring-unavailable"))?;
+    fn save(&self, token: &SecretString) -> Result {
+        let entry = self.entry().ok_or(TokenError::KeyringUnavailable)?;
         entry
             .set_password(token.expose_secret())
-            .context(t!("error-keyring-save"))
+            .map_err(TokenError::KeyringSave)
     }
 
-    fn delete(&self) -> Result<()> {
+    fn delete(&self) -> Result {
         let Some(entry) = self.entry() else {
             return Ok(());
         };
@@ -125,14 +142,13 @@ impl TokenStore for ConfigProvider {
         "config"
     }
 
-    fn save(&self, token: &SecretString) -> Result<()> {
+    fn save(&self, token: &SecretString) -> Result {
         let mut config = Config::load()?;
         config.token = Some(token.clone());
-        config.save()?;
-        Ok(())
+        config.save().map_err(TokenError::Config)
     }
 
-    fn delete(&self) -> Result<()> {
+    fn delete(&self) -> Result {
         let mut config = Config::load()?;
         if config.token.is_some() {
             config.token = None;
@@ -196,7 +212,7 @@ impl TokenStore for TokenChain {
         "chain"
     }
 
-    fn save(&self, token: &SecretString) -> Result<()> {
+    fn save(&self, token: &SecretString) -> Result {
         for store in &self.stores {
             match store.save(token) {
                 Ok(()) => {
@@ -209,10 +225,10 @@ impl TokenStore for TokenChain {
             }
         }
 
-        bail!(t!("error-no-token-store"))
+        Err(TokenError::NoStore)
     }
 
-    fn delete(&self) -> Result<()> {
+    fn delete(&self) -> Result {
         for store in &self.stores {
             match store.delete() {
                 Ok(()) => debug!(provider = store.name(), "token deleted"),
@@ -296,12 +312,12 @@ mod tests {
             self.name
         }
 
-        fn save(&self, token: &SecretString) -> Result<()> {
+        fn save(&self, token: &SecretString) -> Result {
             *self.token.borrow_mut() = Some(token.clone());
             Ok(())
         }
 
-        fn delete(&self) -> Result<()> {
+        fn delete(&self) -> Result {
             *self.token.borrow_mut() = None;
             Ok(())
         }
@@ -313,8 +329,9 @@ mod tests {
         fn name(&self) -> &str {
             "failing"
         }
+
         fn load(&self) -> Result<Option<SecretString>> {
-            bail!("load failed")
+            Err(TokenError::KeyringUnavailable)
         }
     }
 
@@ -324,11 +341,13 @@ mod tests {
         fn name(&self) -> &str {
             "failing"
         }
-        fn save(&self, _: &SecretString) -> Result<()> {
-            bail!("save failed")
+
+        fn save(&self, _: &SecretString) -> Result {
+            Err(TokenError::KeyringUnavailable)
         }
-        fn delete(&self) -> Result<()> {
-            bail!("delete failed")
+
+        fn delete(&self) -> Result {
+            Err(TokenError::KeyringUnavailable)
         }
     }
 
