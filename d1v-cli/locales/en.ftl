@@ -41,6 +41,7 @@ error-keyring-save = failed to save to keyring
 ## Config
 error-no-home-dir = could not determine home directory
 error-read-config = failed to read config file
+error-write-config = failed to write config file
 error-parse-config = failed to parse config file
 error-serialize-config = failed to serialize config
 

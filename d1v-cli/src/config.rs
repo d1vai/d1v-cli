@@ -1,12 +1,32 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use tracing::debug;
 
 use crate::t;
+
+type Result<T = (), E = ConfigError> = std::result::Result<T, E>;
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("{}", t!("error-no-home-dir"))]
+    NoHomeDir,
+
+    #[error("{}", t!("error-read-config"))]
+    Read(#[source] std::io::Error),
+
+    #[error("{}", t!("error-write-config"))]
+    Write(#[source] std::io::Error),
+
+    #[error("{}", t!("error-parse-config"))]
+    Parse(#[from] toml::de::Error),
+
+    #[error("{}", t!("error-serialize-config"))]
+    Serialize(#[from] toml::ser::Error),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -51,7 +71,7 @@ impl Config {
     pub fn dir() -> Result<PathBuf> {
         dirs::home_dir()
             .map(|p| p.join(".d1v"))
-            .context(t!("error-no-home-dir"))
+            .ok_or(ConfigError::NoHomeDir)
     }
 
     pub fn path() -> Result<PathBuf> {
@@ -71,17 +91,17 @@ impl Config {
         }
 
         debug!(path = %path.display(), "loading config");
-        let content = fs::read_to_string(&path).context(t!("error-read-config"))?;
-        toml::from_str(&content).context(t!("error-parse-config"))
+        let content = fs::read_to_string(&path).map_err(ConfigError::Read)?;
+        toml::from_str(&content).map_err(ConfigError::Parse)
     }
 
-    pub fn save(&self) -> Result<()> {
+    pub fn save(&self) -> Result {
         let dir = Self::dir()?;
-        fs::create_dir_all(&dir)?;
+        fs::create_dir_all(&dir).map_err(ConfigError::Write)?;
 
         let path = dir.join("config.toml");
-        let content = toml::to_string_pretty(self).context(t!("error-serialize-config"))?;
-        fs::write(&path, &content)?;
+        let content = toml::to_string_pretty(self)?;
+        fs::write(&path, &content).map_err(ConfigError::Write)?;
         debug!(path = %path.display(), "config saved");
 
         Ok(())

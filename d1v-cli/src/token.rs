@@ -128,7 +128,8 @@ impl TokenStore for ConfigProvider {
     fn save(&self, token: &SecretString) -> Result<()> {
         let mut config = Config::load()?;
         config.token = Some(token.clone());
-        config.save()
+        config.save()?;
+        Ok(())
     }
 
     fn delete(&self) -> Result<()> {

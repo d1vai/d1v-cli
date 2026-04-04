@@ -41,6 +41,7 @@ error-keyring-save = 保存至钥匙串失败
 ## 配置
 error-no-home-dir = 无法确定主目录
 error-read-config = 读取配置文件失败
+error-write-config = 写入配置文件失败
 error-parse-config = 解析配置文件失败
 error-serialize-config = 序列化配置失败
 
