@@ -68,19 +68,6 @@ pub fn handle_error(output: &Output, err: anyhow::Error) -> ExitCode {
 
 /// Checks if the error is a user-initiated cancellation.
 fn is_cancelled(err: &anyhow::Error) -> bool {
-    if err
-        .downcast_ref::<Error>()
+    err.downcast_ref::<Error>()
         .is_some_and(|e| matches!(e, Error::Cancelled))
-    {
-        return true;
-    }
-
-    err.downcast_ref::<inquire::InquireError>()
-        .is_some_and(|e| {
-            matches!(
-                e,
-                inquire::InquireError::OperationCanceled
-                    | inquire::InquireError::OperationInterrupted
-            )
-        })
 }

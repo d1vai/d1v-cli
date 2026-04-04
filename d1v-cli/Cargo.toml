@@ -15,7 +15,6 @@ d1v-api = { path = "../d1v-api" }
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive", "env"] }
 fluent-templates = "0.13"
-inquire = "0.9"
 crossterm = "0.29"
 ratatui = "0.30"
 unicode-segmentation = "1.13"
