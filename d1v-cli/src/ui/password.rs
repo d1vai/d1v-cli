@@ -86,6 +86,7 @@ impl Password {
                         .fg(Color::DarkGray)
                         .add_modifier(Modifier::BOLD),
                 ),
+                Span::raw(" "),
                 Span::styled(answered, Style::default().fg(Color::DarkGray)),
             ]);
 
@@ -123,13 +124,14 @@ impl Password {
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
                 ),
+                Span::raw(" "),
                 Span::raw(&masked),
             ]));
 
             frame.render_widget(Paragraph::new(lines), area);
 
             let error_offset = if error.is_some() { 1 } else { 0 };
-            frame.set_cursor_position((label_width + col as u16, area.y + error_offset));
+            frame.set_cursor_position((label_width + 1 + col as u16, area.y + error_offset));
         })?;
 
         Ok(())
