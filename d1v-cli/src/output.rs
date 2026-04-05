@@ -1,13 +1,13 @@
 use std::fmt::{self, Display, Formatter};
 use std::io::{self, IsTerminal, Write};
 
-use anyhow::Result;
 use clap::ValueEnum;
 use owo_colors::{OwoColorize, Style};
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::json;
 
+use crate::error::Result;
 use crate::t;
 
 /// Output format.
@@ -100,20 +100,17 @@ impl Output {
     }
 
     /// Writes structured data to stdout ([`Display`] for text, [`Serialize`] for JSON).
-    pub fn print(&self, value: &(impl Display + Serialize)) -> Result<()> {
+    pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
         self.print_to(&mut io::stdout(), value)
     }
 
     /// Writes a list of structured data to stdout.
-    pub fn print_list(
-        &self,
-        values: impl IntoIterator<Item = impl Display + Serialize>,
-    ) -> Result<()> {
+    pub fn print_list(&self, values: impl IntoIterator<Item = impl Display + Serialize>) -> Result {
         self.print_list_to(&mut io::stdout(), values)
     }
 
     /// Writes structured data to the given writer.
-    pub fn print_to(&self, w: &mut impl Write, value: &(impl Display + Serialize)) -> Result<()> {
+    pub fn print_to(&self, w: &mut impl Write, value: &(impl Display + Serialize)) -> Result {
         match self.format {
             Format::Text => writeln!(w, "{value}")?,
             Format::Json => Self::write_json(w, value)?,
@@ -126,7 +123,7 @@ impl Output {
         &self,
         w: &mut impl Write,
         values: impl IntoIterator<Item = impl Display + Serialize>,
-    ) -> Result<()> {
+    ) -> Result {
         match self.format {
             Format::Text => {
                 for value in values {
@@ -139,14 +136,14 @@ impl Output {
     }
 
     /// Writes an error to stderr in the appropriate format.
-    pub fn error(&self, err: &anyhow::Error) {
+    pub fn error(&self, err: &dyn Display) {
         if let Err(write_err) = self.error_to(&mut io::stderr(), err) {
             tracing::warn!(%write_err, "failed to write error");
         }
     }
 
     /// Writes an error to the given writer.
-    pub fn error_to(&self, w: &mut impl Write, err: &anyhow::Error) -> io::Result<()> {
+    pub fn error_to(&self, w: &mut impl Write, err: &dyn Display) -> io::Result<()> {
         match self.format {
             Format::Text => {
                 let label = t!("error-label");
@@ -198,7 +195,7 @@ impl Output {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::anyhow;
+    use crate::error::{APIError, Error};
     use indoc::indoc;
 
     #[derive(Debug, Serialize)]
@@ -305,25 +302,36 @@ mod tests {
     #[test]
     fn error_text() {
         let mut buf = Vec::new();
+        let err = Error::Api(APIError::Api {
+            code: 1,
+            message: "something broke".into(),
+        });
         Output::new(Format::Text, false)
-            .error_to(&mut buf, &anyhow!("something broke"))
+            .error_to(&mut buf, &err)
             .unwrap();
 
-        assert_eq!(String::from_utf8(buf).unwrap(), "Error: something broke\n");
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "Error: api error 1: something broke\n"
+        );
     }
 
     #[test]
     fn error_json() {
         let mut buf = Vec::new();
+        let err = Error::Api(APIError::Api {
+            code: 1,
+            message: "something broke".into(),
+        });
         Output::new(Format::Json, false)
-            .error_to(&mut buf, &anyhow!("something broke"))
+            .error_to(&mut buf, &err)
             .unwrap();
 
         assert_eq!(
             String::from_utf8(buf).unwrap(),
             indoc! {r#"
                 {
-                  "error": "something broke"
+                  "error": "api error 1: something broke"
                 }
             "#}
         );

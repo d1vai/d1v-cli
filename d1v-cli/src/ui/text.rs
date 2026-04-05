@@ -28,7 +28,7 @@ impl Text {
     }
 
     /// Runs the prompt and returns the entered text.
-    pub fn prompt(self) -> Result<String, anyhow::Error> {
+    pub fn prompt(self) -> Result<String, Error> {
         let mut input = InputState::new();
         let mut error: Option<String> = None;
 

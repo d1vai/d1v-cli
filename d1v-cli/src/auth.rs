@@ -1,9 +1,9 @@
 use std::io::{stdin, IsTerminal};
 
-use anyhow::Result;
 use secrecy::SecretString;
 use tracing::debug;
 
+use crate::error::Result;
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::Password;
 use crate::{prompt, t, Context};

@@ -31,6 +31,12 @@ error-not-logged-in = 未登录
 hint-not-logged-in = 请运行 `d1v auth login` 进行认证。
 error-token-expired = 令牌已过期
 hint-token-expired = 请运行 `d1v auth login` 重新认证。
+error-network = 网络错误
+error-timeout = 请求超时
+hint-network = 请检查网络连接后重试。
+hint-timeout = 请求超时，请稍后重试。
+hint-config = 请检查配置文件 ~/.d1v/config.toml。
+hint-token-storage = 请尝试运行 `d1v auth login` 重新认证。
 cancelled = 已取消。
 
 ## 令牌

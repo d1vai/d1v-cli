@@ -16,14 +16,13 @@ use std::fmt::Display;
 use std::process::ExitCode;
 use std::time::Duration;
 
-use anyhow::Result;
 use clap::{Parser, Subcommand};
 use d1v_api::{Client, UserAgent};
 use serde::Serialize;
 use tracing::info;
 
 use crate::config::Config;
-use crate::error::{handle_error, Error};
+use crate::error::{Error, Result};
 use crate::output::{Color, Format, Output};
 use crate::token::{TokenChain, TokenLoader};
 
@@ -61,15 +60,12 @@ impl Context {
     }
 
     /// Writes structured data via the output formatter.
-    pub fn print(&self, value: &(impl Display + Serialize)) -> Result<()> {
+    pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
         self.output.print(value)
     }
 
     /// Writes a list of structured data via the output formatter.
-    pub fn print_list(
-        &self,
-        values: impl IntoIterator<Item = impl Display + Serialize>,
-    ) -> Result<()> {
+    pub fn print_list(&self, values: impl IntoIterator<Item = impl Display + Serialize>) -> Result {
         self.output.print_list(values)
     }
 }
@@ -155,17 +151,18 @@ async fn run(cli: Cli) -> Result<()> {
     let _recorder = cli
         .record
         .map(|path| d1v_api::set_recorder(recorder::FileRecorder::new(path)))
-        .transpose()?;
+        .transpose()
+        .map_err(anyhow::Error::from)?;
 
     let ctx = Context::new(cli.format, cli.color, cli.base_url)?;
 
     if cli.command.requires_auth() {
         if ctx.tokens.load()?.is_none() {
-            return Err(Error::NotLoggedIn.into());
+            return Err(Error::NotLoggedIn);
         }
 
         if ctx.client.is_token_expired() {
-            return Err(Error::TokenExpired.into());
+            return Err(Error::TokenExpired);
         }
     }
 
@@ -211,6 +208,6 @@ async fn main() -> ExitCode {
 
     match run(cli).await {
         Ok(()) => ExitCode::SUCCESS,
-        Err(err) => handle_error(&output, err),
+        Err(err) => err.handle(&output),
     }
 }

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use anyhow::Result;
+use crate::error::Result;
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::prelude::*;
@@ -80,7 +80,8 @@ fn file_writer(log_file: Option<PathBuf>) -> Result<(NonBlocking, WorkerGuard)> 
                 .filename_prefix("d1v")
                 .filename_suffix("log")
                 .max_log_files(8)
-                .build(&dir)?;
+                .build(&dir)
+                .map_err(anyhow::Error::from)?;
 
             Ok(tracing_appender::non_blocking(appender))
         }

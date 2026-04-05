@@ -33,7 +33,7 @@ impl Password {
     }
 
     /// Runs the prompt and returns the entered password.
-    pub fn prompt(self) -> Result<SecretString, anyhow::Error> {
+    pub fn prompt(self) -> Result<SecretString, Error> {
         let mut error: Option<String> = None;
 
         loop {
@@ -46,13 +46,13 @@ impl Password {
             match self.read(confirm_label, None) {
                 Ok(second) if second.expose_secret() == first.expose_secret() => return Ok(first),
                 Ok(_) => error = Some(t!("password-mismatch")),
-                Err(e) if is_cancelled(&e) => continue,
-                Err(e) => return Err(e),
+                Err(err) if err.is_cancelled() => continue,
+                Err(err) => return Err(err),
             }
         }
     }
 
-    fn read(&self, label: &str, error: Option<String>) -> Result<SecretString, anyhow::Error> {
+    fn read(&self, label: &str, error: Option<String>) -> Result<SecretString, Error> {
         let height = if error.is_some() { 2 } else { 1 };
         let mut guard = TerminalGuard::new(height)?;
         let mut input = InputState::new();
@@ -134,9 +134,4 @@ impl Password {
 
         Ok(())
     }
-}
-
-fn is_cancelled(err: &anyhow::Error) -> bool {
-    err.downcast_ref::<Error>()
-        .is_some_and(|e| matches!(e, Error::Cancelled))
 }

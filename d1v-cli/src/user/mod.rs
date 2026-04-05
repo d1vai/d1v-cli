@@ -4,7 +4,7 @@ mod info;
 mod invitation;
 mod password;
 
-use anyhow::Result;
+use crate::error::Result;
 use clap::{Args, Subcommand};
 use tracing::debug;
 

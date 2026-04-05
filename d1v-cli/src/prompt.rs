@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 use d1v_api::{Code, Email, Validate};
 use secrecy::SecretString;
 

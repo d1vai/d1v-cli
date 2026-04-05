@@ -31,6 +31,12 @@ error-not-logged-in = not logged in
 hint-not-logged-in = Run `d1v auth login` to authenticate.
 error-token-expired = token has expired
 hint-token-expired = Run `d1v auth login` to re-authenticate.
+error-network = network error
+error-timeout = request timed out
+hint-network = Check your internet connection and try again.
+hint-timeout = The request timed out. Please try again later.
+hint-config = Check your config file at ~/.d1v/config.toml.
+hint-token-storage = Try running `d1v auth login` to re-authenticate.
 cancelled = Cancelled.
 
 ## Token

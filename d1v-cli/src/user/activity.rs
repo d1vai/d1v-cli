@@ -1,4 +1,4 @@
-use anyhow::Result;
+use crate::error::Result;
 
 use super::{ActivityArgs, ActivityTarget};
 use crate::Context;
