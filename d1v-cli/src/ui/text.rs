@@ -1,7 +1,7 @@
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 
 use super::input::InputState;
-use super::TerminalGuard;
+use super::Terminal;
 use crate::error::Error;
 
 /// Single-line text prompt with optional validation.
@@ -30,10 +30,10 @@ impl Text {
 
         loop {
             let height = if error.is_some() { 2 } else { 1 };
-            let mut guard = TerminalGuard::new(height)?;
+            let mut term = Terminal::new(height)?;
 
             loop {
-                guard.draw_prompt(
+                term.draw_prompt(
                     &self.label,
                     input.text(),
                     input.cursor_col(),
@@ -49,7 +49,7 @@ impl Text {
                             if key.code == KeyCode::Esc
                                 || key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
-                            guard.show_cancelled(&self.label);
+                            term.show_cancelled(&self.label);
                             return Err(Error::Cancelled);
                         }
                         _ => input.handle_key(&key),
@@ -64,7 +64,7 @@ impl Text {
                 continue;
             }
 
-            guard.show_answered(&self.label, input.text())?;
+            term.show_answered(&self.label, input.text())?;
             return Ok(String::from(input));
         }
     }

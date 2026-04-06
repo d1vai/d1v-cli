@@ -12,26 +12,26 @@ use ratatui::buffer::Buffer;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
-use ratatui::{backend::CrosstermBackend, Terminal, TerminalOptions, Viewport};
+use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use unicode_width::UnicodeWidthStr;
 
-pub struct TerminalGuard {
-    pub terminal: Terminal<CrosstermBackend<Stdout>>,
+pub struct Terminal {
+    inner: ratatui::Terminal<CrosstermBackend<Stdout>>,
 }
 
-impl TerminalGuard {
+impl Terminal {
     /// Enters raw mode and creates an inline terminal with the specified height.
     pub fn new(height: u16) -> io::Result<Self> {
         enable_raw_mode()?;
 
-        let terminal = Terminal::with_options(
+        let inner = ratatui::Terminal::with_options(
             CrosstermBackend::new(io::stdout()),
             TerminalOptions {
                 viewport: Viewport::Inline(height),
             },
         )?;
 
-        Ok(Self { terminal })
+        Ok(Self { inner })
     }
 
     /// Draws the active prompt with cursor, and an optional error message above it.
@@ -44,7 +44,7 @@ impl TerminalGuard {
     ) -> io::Result<()> {
         let label_width = label.width() as u16;
 
-        self.terminal.draw(|frame| {
+        self.inner.draw(|frame| {
             let area = frame.area();
             let mut lines = Vec::new();
 
@@ -77,7 +77,7 @@ impl TerminalGuard {
 
     /// Renders the answered state above the inline viewport and terminates it.
     fn show_answered(&mut self, label: &str, display: &str) -> io::Result<()> {
-        self.terminal.insert_before(1, |buf| {
+        self.inner.insert_before(1, |buf| {
             let line = Line::from(vec![
                 Span::styled(
                     label,
@@ -96,7 +96,7 @@ impl TerminalGuard {
 
     /// Renders the canceled prompt state, showing only the label in gray.
     fn show_cancelled(&mut self, label: &str) {
-        let _ = self.terminal.insert_before(1, |buf| {
+        let _ = self.inner.insert_before(1, |buf| {
             let line = Line::from(Span::styled(
                 label,
                 Style::default()
@@ -109,7 +109,7 @@ impl TerminalGuard {
     }
 }
 
-impl Drop for TerminalGuard {
+impl Drop for Terminal {
     fn drop(&mut self) {
         let _ = disable_raw_mode();
     }

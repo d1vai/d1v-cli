@@ -3,7 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::iter;
 
 use super::input::InputState;
-use super::TerminalGuard;
+use super::Terminal;
 use crate::error::Error;
 use crate::t;
 
@@ -50,13 +50,13 @@ impl Password {
 
     fn read(&self, label: &str, error: Option<String>) -> Result<SecretString, Error> {
         let height = if error.is_some() { 2 } else { 1 };
-        let mut guard = TerminalGuard::new(height)?;
+        let mut term = Terminal::new(height)?;
         let mut input = InputState::new();
 
         loop {
             let masked = input.masked(MASK);
             let col = input.masked_cursor_col(MASK);
-            guard.draw_prompt(label, &masked, col, error.as_deref())?;
+            term.draw_prompt(label, &masked, col, error.as_deref())?;
 
             if let Event::Key(key) = event::read()?
                 && key.kind == KeyEventKind::Press
@@ -67,7 +67,7 @@ impl Password {
                         if key.code == KeyCode::Esc
                             || key.modifiers.contains(KeyModifiers::CONTROL) =>
                     {
-                        guard.show_cancelled(label);
+                        term.show_cancelled(label);
                         return Err(Error::Cancelled);
                     }
                     _ => input.handle_key(&key),
@@ -77,7 +77,7 @@ impl Password {
 
         let count = input.grapheme_count();
         let answered = iter::repeat(MASK).take(count).collect::<String>();
-        guard.show_answered(label, &answered)?;
+        term.show_answered(label, &answered)?;
 
         Ok(SecretString::from(String::from(input)))
     }
