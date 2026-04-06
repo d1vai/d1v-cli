@@ -37,11 +37,13 @@ impl Terminal {
     /// Draws the active prompt with cursor, and an optional error message above it.
     fn draw_prompt(
         &mut self,
-        label: &str,
-        input_text: &str,
+        label: impl AsRef<str>,
+        input_text: impl AsRef<str>,
         cursor_col: usize,
         error: Option<&str>,
     ) -> io::Result<()> {
+        let label = label.as_ref();
+        let input_text = input_text.as_ref();
         let label_width = label.width() as u16;
 
         self.inner.draw(|frame| {
@@ -76,7 +78,14 @@ impl Terminal {
     }
 
     /// Renders the answered state above the inline viewport and terminates it.
-    fn show_answered(&mut self, label: &str, display: &str) -> io::Result<()> {
+    fn show_answered(
+        &mut self,
+        label: impl AsRef<str>,
+        display: impl AsRef<str>,
+    ) -> io::Result<()> {
+        let label = label.as_ref();
+        let display = display.as_ref();
+
         self.inner.insert_before(1, |buf| {
             let line = Line::from(vec![
                 Span::styled(
@@ -95,7 +104,9 @@ impl Terminal {
     }
 
     /// Renders the canceled prompt state, showing only the label in gray.
-    fn show_cancelled(&mut self, label: &str) {
+    fn show_cancelled(&mut self, label: impl AsRef<str>) {
+        let label = label.as_ref();
+
         let _ = self.inner.insert_before(1, |buf| {
             let line = Line::from(Span::styled(
                 label,
