@@ -5,7 +5,7 @@ use ratatui::widgets::{Paragraph, Widget};
 use unicode_width::UnicodeWidthStr;
 
 use super::input::InputState;
-use super::TerminalGuard;
+use super::{clear_wide_char_continuations, TerminalGuard};
 use crate::error::Error;
 
 /// Single-line text prompt with optional validation.
@@ -75,6 +75,7 @@ impl Text {
                 ]);
 
                 Widget::render(Paragraph::new(line), buf.area, buf);
+                clear_wide_char_continuations(buf);
             })?;
 
             return Ok(String::from(input));

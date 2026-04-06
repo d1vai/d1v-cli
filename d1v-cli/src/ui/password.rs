@@ -7,7 +7,7 @@ use std::iter;
 use unicode_width::UnicodeWidthStr;
 
 use super::input::InputState;
-use super::TerminalGuard;
+use super::{clear_wide_char_continuations, TerminalGuard};
 use crate::error::Error;
 use crate::t;
 
@@ -91,6 +91,7 @@ impl Password {
             ]);
 
             Widget::render(Paragraph::new(line), buf.area, buf);
+            clear_wide_char_continuations(buf);
         })?;
 
         Ok(SecretString::from(String::from(input)))
