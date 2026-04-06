@@ -65,9 +65,12 @@ impl Password {
             {
                 match key.code {
                     KeyCode::Enter => break,
-                    KeyCode::Esc => return Err(Error::Cancelled.into()),
-                    KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        return Err(Error::Cancelled.into());
+                    KeyCode::Esc | KeyCode::Char('c')
+                        if key.code == KeyCode::Esc
+                            || key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        Self::show_cancelled(&mut guard, label);
+                        return Err(Error::Cancelled);
                     }
                     _ => input.handle_key(&key),
                 }
@@ -95,6 +98,20 @@ impl Password {
         })?;
 
         Ok(SecretString::from(String::from(input)))
+    }
+
+    /// Renders the cancelled prompt state, showing only the label in gray.
+    fn show_cancelled(guard: &mut TerminalGuard, label: &str) {
+        let _ = guard.terminal.insert_before(1, |buf| {
+            let line = Line::from(Span::styled(
+                label,
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            ));
+            Widget::render(Paragraph::new(line), buf.area, buf);
+            clear_wide_char_continuations(buf);
+        });
     }
 
     fn draw(
