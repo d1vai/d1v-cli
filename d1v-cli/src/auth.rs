@@ -27,7 +27,15 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
 
 pub fn login_with_token(ctx: &Context) -> Result<()> {
     let token = if stdin().is_terminal() {
-        Password::new(t!("auth-token-prompt")).prompt()?
+        Password::new(t!("auth-token-prompt"))
+            .with_validator(|s| {
+                if s.is_empty() {
+                    Err(t!("auth-token-empty"))
+                } else {
+                    Ok(())
+                }
+            })
+            .prompt()?
     } else {
         let mut buf = String::new();
         stdin().read_line(&mut buf)?;
@@ -54,7 +62,15 @@ async fn authenticate_code(ctx: &Context, email: &str) -> Result<SecretString> {
 }
 
 async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretString> {
-    let password = Password::new(t!("auth-password-prompt")).prompt()?;
+    let password = Password::new(t!("auth-password-prompt"))
+        .with_validator(|s| {
+            if s.is_empty() {
+                Err(t!("password-empty"))
+            } else {
+                Ok(())
+            }
+        })
+        .prompt()?;
 
     debug!("logging in with password");
     Ok(ctx.client.user().login_password(email, &password).await?)

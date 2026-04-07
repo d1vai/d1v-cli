@@ -26,6 +26,13 @@ pub fn code() -> Result<String> {
 /// Prompts for a new password with masked display and confirmation.
 pub fn new_password() -> Result<SecretString> {
     Ok(Password::new(t!("password-new-prompt"))
+        .with_validator(|s| {
+            if s.is_empty() {
+                Err(t!("password-empty"))
+            } else {
+                Ok(())
+            }
+        })
         .with_confirmation(t!("password-confirm-prompt"))
         .prompt()?)
 }
