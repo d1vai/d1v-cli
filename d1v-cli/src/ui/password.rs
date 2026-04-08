@@ -62,10 +62,11 @@ impl Password {
         validator: Option<&dyn Fn(&str) -> Result<(), String>>,
     ) -> Result<SecretString, Error> {
         let mut error = error;
+        let mut term = Terminal::new(if error.is_some() { 2 } else { 1 })?;
 
         loop {
             let height = if error.is_some() { 2 } else { 1 };
-            let mut term = Terminal::new(height)?;
+            term.set_viewport_height(height)?;
             let mut input = InputState::new();
 
             loop {

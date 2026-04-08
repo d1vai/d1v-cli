@@ -18,6 +18,7 @@ use unicode_width::UnicodeWidthStr;
 
 pub struct Terminal {
     inner: ratatui::Terminal<CrosstermBackend<Stdout>>,
+    height: u16,
 }
 
 impl Terminal {
@@ -32,7 +33,24 @@ impl Terminal {
             },
         )?;
 
-        Ok(Self { inner })
+        Ok(Self { inner, height })
+    }
+
+    /// Recreates the inline viewport if the height has changed.
+    ///
+    /// This keeps the Terminal alive across validation retries, avoiding
+    /// orphaned viewport content and unnecessary raw mode toggling.
+    fn set_viewport_height(&mut self, height: u16) -> io::Result<()> {
+        if height != self.height {
+            self.inner = ratatui::Terminal::with_options(
+                CrosstermBackend::new(io::stdout()),
+                TerminalOptions {
+                    viewport: Viewport::Inline(height),
+                },
+            )?;
+            self.height = height;
+        }
+        Ok(())
     }
 
     /// Draws the active prompt with cursor, and an optional error message above it.
@@ -125,8 +143,7 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        let _ = disable_raw_mode()
-            .inspect_err(|e| debug!("failed to disable raw mode: {e}"));
+        let _ = disable_raw_mode().inspect_err(|e| debug!("failed to disable raw mode: {e}"));
     }
 }
 

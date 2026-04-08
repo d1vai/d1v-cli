@@ -27,10 +27,11 @@ impl Text {
     pub fn prompt(self) -> Result<String, Error> {
         let mut input = InputState::new();
         let mut error: Option<String> = None;
+        let mut term = Terminal::new(1)?;
 
         loop {
             let height = if error.is_some() { 2 } else { 1 };
-            let mut term = Terminal::new(height)?;
+            term.set_viewport_height(height)?;
 
             loop {
                 term.draw_prompt(
