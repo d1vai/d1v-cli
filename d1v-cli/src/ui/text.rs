@@ -1,7 +1,7 @@
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 
 use super::input::InputState;
-use super::Terminal;
+use super::{is_cancel, Terminal};
 use crate::error::Error;
 
 /// Single-line text prompt with optional validation.
@@ -46,10 +46,7 @@ impl Text {
                 {
                     match key.code {
                         KeyCode::Enter => break,
-                        KeyCode::Esc | KeyCode::Char('c')
-                            if key.code == KeyCode::Esc
-                                || key.modifiers.contains(KeyModifiers::CONTROL) =>
-                        {
+                        _ if is_cancel(&key) => {
                             term.show_cancelled(&self.label);
                             return Err(Error::Cancelled);
                         }

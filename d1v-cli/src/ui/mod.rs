@@ -7,6 +7,7 @@ pub use text::Text;
 
 use std::io::{self, Stdout};
 
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Color, Modifier, Style};
@@ -144,6 +145,15 @@ impl Terminal {
 impl Drop for Terminal {
     fn drop(&mut self) {
         let _ = disable_raw_mode().inspect_err(|e| debug!("failed to disable raw mode: {e}"));
+    }
+}
+
+/// Checks if a key event is a cancel shortcut (Esc or Ctrl+C).
+fn is_cancel(key: &KeyEvent) -> bool {
+    match key.code {
+        KeyCode::Esc => true,
+        KeyCode::Char('c') => key.modifiers.contains(KeyModifiers::CONTROL),
+        _ => false,
     }
 }
 
