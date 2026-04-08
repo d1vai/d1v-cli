@@ -1,74 +1,13 @@
-mod auth;
-mod config;
-mod debug;
-mod error;
-mod i18n;
-mod logging;
-mod output;
-mod prompt;
-#[cfg(feature = "record")]
-mod recorder;
-mod token;
-mod ui;
-mod user;
-
-use std::fmt::Display;
 use std::process::ExitCode;
-use std::time::Duration;
 
 use clap::{Parser, Subcommand};
-use d1v_api::{Client, UserAgent};
-use serde::Serialize;
 use tracing::info;
 
-use crate::config::Config;
-use crate::error::{Error, Result};
-use crate::output::{Color, Format, Output};
-use crate::token::{TokenChain, TokenLoader};
-
-pub struct Context {
-    pub client: Client,
-    pub tokens: TokenChain,
-    pub output: Output,
-}
-
-impl Context {
-    fn new(format: Format, color: Color, base_url: Option<String>) -> Result<Self> {
-        let config = Config::load()?;
-        let tokens = TokenChain::default();
-
-        let mut builder = Client::builder()
-            .base_url(base_url.unwrap_or(config.base_url))
-            .user_agent(UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30));
-
-        if let Ok(Some(token)) = tokens.load() {
-            builder = builder.token(token);
-        }
-
-        Ok(Self {
-            client: builder.build()?,
-            tokens,
-            output: Output::new(format, color.resolve()),
-        })
-    }
-
-    /// Writes a status message via the output formatter.
-    pub fn message(&self, msg: impl Display) {
-        self.output.message(msg);
-    }
-
-    /// Writes structured data via the output formatter.
-    pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
-        self.output.print(value)
-    }
-
-    /// Writes a list of structured data via the output formatter.
-    pub fn print_list(&self, values: impl IntoIterator<Item = impl Display + Serialize>) -> Result {
-        self.output.print_list(values)
-    }
-}
+use d1v_cli::config::Config;
+use d1v_cli::error::{Error, Result};
+use d1v_cli::output::{Color, Format, Output};
+use d1v_cli::token::TokenLoader;
+use d1v_cli::{auth, debug, i18n, logging, user, Context};
 
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
@@ -150,7 +89,7 @@ async fn run(cli: Cli) -> Result<()> {
     #[cfg(feature = "record")]
     let _recorder = cli
         .record
-        .map(|path| d1v_api::set_recorder(recorder::FileRecorder::new(path)))
+        .map(|path| d1v_api::set_recorder(d1v_cli::recorder::FileRecorder::new(path)))
         .transpose()
         .map_err(anyhow::Error::from)?;
 
