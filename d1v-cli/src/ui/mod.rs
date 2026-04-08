@@ -13,6 +13,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
+use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
 pub struct Terminal {
@@ -78,45 +79,47 @@ impl Terminal {
     }
 
     /// Renders the answered state above the inline viewport and terminates it.
-    fn show_answered(
-        &mut self,
-        label: impl AsRef<str>,
-        display: impl AsRef<str>,
-    ) -> io::Result<()> {
+    fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
         let label = label.as_ref();
         let display = display.as_ref();
 
-        self.inner.insert_before(1, |buf| {
-            let line = Line::from(vec![
-                Span::styled(
-                    label,
-                    Style::default()
-                        .fg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" "),
-                Span::styled(display, Style::default().fg(Color::DarkGray)),
-            ]);
+        let _ = self
+            .inner
+            .insert_before(1, |buf| {
+                let line = Line::from(vec![
+                    Span::styled(
+                        label,
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" "),
+                    Span::styled(display, Style::default().fg(Color::DarkGray)),
+                ]);
 
-            Widget::render(Paragraph::new(line), buf.area, buf);
-            clear_wide_char_continuations(buf);
-        })
+                Widget::render(Paragraph::new(line), buf.area, buf);
+                clear_wide_char_continuations(buf);
+            })
+            .inspect_err(|err| debug!("failed to render answered state: {err}"));
     }
 
     /// Renders the canceled prompt state, showing only the label in gray.
     fn show_cancelled(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref();
 
-        let _ = self.inner.insert_before(1, |buf| {
-            let line = Line::from(Span::styled(
-                label,
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD),
-            ));
-            Widget::render(Paragraph::new(line), buf.area, buf);
-            clear_wide_char_continuations(buf);
-        });
+        let _ = self
+            .inner
+            .insert_before(1, |buf| {
+                let line = Line::from(Span::styled(
+                    label,
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                Widget::render(Paragraph::new(line), buf.area, buf);
+                clear_wide_char_continuations(buf);
+            })
+            .inspect_err(|err| debug!("failed to render cancelled state: {err}"));
     }
 }
 

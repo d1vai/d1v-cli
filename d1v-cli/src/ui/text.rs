@@ -64,7 +64,7 @@ impl Text {
                 continue;
             }
 
-            term.show_answered(&self.label, input.text())?;
+            term.show_answered(&self.label, input.text());
             return Ok(String::from(input));
         }
     }
