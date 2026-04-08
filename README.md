@@ -21,12 +21,26 @@ Run `d1v --help` for all available commands.
 
 ### Global Options
 
-| Option      | Description                | Default         |
-| ----------- | -------------------------- | --------------- |
-| `--format`  | Output format (text, json) | text            |
-| `--color`   | Color output               | auto            |
-| `--lang`    | Display language           | System / Config |
-| `-v`        | Increase log verbosity     | warn            |
+| Option     | Description                | Default         |
+| ---------- | -------------------------- | --------------- |
+| `--format` | Output format (text, json) | text            |
+| `--color`  | Color output               | auto            |
+| `--lang`   | Display language           | System / Config |
+| `-v`       | Increase log verbosity     | warn            |
+
+### Environment Variables
+
+| Variable          | Description          |
+| ----------------- | -------------------- |
+| `D1V_AUTH_TOKEN`  | Auth token           |
+| `D1V_BASE_URL`    | API base URL         |
+| `D1V_FORMAT`      | Output format        |
+| `D1V_COLOR`       | Color output         |
+| `D1V_LANG`        | Display language     |
+| `D1V_LOG_FILE`    | Log file path        |
+| `D1V_RECORD_FILE` | HTTP recording file  |
+| `NO_COLOR`        | Disable color output |
+| `RUST_LOG`        | Log filter           |
 
 ### Authentication
 
