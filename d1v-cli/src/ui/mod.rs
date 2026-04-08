@@ -17,6 +17,10 @@ use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
+/// Inline terminal for interactive prompt rendering.
+///
+/// Wraps a ratatui inline-viewport terminal with raw mode management.
+/// Entering raw mode on creation and restoring normal mode on drop.
 pub struct Terminal {
     inner: ratatui::Terminal<CrosstermBackend<Stdout>>,
     height: u16,
@@ -162,7 +166,7 @@ fn is_cancel(key: &KeyEvent) -> bool {
 
 /// Clears continuation cells of wide characters in the buffer.
 ///
-/// Works around a ratatui bug where [`Terminal::insert_before`] renders
+/// Works around a ratatui bug where [`ratatui::Terminal::insert_before`] renders
 /// visible spaces for continuation cells of wide characters (CJK, emoji).
 /// Setting their symbol to `""` makes the backend's `Print("")` a no-op.
 ///
