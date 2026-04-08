@@ -125,7 +125,8 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
+        let _ = disable_raw_mode()
+            .inspect_err(|e| debug!("failed to disable raw mode: {e}"));
     }
 }
 
