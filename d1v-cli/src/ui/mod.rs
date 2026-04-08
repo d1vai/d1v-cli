@@ -32,7 +32,10 @@ impl Terminal {
             TerminalOptions {
                 viewport: Viewport::Inline(height),
             },
-        )?;
+        )
+        .inspect_err(|_| {
+            let _ = disable_raw_mode().inspect_err(|e| debug!("failed to disable raw mode: {e}"));
+        })?;
 
         Ok(Self { inner, height })
     }
