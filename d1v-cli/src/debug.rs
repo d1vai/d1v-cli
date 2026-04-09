@@ -1,10 +1,11 @@
-use crate::error::Result;
 use d1v_api::UserAgent;
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use crate::config::Config;
+use crate::error::Result;
+use crate::output::pad_label;
 use crate::t;
 use crate::Context;
 
@@ -19,11 +20,36 @@ struct DebugInfo {
 
 impl Display for DebugInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:<13}{}", t!("debug-label-version"), self.version)?;
-        writeln!(f, "{:<13}{}", t!("debug-label-user-agent"), self.user_agent)?;
-        writeln!(f, "{:<13}{}", t!("debug-label-config"), self.config)?;
-        writeln!(f, "{:<13}{}", t!("debug-label-base-url"), self.base_url)?;
-        write!(f, "{:<13}{}", t!("debug-label-token"), self.token)
+        writeln!(
+            f,
+            "{}{}",
+            pad_label(&t!("debug-label-version"), 13),
+            self.version
+        )?;
+        writeln!(
+            f,
+            "{}{}",
+            pad_label(&t!("debug-label-user-agent"), 13),
+            self.user_agent
+        )?;
+        writeln!(
+            f,
+            "{}{}",
+            pad_label(&t!("debug-label-config"), 13),
+            self.config
+        )?;
+        writeln!(
+            f,
+            "{}{}",
+            pad_label(&t!("debug-label-base-url"), 13),
+            self.base_url
+        )?;
+        write!(
+            f,
+            "{}{}",
+            pad_label(&t!("debug-label-token"), 13),
+            self.token
+        )
     }
 }
 

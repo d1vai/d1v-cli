@@ -6,6 +6,7 @@ use owo_colors::{OwoColorize, Style};
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::json;
+use unicode_width::UnicodeWidthStr;
 
 use crate::error::Result;
 use crate::t;
@@ -60,6 +61,18 @@ impl Display for Color {
             Color::Never => write!(f, "never"),
         }
     }
+}
+
+/// Pads `label` to `width` display columns using Unicode display width.
+pub fn pad_label(label: &str, width: usize) -> String {
+    let display_width = label.width();
+    let padding = if display_width >= width {
+        1
+    } else {
+        width - display_width
+    };
+
+    format!("{label}{}", " ".repeat(padding))
 }
 
 /// Structured output formatter.
