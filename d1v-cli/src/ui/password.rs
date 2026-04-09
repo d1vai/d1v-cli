@@ -96,7 +96,7 @@ impl Password {
             }
 
             let count = input.grapheme_count();
-            let answered = iter::repeat(MASK).take(count).collect::<String>();
+            let answered = iter::repeat_n(MASK, count).collect::<String>();
             term.show_answered(label, &answered);
 
             return Ok(SecretString::from(String::from(input)));
