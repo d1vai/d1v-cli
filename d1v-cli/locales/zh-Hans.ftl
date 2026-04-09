@@ -72,3 +72,8 @@ email-change-success = 邮箱更换成功。
 ## 邀请与引导
 invitation-accepted = 邀请已接受。
 onboard-success = 引导已标记为完成。
+
+## 确认
+confirm-yes = 是
+confirm-no = 否
+confirm-invalid = 请输入 y 或 n。

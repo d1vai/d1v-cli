@@ -1,7 +1,9 @@
+pub mod confirm;
 pub mod input;
 pub mod password;
 pub mod text;
 
+pub use confirm::Confirm;
 pub use password::Password;
 pub use text::Text;
 

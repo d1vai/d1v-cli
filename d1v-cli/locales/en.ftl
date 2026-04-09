@@ -72,3 +72,8 @@ email-change-success = Email changed successfully.
 ## Invitation & Onboarding
 invitation-accepted = Invitation accepted.
 onboard-success = Onboarding marked as complete.
+
+## Confirm
+confirm-yes = yes
+confirm-no = no
+confirm-invalid = Please type y or n.
