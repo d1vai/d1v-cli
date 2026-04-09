@@ -24,8 +24,8 @@ use crate::ui::input::InputState;
 
 /// Inline terminal for interactive prompt rendering.
 ///
-/// Wraps a ratatui inline-viewport terminal with raw mode management.
-/// Entering raw mode on creation and restoring normal mode on drop.
+/// Wraps a ratatui inline-viewport terminal. Enters raw mode on creation
+/// and restores it on drop.
 pub struct Terminal {
     inner: ratatui::Terminal<CrosstermBackend<Stdout>>,
     height: u16,
@@ -49,10 +49,10 @@ impl Terminal {
         Ok(Self { inner, height })
     }
 
-    /// Recreates the inline viewport if the height has changed.
+    /// Resizes the inline viewport if the height has changed.
     ///
-    /// This keeps the Terminal alive across validation retries, avoiding
-    /// orphaned viewport content and unnecessary raw mode toggling.
+    /// Keeps the terminal alive across validation retries, avoiding orphaned
+    /// viewport content and unnecessary raw mode toggling.
     fn set_viewport_height(&mut self, height: u16) -> io::Result<()> {
         if height != self.height {
             self.inner = ratatui::Terminal::with_options(
@@ -70,7 +70,7 @@ impl Terminal {
         Ok(())
     }
 
-    /// Draws the active prompt with cursor, an optional error above, and optional help below.
+    /// Draws the prompt line with cursor, optional error above and help below.
     fn draw_prompt(
         &mut self,
         label: impl AsRef<str>,
