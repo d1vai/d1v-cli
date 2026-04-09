@@ -7,25 +7,25 @@ use crate::ui::{Password, Text};
 
 /// Prompts for an email address with format validation.
 pub fn email() -> Result<String> {
-    Ok(Text::new(t!("auth-email-prompt"))
+    Text::new(t!("auth-email-prompt"))
         .with_validator(|input| {
             Email(input)
                 .validate()
                 .map_err(|_| t!("auth-email-invalid"))
         })
-        .prompt()?)
+        .prompt()
 }
 
 /// Prompts for a 6-digit verification code with format validation.
 pub fn code() -> Result<String> {
-    Ok(Text::new(t!("auth-code-prompt"))
+    Text::new(t!("auth-code-prompt"))
         .with_validator(|input| Code(input).validate().map_err(|_| t!("auth-code-invalid")))
-        .prompt()?)
+        .prompt()
 }
 
 /// Prompts for a new password with masked display and confirmation.
 pub fn new_password() -> Result<SecretString> {
-    Ok(Password::new(t!("password-new-prompt"))
+    Password::new(t!("password-new-prompt"))
         .with_validator(|s| {
             if s.is_empty() {
                 Err(t!("password-empty"))
@@ -34,5 +34,5 @@ pub fn new_password() -> Result<SecretString> {
             }
         })
         .with_confirmation(t!("password-confirm-prompt"))
-        .prompt()?)
+        .prompt()
 }
