@@ -9,7 +9,7 @@ pub use text::Text;
 
 use std::io::{self, Stdout};
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Color, Modifier, Style};
@@ -18,6 +18,9 @@ use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
+
+use crate::error::Error;
+use crate::ui::input::InputState;
 
 /// Inline terminal for interactive prompt rendering.
 ///
@@ -143,6 +146,25 @@ impl Terminal {
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
     }
 
+    /// Reads and dispatches a key event for the prompt loop.
+    ///
+    /// Returns `true` on Enter (submit). Forwards other keys to `input`.
+    /// On Esc / Ctrl+C, renders the canceled state and returns [`Error::Cancelled`].
+    fn read_key(&mut self, input: &mut InputState, label: &str) -> Result<bool, Error> {
+        match read_key_action()? {
+            Some(Action::Submit) => Ok(true),
+            Some(Action::Cancel) => {
+                self.show_cancelled(label);
+                Err(Error::Cancelled)
+            }
+            Some(Action::Input(key)) => {
+                input.handle_key(&key);
+                Ok(false)
+            }
+            None => Ok(false),
+        }
+    }
+
     /// Renders the canceled prompt state, showing only the label in gray.
     fn show_cancelled(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref();
@@ -169,13 +191,30 @@ impl Drop for Terminal {
     }
 }
 
-/// Checks if a key event is a cancel shortcut (Esc or Ctrl+C).
-fn is_cancel(key: &KeyEvent) -> bool {
-    match key.code {
-        KeyCode::Esc => true,
-        KeyCode::Char('c') => key.modifiers.contains(KeyModifiers::CONTROL),
-        _ => false,
-    }
+/// Key press classified as a prompt action.
+enum Action {
+    /// Submit current input (Enter).
+    Submit,
+    /// Cancel the prompt (Esc / Ctrl+C).
+    Cancel,
+    /// Forward to input handling.
+    Input(KeyEvent),
+}
+
+/// Reads and classifies a key press into an [`Action`].
+///
+/// Returns `None` for non-press events (release, repeat).
+fn read_key_action() -> io::Result<Option<Action>> {
+    let Some(key) = event::read()?.as_key_press_event() else {
+        return Ok(None);
+    };
+
+    Ok(Some(match key.code {
+        KeyCode::Enter => Action::Submit,
+        KeyCode::Esc => Action::Cancel,
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Cancel,
+        _ => Action::Input(key),
+    }))
 }
 
 /// Clears continuation cells of wide characters in the buffer.

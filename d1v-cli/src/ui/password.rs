@@ -1,9 +1,8 @@
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use secrecy::{ExposeSecret, SecretString};
 use std::iter;
 
 use super::input::InputState;
-use super::{is_cancel, Terminal};
+use super::Terminal;
 use crate::error::Error;
 use crate::t;
 
@@ -74,17 +73,8 @@ impl Password {
                 let col = input.masked_cursor_col(MASK);
                 term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
 
-                if let Event::Key(key) = event::read()?
-                    && key.kind == KeyEventKind::Press
-                {
-                    match key.code {
-                        KeyCode::Enter => break,
-                        _ if is_cancel(&key) => {
-                            term.show_cancelled(label);
-                            return Err(Error::Cancelled);
-                        }
-                        _ => input.handle_key(&key),
-                    }
+                if term.read_key(&mut input, label)? {
+                    break;
                 }
             }
 
