@@ -57,6 +57,10 @@ impl Terminal {
                 },
             )?;
             self.height = height;
+            // The new terminal's previous buffer is all spaces. Clearing
+            // the viewport ensures the physical screen matches, preventing
+            // stale characters left over from the prior terminal instance.
+            self.inner.clear()?;
         }
         Ok(())
     }
