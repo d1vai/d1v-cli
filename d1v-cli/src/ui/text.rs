@@ -39,6 +39,7 @@ impl Text {
                     input.text(),
                     input.cursor_col(),
                     error.as_deref(),
+                    None,
                 )?;
 
                 if let Event::Key(key) = event::read()?

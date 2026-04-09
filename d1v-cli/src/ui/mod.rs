@@ -65,13 +65,14 @@ impl Terminal {
         Ok(())
     }
 
-    /// Draws the active prompt with cursor, and an optional error message above it.
+    /// Draws the active prompt with cursor, an optional error above, and optional help below.
     fn draw_prompt(
         &mut self,
         label: impl AsRef<str>,
         input_text: impl AsRef<str>,
         cursor_col: usize,
         error: Option<&str>,
+        help: Option<&str>,
     ) -> io::Result<()> {
         let label = label.as_ref();
         let input_text = input_text.as_ref();
@@ -98,6 +99,13 @@ impl Terminal {
                 Span::raw(" "),
                 Span::raw(input_text),
             ]));
+
+            if let Some(msg) = help {
+                lines.push(Line::from(Span::styled(
+                    msg,
+                    Style::default().fg(Color::DarkGray),
+                )));
+            }
 
             frame.render_widget(Paragraph::new(lines), area);
 

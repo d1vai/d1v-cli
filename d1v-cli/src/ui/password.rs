@@ -72,7 +72,7 @@ impl Password {
             loop {
                 let masked = input.masked(MASK);
                 let col = input.masked_cursor_col(MASK);
-                term.draw_prompt(label, &masked, col, error.as_deref())?;
+                term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
 
                 if let Event::Key(key) = event::read()?
                     && key.kind == KeyEventKind::Press
