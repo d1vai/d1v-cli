@@ -64,7 +64,8 @@ impl Display for Color {
 }
 
 /// Pads `label` to `width` display columns using Unicode display width.
-pub fn pad_label(label: &str, width: usize) -> String {
+pub fn pad_label(label: impl AsRef<str>, width: usize) -> String {
+    let label = label.as_ref();
     let display_width = label.width();
     let padding = if display_width >= width {
         1

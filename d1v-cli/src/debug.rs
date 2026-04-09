@@ -23,31 +23,31 @@ impl Display for DebugInfo {
         writeln!(
             f,
             "{}{}",
-            pad_label(&t!("debug-label-version"), 13),
+            pad_label(t!("debug-label-version"), 13),
             self.version
         )?;
         writeln!(
             f,
             "{}{}",
-            pad_label(&t!("debug-label-user-agent"), 13),
+            pad_label(t!("debug-label-user-agent"), 13),
             self.user_agent
         )?;
         writeln!(
             f,
             "{}{}",
-            pad_label(&t!("debug-label-config"), 13),
+            pad_label(t!("debug-label-config"), 13),
             self.config
         )?;
         writeln!(
             f,
             "{}{}",
-            pad_label(&t!("debug-label-base-url"), 13),
+            pad_label(t!("debug-label-base-url"), 13),
             self.base_url
         )?;
         write!(
             f,
             "{}{}",
-            pad_label(&t!("debug-label-token"), 13),
+            pad_label(t!("debug-label-token"), 13),
             self.token
         )
     }
