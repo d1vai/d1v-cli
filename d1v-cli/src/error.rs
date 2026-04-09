@@ -19,8 +19,8 @@ pub enum Error {
     TokenExpired,
 
     /// User canceled the operation.
-    #[error("cancelled")]
-    Cancelled,
+    #[error("canceled")]
+    Canceled,
 
     /// API client error (network, validation, HTTP status, etc.).
     #[error(transparent)]
@@ -54,14 +54,14 @@ impl From<APIError> for Error {
 }
 
 impl Error {
-    const EXIT_CANCELLED: u8 = 2;
+    const EXIT_CANCELED: u8 = 2;
     const EXIT_NETWORK: u8 = 3;
     const EXIT_NOT_LOGGED_IN: u8 = 4;
 
     pub fn exit_code(&self) -> ExitCode {
         match self {
             Self::NotLoggedIn | Self::TokenExpired => ExitCode::from(Self::EXIT_NOT_LOGGED_IN),
-            Self::Cancelled => ExitCode::from(Self::EXIT_CANCELLED),
+            Self::Canceled => ExitCode::from(Self::EXIT_CANCELED),
             Self::Api(e) if e.is_network() => ExitCode::from(Self::EXIT_NETWORK),
             _ => ExitCode::FAILURE,
         }
@@ -81,13 +81,13 @@ impl Error {
     }
 
     /// Checks if the error is a user-initiated cancellation.
-    pub fn is_cancelled(&self) -> bool {
-        matches!(self, Error::Cancelled)
+    pub fn is_canceled(&self) -> bool {
+        matches!(self, Error::Canceled)
     }
 
     pub fn handle(&self, output: &Output) -> ExitCode {
-        if self.is_cancelled() {
-            output.message(t!("cancelled"));
+        if self.is_canceled() {
+            output.message(t!("canceled"));
             return self.exit_code();
         }
 

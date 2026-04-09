@@ -38,7 +38,7 @@ hint-network = Check your internet connection and try again.
 hint-timeout = The request timed out. Please try again later.
 hint-config = Check your config file at ~/.d1v/config.toml.
 hint-token-storage = Try running `d1v auth login` to re-authenticate.
-cancelled = Cancelled.
+canceled = Cancelled.
 
 ## Token
 error-no-token-store = no writable token store available

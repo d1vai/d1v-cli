@@ -38,7 +38,7 @@ hint-network = 请检查网络连接后重试。
 hint-timeout = 请求超时，请稍后重试。
 hint-config = 请检查配置文件 ~/.d1v/config.toml。
 hint-token-storage = 请尝试运行 `d1v auth login` 重新认证。
-cancelled = 已取消。
+canceled = 已取消。
 
 ## 令牌
 error-no-token-store = 没有可用的令牌存储

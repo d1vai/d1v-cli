@@ -149,13 +149,13 @@ impl Terminal {
     /// Reads and dispatches a key event for the prompt loop.
     ///
     /// Returns `true` on Enter (submit). Forwards other keys to `input`.
-    /// On Esc / Ctrl+C, renders the canceled state and returns [`Error::Cancelled`].
+    /// On Esc / Ctrl+C, renders the canceled state and returns [`Error::Canceled`].
     fn read_key(&mut self, input: &mut InputState, label: &str) -> Result<bool, Error> {
         match read_key_action()? {
             Some(Action::Submit) => Ok(true),
             Some(Action::Cancel) => {
-                self.show_cancelled(label);
-                Err(Error::Cancelled)
+                self.show_canceled(label);
+                Err(Error::Canceled)
             }
             Some(Action::Input(key)) => {
                 input.handle_key(&key);
@@ -166,7 +166,7 @@ impl Terminal {
     }
 
     /// Renders the canceled prompt state, showing only the label in gray.
-    fn show_cancelled(&mut self, label: impl AsRef<str>) {
+    fn show_canceled(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref();
 
         let _ = self
@@ -181,7 +181,7 @@ impl Terminal {
                 Widget::render(Paragraph::new(line), buf.area, buf);
                 clear_wide_char_continuations(buf);
             })
-            .inspect_err(|err| debug!("failed to render cancelled state: {err}"));
+            .inspect_err(|err| debug!("failed to render canceled state: {err}"));
     }
 }
 
