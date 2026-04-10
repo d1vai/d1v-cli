@@ -83,7 +83,7 @@ fn token_status(ctx: &Context) -> String {
 
     let mut status = t!("debug-token-found", source = source);
 
-    if let Some(Ok(claims)) = ctx.client.claims() {
+    if let Some(claims) = ctx.client.claims() {
         write_claims(&mut status, &claims).unwrap();
     }
 

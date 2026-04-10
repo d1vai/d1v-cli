@@ -147,8 +147,7 @@ pub fn status(ctx: &Context) -> Result<()> {
     let source = ctx.tokens.source().map(String::from);
     let logged_in = source.is_some();
 
-    let (subject, expires_in, expired) = if logged_in && let Some(Ok(claims)) = ctx.client.claims()
-    {
+    let (subject, expires_in, expired) = if logged_in && let Some(claims) = ctx.client.claims() {
         let expires_in = claims.expires_in().map(|d| d.as_secs());
         let expired = claims.is_expired();
         (claims.subject, expires_in, Some(expired))

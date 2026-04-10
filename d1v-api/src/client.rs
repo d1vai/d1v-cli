@@ -156,7 +156,13 @@ impl Client {
     }
 
     /// Decodes JWT claims from the current token.
-    pub fn claims(&self) -> Option<Result<Claims, DecodeError>> {
+    ///
+    /// Returns `None` if no token is set or the token cannot be decoded.
+    pub fn claims(&self) -> Option<Claims> {
+        self.decode_claims()?.ok()
+    }
+
+    pub fn decode_claims(&self) -> Option<Result<Claims, DecodeError>> {
         let guard = self.inner.token.read();
         let token = guard.as_ref()?;
         Some(token.claims())
