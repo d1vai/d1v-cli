@@ -12,6 +12,11 @@ auth-token-empty = Token cannot be empty.
 auth-login-success = Login successful!
 auth-logout-success = Logged out.
 auth-not-logged-in = Not logged in.
+auth-status-logged-in = Logged in
+auth-status-not-logged-in = Not logged in
+auth-status-expired = Token expired
+auth-status-label-user = user:
+auth-status-label-expires = expires in:
 
 ## Debug
 debug-label-version = version:

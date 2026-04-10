@@ -12,6 +12,11 @@ auth-token-empty = 令牌不能为空。
 auth-login-success = 登录成功！
 auth-logout-success = 已退出登录。
 auth-not-logged-in = 未登录。
+auth-status-logged-in = 已登录
+auth-status-not-logged-in = 未登录
+auth-status-expired = 令牌已过期
+auth-status-label-user = 用户:
+auth-status-label-expires = 过期时间:
 
 ## 调试
 debug-label-version = 版本:

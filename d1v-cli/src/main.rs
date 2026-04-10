@@ -83,6 +83,8 @@ enum AuthCommand {
     },
     /// Log out and clear stored credentials
     Logout,
+    /// Show authentication status
+    Status,
 }
 
 async fn run(cli: Cli) -> Result<()> {
@@ -118,6 +120,7 @@ async fn run(cli: Cli) -> Result<()> {
                 }
             }
             AuthCommand::Logout => auth::logout(&ctx).await,
+            AuthCommand::Status => auth::status(&ctx),
         },
         Command::User { command } => user::run(&ctx, command).await,
         Command::Debug => debug::run(&ctx),
