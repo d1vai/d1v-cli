@@ -9,7 +9,9 @@ pub mod user_agent;
 mod validate;
 
 pub use crate::client::{Client, ClientBuilder, RequestBuilder};
-pub use crate::error::{Error, HttpStatusError, Location, ValidationDetail, ValidationError};
+pub use crate::error::{
+    ApiCode, Error, HttpStatusError, Location, ValidationDetail, ValidationError,
+};
 pub use crate::jwt::Token;
 pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;

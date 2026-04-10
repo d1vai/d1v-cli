@@ -20,7 +20,7 @@ impl Response {
     {
         if self.code != 0 {
             return Err(Error::Api {
-                code: self.code,
+                code: self.code.into(),
                 message: self.message,
             });
         }

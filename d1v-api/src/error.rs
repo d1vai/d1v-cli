@@ -4,10 +4,47 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ApiCode {
+    PasswordNotSet,
+    Unknown(i64),
+}
+
+impl ApiCode {
+    pub fn raw(&self) -> i64 {
+        match self {
+            Self::PasswordNotSet => 40000,
+            Self::Unknown(code) => *code,
+        }
+    }
+}
+
+impl From<i64> for ApiCode {
+    fn from(code: i64) -> Self {
+        match code {
+            40000 => Self::PasswordNotSet,
+            _ => Self::Unknown(code),
+        }
+    }
+}
+
+impl From<ApiCode> for i64 {
+    fn from(code: ApiCode) -> Self {
+        code.raw()
+    }
+}
+
+impl Display for ApiCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.raw())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("api error {code}: {message}")]
-    Api { code: i64, message: String },
+    Api { code: ApiCode, message: String },
 
     #[error("invalid response data: {0}")]
     Data(#[from] serde_json::Error),
@@ -36,7 +73,7 @@ impl Error {
         matches!(self, Error::Api { .. })
     }
 
-    pub fn api_code(&self) -> Option<i64> {
+    pub fn api_code(&self) -> Option<ApiCode> {
         match self {
             Error::Api { code, .. } => Some(*code),
             _ => None,
@@ -198,12 +235,12 @@ mod tests {
     #[test]
     fn api_inspection() {
         let err = Error::Api {
-            code: 1,
+            code: 1.into(),
             message: "fail".into(),
         };
 
         assert!(err.is_api());
-        assert_eq!(err.api_code(), Some(1));
+        assert_eq!(err.api_code(), Some(ApiCode::Unknown(1)));
         assert!(!err.is_validation());
         assert!(!err.is_status());
         assert!(!err.is_network());
@@ -228,7 +265,7 @@ mod tests {
     #[test]
     fn status_code_returns_none() {
         let err = Error::Api {
-            code: 1,
+            code: 1.into(),
             message: "fail".into(),
         };
 

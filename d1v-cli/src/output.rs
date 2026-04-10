@@ -332,7 +332,7 @@ mod tests {
     fn error_text() {
         let mut buf = Vec::new();
         let err = Error::Api(APIError::Api {
-            code: 1,
+            code: 1.into(),
             message: "something broke".into(),
         });
         Output::new(Format::Text, false)
@@ -349,7 +349,7 @@ mod tests {
     fn error_json() {
         let mut buf = Vec::new();
         let err = Error::Api(APIError::Api {
-            code: 1,
+            code: 1.into(),
             message: "something broke".into(),
         });
         Output::new(Format::Json, false)
