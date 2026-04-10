@@ -388,4 +388,24 @@ mod tests {
 
         assert!(buf.is_empty());
     }
+
+    #[test]
+    fn format_duration_days_hours() {
+        assert_eq!(format_duration(90000), "1d 1h");
+    }
+
+    #[test]
+    fn format_duration_hours_minutes() {
+        assert_eq!(format_duration(9000), "2h 30m");
+    }
+
+    #[test]
+    fn format_duration_minutes_only() {
+        assert_eq!(format_duration(300), "5m");
+    }
+
+    #[test]
+    fn format_duration_less_than_minute() {
+        assert_eq!(format_duration(30), "1m");
+    }
 }
