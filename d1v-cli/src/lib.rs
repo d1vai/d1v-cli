@@ -3,6 +3,7 @@ pub mod config;
 pub mod debug;
 pub mod error;
 pub mod i18n;
+pub mod localize;
 pub mod logging;
 pub mod output;
 pub mod prompt;

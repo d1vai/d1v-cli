@@ -3,19 +3,18 @@ use thiserror::Error;
 use tracing::{debug, warn};
 
 use crate::config::{Config, ConfigError};
-use crate::t;
 
 type Result<T = (), E = TokenError> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum TokenError {
-    #[error("{}", t!("error-keyring-unavailable"))]
+    #[error("keyring is not available")]
     KeyringUnavailable,
 
-    #[error("{}", t!("error-keyring-save"))]
+    #[error("failed to save to keyring")]
     KeyringSave(#[from] keyring::Error),
 
-    #[error("{}", t!("error-no-token-store"))]
+    #[error("no writable token store available")]
     NoStore,
 
     #[error(transparent)]

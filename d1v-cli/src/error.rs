@@ -1,4 +1,5 @@
 use crate::config::ConfigError;
+use crate::localize::Localize;
 use crate::output::Output;
 use crate::t;
 use crate::token::TokenError;
@@ -11,11 +12,11 @@ pub use d1v_api::Error as APIError;
 #[derive(Debug, Error)]
 pub enum Error {
     /// Not logged in.
-    #[error("{}", t!("error-not-logged-in"))]
+    #[error("not logged in")]
     NotLoggedIn,
 
     /// Token has expired.
-    #[error("{}", t!("error-token-expired"))]
+    #[error("token expired")]
     TokenExpired,
 
     /// User canceled the operation.
@@ -87,11 +88,11 @@ impl Error {
 
     pub fn handle(&self, output: &Output) -> ExitCode {
         if self.is_canceled() {
-            output.message(t!("canceled"));
+            output.message(self.localize());
             return self.exit_code();
         }
 
-        output.error(self);
+        output.error(&self.localize());
 
         if let Some(hint) = self.hint() {
             output.hint(&hint);

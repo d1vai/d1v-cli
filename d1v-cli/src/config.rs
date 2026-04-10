@@ -6,25 +6,23 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::debug;
 
-use crate::t;
-
 type Result<T = (), E = ConfigError> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    #[error("{}", t!("error-no-home-dir"))]
+    #[error("could not determine home directory")]
     NoHomeDir,
 
-    #[error("{}", t!("error-read-config"))]
+    #[error("failed to read config file")]
     Read(#[source] std::io::Error),
 
-    #[error("{}", t!("error-write-config"))]
+    #[error("failed to write config file")]
     Write(#[source] std::io::Error),
 
-    #[error("{}", t!("error-parse-config"))]
+    #[error("failed to parse config file")]
     Parse(#[from] toml::de::Error),
 
-    #[error("{}", t!("error-serialize-config"))]
+    #[error("failed to serialize config")]
     Serialize(#[from] toml::ser::Error),
 }
 
