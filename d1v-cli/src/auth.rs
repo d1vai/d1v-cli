@@ -9,7 +9,7 @@ use tracing::debug;
 use crate::error::Result;
 use crate::output::{format_duration, pad_label};
 use crate::token::{TokenLoader, TokenStore};
-use crate::ui::Password;
+use crate::ui::{Confirm, Password};
 use crate::{prompt, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
@@ -91,6 +91,22 @@ pub async fn logout(ctx: &Context) -> Result<()> {
     ctx.message(t!("auth-logout-success"));
 
     Ok(())
+}
+
+/// Prompts the user to re-authenticate when the token has expired.
+pub async fn prompt_relogin(ctx: &Context) -> Result<bool> {
+    ctx.output.error(&t!("error-token-expired"));
+
+    let confirmed = Confirm::new(t!("auth-relogin-prompt"))
+        .default(true)
+        .prompt()?;
+
+    if !confirmed {
+        return Ok(false);
+    }
+
+    login(ctx, false).await?;
+    Ok(true)
 }
 
 #[derive(Debug, Serialize)]

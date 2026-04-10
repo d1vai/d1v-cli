@@ -1,3 +1,4 @@
+use std::io::{stdin, IsTerminal};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
@@ -104,7 +105,11 @@ async fn run(cli: Cli) -> Result<()> {
         }
 
         if ctx.client.is_token_expired() {
-            return Err(Error::TokenExpired);
+            if stdin().is_terminal() && auth::prompt_relogin(&ctx).await? {
+                ctx.message(t!("auth-relogin-success"));
+            } else {
+                return Err(Error::TokenExpired);
+            }
         }
 
         if let Some(claims) = ctx.client.claims()
