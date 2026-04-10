@@ -1,5 +1,5 @@
 use crate::config::ConfigError;
-use crate::error::Error;
+use crate::error::{APIError, Error};
 use crate::t;
 use crate::token::TokenError;
 
@@ -14,9 +14,26 @@ impl Localize for Error {
             Self::NotLoggedIn => t!("error-not-logged-in"),
             Self::TokenExpired => t!("error-token-expired"),
             Self::Canceled => t!("canceled"),
-            Self::Config(e) => e.localize(),
-            Self::Token(e) => e.localize(),
-            _ => format!("{self:#}"),
+            Self::Config(err) => err.localize(),
+            Self::Token(err) => err.localize(),
+            Self::Api(err) => err.localize(),
+            Self::Io(_) | Self::Other(_) => format!("{self:#}"),
+        }
+    }
+}
+
+impl Localize for APIError {
+    fn localize(&self) -> String {
+        match self {
+            Self::Http(err) if err.is_timeout() => t!("error-timeout"),
+            Self::Http(_) => t!("error-network"),
+            Self::HttpStatus(_) => t!("error-http-status"),
+            Self::Data(_) => t!("error-invalid-response"),
+            Self::Url(_) => t!("error-invalid-url"),
+            Self::Validation(_) => t!("error-server-validation"),
+            Self::InputValidation(_) => t!("error-input-validation"),
+            Self::Api { message, .. } => message.clone(),
+            Self::TokenExpired => t!("error-token-expired"),
         }
     }
 }
@@ -39,7 +56,7 @@ impl Localize for TokenError {
             Self::KeyringUnavailable => t!("error-keyring-unavailable"),
             Self::KeyringSave(_) => t!("error-keyring-save"),
             Self::NoStore => t!("error-no-token-store"),
-            Self::Config(e) => e.localize(),
+            Self::Config(err) => err.localize(),
         }
     }
 }
