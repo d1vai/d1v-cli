@@ -51,6 +51,12 @@ error-invalid-response = 响应数据格式错误
 error-invalid-url = 服务器地址无效
 error-server-validation = 服务端验证失败
 error-input-validation = 输入格式错误
+
+## API 错误码
+api-error-password-not-set = 未设置密码
+api-error-unknown = 服务端错误 { $code } ({ $message })
+api-error-unknown-code = 服务端错误 { $code }
+
 hint-config = 请检查配置文件 ~/.d1v/config.toml。
 hint-token-storage = 请尝试运行 `d1v auth login` 重新认证。
 canceled = 已取消。

@@ -51,6 +51,12 @@ error-invalid-response = invalid response data
 error-invalid-url = invalid server URL
 error-server-validation = server validation failed
 error-input-validation = invalid input
+
+## API Error Codes
+api-error-password-not-set = password not set
+api-error-unknown = server error { $code } ({ $message })
+api-error-unknown-code = server error { $code }
+
 hint-config = Check your config file at ~/.d1v/config.toml.
 hint-token-storage = Try running `d1v auth login` to re-authenticate.
 canceled = Cancelled.

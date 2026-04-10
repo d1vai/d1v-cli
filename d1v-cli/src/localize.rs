@@ -1,3 +1,5 @@
+use d1v_api::ApiCode;
+
 use crate::config::ConfigError;
 use crate::error::{APIError, Error};
 use crate::t;
@@ -22,6 +24,16 @@ impl Localize for Error {
     }
 }
 
+impl Localize for ApiCode {
+    fn localize(&self) -> String {
+        match self {
+            ApiCode::PasswordNotSet => t!("api-error-password-not-set"),
+            ApiCode::Unknown(code) => t!("api-error-unknown-code", code = code),
+            _ => t!("api-error-unknown-code", code = self.raw()),
+        }
+    }
+}
+
 impl Localize for APIError {
     fn localize(&self) -> String {
         match self {
@@ -32,7 +44,12 @@ impl Localize for APIError {
             Self::Url(_) => t!("error-invalid-url"),
             Self::Validation(_) => t!("error-server-validation"),
             Self::InputValidation(_) => t!("error-input-validation"),
-            Self::Api { message, .. } => message.clone(),
+            Self::Api { code, message } => match code {
+                ApiCode::Unknown(_) => {
+                    t!("api-error-unknown", code = code.raw(), message = message)
+                }
+                known => known.localize(),
+            },
             Self::TokenExpired => t!("error-token-expired"),
         }
     }
