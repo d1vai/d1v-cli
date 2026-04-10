@@ -17,6 +17,7 @@ auth-status-not-logged-in = Not logged in
 auth-status-expired = Token expired
 auth-status-label-user = user:
 auth-status-label-expires = expires in:
+warn-token-expiring = Token expires in { $duration }. Run `d1v auth login` to refresh.
 
 ## Debug
 debug-label-version = version:

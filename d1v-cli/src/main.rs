@@ -1,13 +1,14 @@
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
+use jiff::SignedDuration;
 use tracing::info;
 
 use d1v_cli::config::Config;
 use d1v_cli::error::{Error, Result};
-use d1v_cli::output::{Color, Format, Output};
+use d1v_cli::output::{format_duration, Color, Format, Output};
 use d1v_cli::token::TokenLoader;
-use d1v_cli::{auth, debug, i18n, logging, user, Context};
+use d1v_cli::{auth, debug, i18n, logging, t, user, Context};
 
 #[derive(Parser)]
 #[command(name = "d1v", version, about = "D1V CLI")]
@@ -104,6 +105,15 @@ async fn run(cli: Cli) -> Result<()> {
 
         if ctx.client.is_token_expired() {
             return Err(Error::TokenExpired);
+        }
+
+        if let Some(claims) = ctx.client.claims()
+            && let Some(remaining) = claims.expires_in()
+            && remaining < SignedDuration::from_hours(24)
+        {
+            let duration = format_duration(remaining.as_secs());
+            ctx.output
+                .hint(&t!("warn-token-expiring", duration = duration));
         }
     }
 

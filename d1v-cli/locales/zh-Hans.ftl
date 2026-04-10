@@ -17,6 +17,7 @@ auth-status-not-logged-in = 未登录
 auth-status-expired = 令牌已过期
 auth-status-label-user = 用户:
 auth-status-label-expires = 过期时间:
+warn-token-expiring = 令牌将在 { $duration }后过期，请运行 `d1v auth login` 刷新。
 
 ## 调试
 debug-label-version = 版本:

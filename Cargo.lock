@@ -580,6 +580,7 @@ dependencies = [
  "dirs",
  "fluent-templates",
  "indoc",
+ "jiff",
  "keyring",
  "owo-colors",
  "parking_lot",
