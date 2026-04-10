@@ -1,10 +1,12 @@
+use d1v_api::jwt::Claims;
 use d1v_api::UserAgent;
 use serde::Serialize;
 use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 
 use crate::config::Config;
 use crate::error::Result;
+use crate::output::format_duration;
 use crate::output::pad_label;
 use crate::t;
 use crate::Context;
@@ -53,23 +55,39 @@ impl Display for DebugInfo {
     }
 }
 
+fn write_claims(mut status: impl Write, claims: &Claims) -> fmt::Result {
+    if let Some(subject) = &claims.subject
+        && !subject.is_empty()
+    {
+        write!(status, " {subject}")?;
+    }
+
+    if let Some(duration) = claims.expires_in() {
+        let formatted = format_duration(duration.as_secs());
+        write!(
+            status,
+            " ({})",
+            t!("debug-token-expires-in", duration = formatted)
+        )?;
+    } else if claims.is_expired() {
+        write!(status, " ({})", t!("debug-token-expired"))?;
+    }
+
+    Ok(())
+}
+
 fn token_status(ctx: &Context) -> String {
     let Some(source) = ctx.tokens.source() else {
         return t!("debug-token-missing");
     };
 
-    let base = t!("debug-token-found", source = source);
+    let mut status = t!("debug-token-found", source = source);
 
-    let Some(Ok(claims)) = ctx.client.claims() else {
-        return base;
-    };
-
-    let claims = claims.to_string();
-    if claims.is_empty() {
-        return base;
+    if let Some(Ok(claims)) = ctx.client.claims() {
+        write_claims(&mut status, &claims).unwrap();
     }
 
-    format!("{base} {claims}")
+    status
 }
 
 pub fn run(ctx: &Context) -> Result<()> {

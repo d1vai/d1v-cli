@@ -22,6 +22,8 @@ debug-label-token = 令牌:
 debug-unknown = 未知
 debug-token-found = ✓（{ $source }）
 debug-token-missing = ✗
+debug-token-expires-in = { $duration }后过期
+debug-token-expired = 已过期
 
 ## 输出
 error-label = 错误:
@@ -77,3 +79,8 @@ onboard-success = 引导已标记为完成。
 confirm-yes = 是
 confirm-no = 否
 confirm-invalid = 请输入 y 或 n。
+
+## 时间
+duration-days-hours = { $days } 天 { $hours } 小时
+duration-hours-minutes = { $hours } 小时 { $minutes } 分钟
+duration-minutes = { $minutes } 分钟

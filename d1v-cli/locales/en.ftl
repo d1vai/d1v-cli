@@ -22,6 +22,8 @@ debug-label-token = token:
 debug-unknown = unknown
 debug-token-found = ✓ ({ $source })
 debug-token-missing = ✗
+debug-token-expires-in = expires in { $duration }
+debug-token-expired = expired
 
 ## Output
 error-label = Error:
@@ -77,3 +79,8 @@ onboard-success = Onboarding marked as complete.
 confirm-yes = yes
 confirm-no = no
 confirm-invalid = Please type y or n.
+
+## Duration
+duration-days-hours = { $days }d { $hours }h
+duration-hours-minutes = { $hours }h { $minutes }m
+duration-minutes = { $minutes }m

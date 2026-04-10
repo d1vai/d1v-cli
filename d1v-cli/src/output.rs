@@ -76,6 +76,21 @@ pub fn pad_label(label: impl AsRef<str>, width: usize) -> String {
     format!("{label}{}", " ".repeat(padding))
 }
 
+/// Formats seconds into a localized human-readable duration (e.g., `2d 3h`).
+pub fn format_duration(total_secs: i64) -> String {
+    let days = total_secs / 86400;
+    let hours = (total_secs % 86400) / 3600;
+    let minutes = (total_secs % 3600) / 60;
+
+    if days > 0 {
+        t!("duration-days-hours", days = days, hours = hours)
+    } else if hours > 0 {
+        t!("duration-hours-minutes", hours = hours, minutes = minutes)
+    } else {
+        t!("duration-minutes", minutes = minutes.max(1))
+    }
+}
+
 /// Structured output formatter.
 #[derive(Debug, Clone)]
 pub struct Output {
