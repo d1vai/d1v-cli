@@ -38,6 +38,7 @@ impl Localize for APIError {
     fn localize(&self) -> String {
         match self {
             Self::Http(err) if err.is_timeout() => t!("error-timeout"),
+            Self::Http(err) if err.is_connect() => t!("error-connection-failed"),
             Self::Http(_) => t!("error-network"),
             Self::HttpStatus(_) => t!("error-http-status"),
             Self::Data(_) => t!("error-invalid-response"),

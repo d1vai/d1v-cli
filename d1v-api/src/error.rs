@@ -101,6 +101,10 @@ impl Error {
         matches!(self, Error::Http(_))
     }
 
+    pub fn is_connect(&self) -> bool {
+        matches!(self, Error::Http(e) if e.is_connect())
+    }
+
     pub fn is_validation(&self) -> bool {
         matches!(self, Error::Validation(_))
     }

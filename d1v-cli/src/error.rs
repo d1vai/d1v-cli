@@ -73,6 +73,7 @@ impl Error {
             Self::NotLoggedIn => Some(t!("hint-not-logged-in")),
             Self::TokenExpired => Some(t!("hint-token-expired")),
             Self::Api(err) if err.is_timeout() => Some(t!("hint-timeout")),
+            Self::Api(err) if err.is_connect() => Some(t!("hint-connection")),
             Self::Api(err) if err.is_network() => Some(t!("hint-network")),
             Self::Api(APIError::Url(_)) => Some(t!("hint-config")),
             Self::Config(_) => Some(t!("hint-config")),
