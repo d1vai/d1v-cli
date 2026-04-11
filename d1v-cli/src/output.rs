@@ -175,9 +175,8 @@ impl Output {
     pub fn error_to(&self, w: &mut impl Write, err: &dyn Display) -> io::Result<()> {
         match self.format {
             Format::Text => {
-                let label = t!("error-label");
-                let label = label.style(self.error_style());
-                writeln!(w, "{label} {err:#}")
+                let mark = "✗".style(self.error_style());
+                writeln!(w, "{mark} {err:#}")
             }
             Format::Json => Self::write_json(w, &json!({ "error": format!("{err:#}") })),
         }
@@ -192,9 +191,8 @@ impl Output {
     pub fn hint_to(&self, w: &mut impl Write, message: &str) -> io::Result<()> {
         match self.format {
             Format::Text => {
-                let label = t!("hint-label");
-                let label = label.style(self.hint_style());
-                writeln!(w, "{label} {message}")
+                let message = message.style(self.hint_style());
+                writeln!(w, "  {message}")
             }
             Format::Json => Ok(()),
         }
@@ -341,7 +339,7 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(buf).unwrap(),
-            "Error: api error 1: something broke\n"
+            "✗ api error 1: something broke\n"
         );
     }
 
@@ -375,7 +373,7 @@ mod tests {
 
         assert_eq!(
             String::from_utf8(buf).unwrap(),
-            "Hint: Run `d1v auth login` to authenticate.\n"
+            "  Run `d1v auth login` to authenticate.\n"
         );
     }
 

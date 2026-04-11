@@ -31,10 +31,6 @@ debug-token-missing = ✗
 debug-token-expires-in = expires in { $duration }
 debug-token-expired = expired
 
-## Output
-error-label = Error:
-hint-label = Hint:
-
 ## CLI Errors
 error-not-logged-in = not logged in
 hint-not-logged-in = Run `d1v auth login` to authenticate.

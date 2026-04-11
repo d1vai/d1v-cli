@@ -31,10 +31,6 @@ debug-token-missing = ✗
 debug-token-expires-in = { $duration }后过期
 debug-token-expired = 已过期
 
-## 输出
-error-label = 错误:
-hint-label = 提示:
-
 ## CLI 错误
 error-not-logged-in = 未登录
 hint-not-logged-in = 请运行 `d1v auth login` 进行认证。
