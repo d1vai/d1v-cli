@@ -1,4 +1,4 @@
-use d1v_api::ApiCode;
+use d1v_api::{ApiCode, CodeError, EmailError, UrlError, ValidationError};
 
 use crate::config::ConfigError;
 use crate::error::{APIError, Error};
@@ -43,7 +43,7 @@ impl Localize for APIError {
             Self::Data(_) => t!("error-invalid-response"),
             Self::Url(_) => t!("error-invalid-url"),
             Self::ServerValidation(_) => t!("error-server-validation"),
-            Self::Validation(_) => t!("error-input-validation"),
+            Self::Validation(err) => err.localize(),
             Self::Api { code, message } => match code {
                 ApiCode::Unknown(_) => {
                     t!("api-error-unknown", code = code.raw(), message = message)
@@ -51,6 +51,43 @@ impl Localize for APIError {
                 known => known.localize(),
             },
             Self::TokenExpired => t!("error-token-expired"),
+        }
+    }
+}
+
+impl Localize for EmailError {
+    fn localize(&self) -> String {
+        match self {
+            Self::Empty => t!("validation-email-required"),
+            Self::Invalid => t!("validation-email-invalid"),
+        }
+    }
+}
+
+impl Localize for CodeError {
+    fn localize(&self) -> String {
+        match self {
+            Self::Empty => t!("validation-code-required"),
+            Self::InvalidLength => t!("validation-code-length"),
+            Self::NonDigit => t!("validation-code-digit"),
+        }
+    }
+}
+
+impl Localize for UrlError {
+    fn localize(&self) -> String {
+        match self {
+            Self::Invalid => t!("validation-url-invalid"),
+        }
+    }
+}
+
+impl Localize for ValidationError {
+    fn localize(&self) -> String {
+        match self {
+            Self::Email(err) => err.localize(),
+            Self::Code(err) => err.localize(),
+            Self::Url(err) => err.localize(),
         }
     }
 }

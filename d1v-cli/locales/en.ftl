@@ -2,10 +2,8 @@
 
 ## Authentication
 auth-email-prompt = Email:
-auth-email-invalid = please enter a valid email address
 auth-code-sent = Verification code sent to { $email }
 auth-code-prompt = Verification code:
-auth-code-invalid = please enter a 6-digit code
 auth-password-prompt = Password:
 auth-token-prompt = Token:
 auth-token-empty = Token cannot be empty.
@@ -50,7 +48,6 @@ error-http-status = unexpected server response
 error-invalid-response = invalid response data
 error-invalid-url = invalid server URL
 error-server-validation = server validation failed
-error-input-validation = invalid input
 
 ## API Error Codes
 api-error-password-not-set = password not set
@@ -72,6 +69,14 @@ error-read-config = failed to read config file
 error-write-config = failed to write config file
 error-parse-config = failed to parse config file
 error-serialize-config = failed to serialize config
+
+## Validation
+validation-email-required = email address is required
+validation-email-invalid = invalid email address
+validation-code-required = verification code is required
+validation-code-length = verification code must be 6 digits
+validation-code-digit = verification code must contain only digits
+validation-url-invalid = invalid URL
 
 ## User
 user-info-updated = User info updated.

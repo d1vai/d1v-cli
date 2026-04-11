@@ -2,10 +2,8 @@
 
 ## 身份验证
 auth-email-prompt = 邮箱:
-auth-email-invalid = 请输入有效的邮箱地址
 auth-code-sent = 验证码已发送至 { $email }
 auth-code-prompt = 验证码:
-auth-code-invalid = 请输入 6 位数字验证码
 auth-password-prompt = 密码:
 auth-token-prompt = 令牌:
 auth-token-empty = 令牌不能为空。
@@ -50,7 +48,6 @@ error-http-status = 服务端响应异常
 error-invalid-response = 响应数据格式错误
 error-invalid-url = 服务器地址无效
 error-server-validation = 服务端验证失败
-error-input-validation = 输入格式错误
 
 ## API 错误码
 api-error-password-not-set = 未设置密码
@@ -72,6 +69,14 @@ error-read-config = 读取配置文件失败
 error-write-config = 写入配置文件失败
 error-parse-config = 解析配置文件失败
 error-serialize-config = 序列化配置失败
+
+## 校验
+validation-email-required = 请输入邮箱地址
+validation-email-invalid = 邮箱地址格式无效
+validation-code-required = 请输入验证码
+validation-code-length = 验证码必须为 6 位数字
+validation-code-digit = 验证码只能包含数字
+validation-url-invalid = 链接格式无效
 
 ## 用户
 user-info-updated = 用户信息已更新。
