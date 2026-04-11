@@ -50,7 +50,7 @@ pub enum Error {
     Data(#[from] serde_json::Error),
 
     #[error(transparent)]
-    Validation(#[from] ValidationError),
+    ServerValidation(#[from] ServerValidationError),
 
     #[error(transparent)]
     Url(#[from] url::ParseError),
@@ -80,8 +80,8 @@ impl Error {
         }
     }
 
-    pub fn is_validation(&self) -> bool {
-        matches!(self, Error::Validation(_))
+    pub fn is_server_validation(&self) -> bool {
+        matches!(self, Error::ServerValidation(_))
     }
 
     pub fn is_status(&self) -> bool {
@@ -130,11 +130,11 @@ pub struct ValidationDetail {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
-pub struct ValidationError {
+pub struct ServerValidationError {
     pub detail: Vec<ValidationDetail>,
 }
 
-impl Display for ValidationError {
+impl Display for ServerValidationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "validation errors:")?;
 
@@ -220,7 +220,7 @@ mod tests {
                 }
             ]
         }"#;
-        let err: ValidationError = serde_json::from_str(json).unwrap();
+        let err: ServerValidationError = serde_json::from_str(json).unwrap();
 
         assert_eq!(
             err.to_string(),
@@ -241,16 +241,16 @@ mod tests {
 
         assert!(err.is_api());
         assert_eq!(err.api_code(), Some(ApiCode::Unknown(1)));
-        assert!(!err.is_validation());
+        assert!(!err.is_server_validation());
         assert!(!err.is_status());
         assert!(!err.is_network());
     }
 
     #[test]
     fn validation_inspection() {
-        let err = Error::Validation(ValidationError { detail: vec![] });
+        let err = Error::ServerValidation(ServerValidationError { detail: vec![] });
 
-        assert!(err.is_validation());
+        assert!(err.is_server_validation());
         assert!(!err.is_api());
     }
 

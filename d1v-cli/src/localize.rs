@@ -42,7 +42,7 @@ impl Localize for APIError {
             Self::HttpStatus(_) => t!("error-http-status"),
             Self::Data(_) => t!("error-invalid-response"),
             Self::Url(_) => t!("error-invalid-url"),
-            Self::Validation(_) => t!("error-server-validation"),
+            Self::ServerValidation(_) => t!("error-server-validation"),
             Self::InputValidation(_) => t!("error-input-validation"),
             Self::Api { code, message } => match code {
                 ApiCode::Unknown(_) => {

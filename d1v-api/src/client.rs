@@ -1,5 +1,5 @@
 use crate::jwt::{Claims, DecodeError, Token};
-use crate::{Error, HttpStatusError, Response, UserAgent, ValidationError};
+use crate::{Error, HttpStatusError, Response, ServerValidationError, UserAgent};
 use parking_lot::RwLock;
 use reqwest::{Method, StatusCode};
 use secrecy::ExposeSecret;
@@ -265,7 +265,7 @@ impl RequestBuilder {
         match status {
             StatusCode::OK => Ok(serde_json::from_slice(bytes)?),
             StatusCode::UNPROCESSABLE_ENTITY => {
-                Err(serde_json::from_slice::<ValidationError>(bytes)?.into())
+                Err(serde_json::from_slice::<ServerValidationError>(bytes)?.into())
             }
             _ => Err(HttpStatusError::new(status, String::from_utf8_lossy(bytes)).into()),
         }

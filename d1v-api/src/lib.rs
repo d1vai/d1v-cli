@@ -10,7 +10,7 @@ mod validate;
 
 pub use crate::client::{Client, ClientBuilder, RequestBuilder};
 pub use crate::error::{
-    ApiCode, Error, HttpStatusError, Location, ValidationDetail, ValidationError,
+    ApiCode, Error, HttpStatusError, Location, ServerValidationError, ValidationDetail,
 };
 pub use crate::jwt::Token;
 pub use crate::response::Response;

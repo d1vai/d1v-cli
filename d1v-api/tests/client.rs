@@ -239,7 +239,7 @@ async fn validation_error() {
 
     let client = test_client(&server);
     let err = client.post("/api/user/login").ok::<()>().await.unwrap_err();
-    assert!(err.is_validation());
+    assert!(err.is_server_validation());
 
     mock.assert();
 }
