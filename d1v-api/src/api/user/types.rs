@@ -1,8 +1,9 @@
-use garde::Validate;
+use crate::validate::{UrlError, Validate};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -61,17 +62,28 @@ impl Display for User {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Validate)]
-#[garde(allow_unvalidated)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateUser {
     pub is_company: Option<bool>,
     pub company_name: Option<String>,
-    #[garde(inner(url))]
     pub company_website: Option<String>,
-    #[garde(inner(url))]
     pub picture: Option<String>,
     pub industry: Option<String>,
     pub referral_code: Option<String>,
+}
+
+impl Validate for UpdateUser {
+    type Error = UrlError;
+
+    fn validate(&self) -> Result<(), Self::Error> {
+        if let Some(url) = &self.company_website {
+            Url::parse(url).map_err(|_| UrlError::Invalid)?;
+        }
+        if let Some(url) = &self.picture {
+            Url::parse(url).map_err(|_| UrlError::Invalid)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

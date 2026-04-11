@@ -17,8 +17,9 @@ pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 
 pub use crate::api::user::{UpdateUser, User};
-pub use crate::validate::{Code, Email};
-pub use garde::Validate;
+pub use crate::validate::{
+    Code, CodeError, Email, EmailError, UrlError, Validate, ValidationError,
+};
 
 #[cfg(feature = "record")]
 pub use crate::record::{set_recorder, Recorder, RecorderGuard, SetRecorderError};

@@ -4,6 +4,8 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
+use crate::validate::{CodeError, EmailError, UrlError, ValidationError};
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ApiCode {
@@ -56,7 +58,7 @@ pub enum Error {
     Url(#[from] url::ParseError),
 
     #[error(transparent)]
-    InputValidation(#[from] garde::Report),
+    Validation(#[from] ValidationError),
 
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
@@ -99,8 +101,8 @@ impl Error {
         matches!(self, Error::Http(_))
     }
 
-    pub fn is_input_validation(&self) -> bool {
-        matches!(self, Error::InputValidation(_))
+    pub fn is_validation(&self) -> bool {
+        matches!(self, Error::Validation(_))
     }
 
     pub fn is_timeout(&self) -> bool {
@@ -109,6 +111,24 @@ impl Error {
 
     pub fn is_token_expired(&self) -> bool {
         matches!(self, Error::TokenExpired)
+    }
+}
+
+impl From<EmailError> for Error {
+    fn from(err: EmailError) -> Self {
+        Error::Validation(err.into())
+    }
+}
+
+impl From<CodeError> for Error {
+    fn from(err: CodeError) -> Self {
+        Error::Validation(err.into())
+    }
+}
+
+impl From<UrlError> for Error {
+    fn from(err: UrlError) -> Self {
+        Error::Validation(err.into())
     }
 }
 

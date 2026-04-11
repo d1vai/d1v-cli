@@ -1022,7 +1022,6 @@ dependencies = [
  "once_cell",
  "regex",
  "smallvec",
- "url",
 ]
 
 [[package]]

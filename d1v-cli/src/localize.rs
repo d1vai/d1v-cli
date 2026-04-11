@@ -43,7 +43,7 @@ impl Localize for APIError {
             Self::Data(_) => t!("error-invalid-response"),
             Self::Url(_) => t!("error-invalid-url"),
             Self::ServerValidation(_) => t!("error-server-validation"),
-            Self::InputValidation(_) => t!("error-input-validation"),
+            Self::Validation(_) => t!("error-input-validation"),
             Self::Api { code, message } => match code {
                 ApiCode::Unknown(_) => {
                     t!("api-error-unknown", code = code.raw(), message = message)

@@ -20,7 +20,7 @@ thiserror = "2.0"
 tracing = "0.1"
 url = "2.5"
 serde_with = "3.18"
-garde = { version = "0.22", features = ["derive", "email", "url"] }
+garde = { version = "0.22", features = ["email"] }
 
 [dev-dependencies]
 httpmock = "0.8"
