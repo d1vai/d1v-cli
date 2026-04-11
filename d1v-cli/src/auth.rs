@@ -6,7 +6,8 @@ use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+use crate::localize::Localize;
 use crate::output::{format_duration, pad_label};
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::{Confirm, Password};
@@ -95,7 +96,7 @@ pub async fn logout(ctx: &Context) -> Result<()> {
 
 /// Prompts the user to re-authenticate when the token has expired.
 pub async fn prompt_relogin(ctx: &Context) -> Result<bool> {
-    ctx.output.error(&t!("error-token-expired"));
+    ctx.output.error(&Error::TokenExpired.localize());
 
     let confirmed = Confirm::new(t!("auth-relogin-prompt"))
         .default(true)
