@@ -1,5 +1,5 @@
 use super::input::InputState;
-use super::Terminal;
+use super::{Action, Terminal};
 use crate::error::Error;
 
 /// Single-line text prompt with optional validation.
@@ -40,8 +40,14 @@ impl Text {
                     None,
                 )?;
 
-                if term.read_key(&mut input, &self.label)? {
-                    break;
+                match Action::read()? {
+                    Some(Action::Submit) => break,
+                    Some(Action::Cancel) => {
+                        term.show_canceled(&self.label);
+                        return Err(Error::Canceled);
+                    }
+                    Some(Action::Input(key)) => input.handle_key(&key),
+                    None => {}
                 }
             }
 

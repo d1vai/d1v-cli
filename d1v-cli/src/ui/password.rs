@@ -2,7 +2,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::iter;
 
 use super::input::InputState;
-use super::Terminal;
+use super::{Action, Terminal};
 use crate::error::Error;
 use crate::t;
 
@@ -73,8 +73,14 @@ impl Password {
                 let col = input.masked_cursor_col(MASK);
                 term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
 
-                if term.read_key(&mut input, label)? {
-                    break;
+                match Action::read()? {
+                    Some(Action::Submit) => break,
+                    Some(Action::Cancel) => {
+                        term.show_canceled(label);
+                        return Err(Error::Canceled);
+                    }
+                    Some(Action::Input(key)) => input.handle_key(&key),
+                    None => {}
                 }
             }
 

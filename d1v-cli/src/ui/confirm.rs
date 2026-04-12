@@ -1,5 +1,5 @@
 use super::input::InputState;
-use super::Terminal;
+use super::{Action, Terminal};
 use crate::error::Error;
 use crate::t;
 
@@ -62,8 +62,14 @@ impl Confirm {
                     self.help.as_deref(),
                 )?;
 
-                if term.read_key(&mut input, &self.label)? {
-                    break;
+                match Action::read()? {
+                    Some(Action::Submit) => break,
+                    Some(Action::Cancel) => {
+                        term.show_canceled(&self.label);
+                        return Err(Error::Canceled);
+                    }
+                    Some(Action::Input(key)) => input.handle_key(&key),
+                    None => {}
                 }
             }
 

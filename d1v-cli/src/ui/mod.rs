@@ -19,9 +19,6 @@ use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
-use crate::error::Error;
-use crate::ui::input::InputState;
-
 /// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
 const PREFIX_WIDTH: u16 = 2;
 
@@ -159,25 +156,6 @@ impl Terminal {
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
     }
 
-    /// Reads and dispatches a key event for the prompt loop.
-    ///
-    /// Returns `true` on Enter (submit). Forwards other keys to `input`.
-    /// On Esc / Ctrl+C, renders the canceled state and returns [`Error::Canceled`].
-    fn read_key(&mut self, input: &mut InputState, label: &str) -> Result<bool, Error> {
-        match read_key_action()? {
-            Some(Action::Submit) => Ok(true),
-            Some(Action::Cancel) => {
-                self.show_canceled(label);
-                Err(Error::Canceled)
-            }
-            Some(Action::Input(key)) => {
-                input.handle_key(&key);
-                Ok(false)
-            }
-            None => Ok(false),
-        }
-    }
-
     /// Renders the canceled prompt state, showing only the label in gray.
     fn show_canceled(&mut self, label: impl AsRef<str>) {
         let label = label.as_ref();
@@ -222,20 +200,22 @@ enum Action {
     Input(KeyEvent),
 }
 
-/// Reads and classifies a key press into an [`Action`].
-///
-/// Returns `None` for non-press events (release, repeat).
-fn read_key_action() -> io::Result<Option<Action>> {
-    let Some(key) = event::read()?.as_key_press_event() else {
-        return Ok(None);
-    };
+impl Action {
+    /// Reads one key event and classifies it.
+    ///
+    /// Returns `None` for non-key-press events (release, repeat).
+    fn read() -> io::Result<Option<Self>> {
+        let Some(key) = event::read()?.as_key_press_event() else {
+            return Ok(None);
+        };
 
-    Ok(Some(match key.code {
-        KeyCode::Enter => Action::Submit,
-        KeyCode::Esc => Action::Cancel,
-        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Cancel,
-        _ => Action::Input(key),
-    }))
+        Ok(Some(match key.code {
+            KeyCode::Enter => Action::Submit,
+            KeyCode::Esc => Action::Cancel,
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Cancel,
+            _ => Action::Input(key),
+        }))
+    }
 }
 
 /// Clears continuation cells of wide characters in the buffer.
