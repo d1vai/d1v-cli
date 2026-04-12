@@ -90,7 +90,7 @@ impl Terminal {
             if let Some(msg) = error {
                 lines.push(Line::from(Span::styled(
                     msg,
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(Color::LightRed),
                 )));
             }
 

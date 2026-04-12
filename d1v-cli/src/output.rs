@@ -105,7 +105,7 @@ impl Output {
 
     fn error_style(&self) -> Style {
         if self.color {
-            Style::new().red().bold()
+            Style::new().bright_red()
         } else {
             Style::new()
         }
@@ -175,10 +175,10 @@ impl Output {
     pub fn error_to(&self, w: &mut impl Write, err: &dyn Display) -> io::Result<()> {
         match self.format {
             Format::Text => {
-                let mark = "✗".style(self.error_style());
-                writeln!(w, "{mark} {err:#}")
+                let message = format!("✗ {err}");
+                writeln!(w, "{}", message.style(self.error_style()))
             }
-            Format::Json => Self::write_json(w, &json!({ "error": format!("{err:#}") })),
+            Format::Json => Self::write_json(w, &json!({ "error": format!("{err}") })),
         }
     }
 
