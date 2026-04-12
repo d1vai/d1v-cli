@@ -65,7 +65,7 @@ impl Confirm {
                 match Action::read()? {
                     Some(Action::Submit) => break,
                     Some(Action::Cancel) => {
-                        term.show_canceled(&self.label);
+                        term.show_canceled(&self.label, input.text());
                         return Err(Error::Canceled);
                     }
                     Some(Action::Input(key)) => input.handle_key(&key),

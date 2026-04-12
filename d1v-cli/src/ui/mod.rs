@@ -156,26 +156,19 @@ impl Terminal {
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
     }
 
-    /// Renders the canceled prompt state, showing only the label in gray.
-    fn show_canceled(&mut self, label: impl AsRef<str>) {
+    /// Renders the canceled prompt state with the label and partial input.
+    fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
         let label = label.as_ref();
+        let display = display.as_ref();
 
         let _ = self
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
-                    Span::styled(
-                        "✗ ",
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        label,
-                        Style::default()
-                            .fg(Color::DarkGray)
-                            .add_modifier(Modifier::BOLD),
-                    ),
+                    Span::styled("✗ ", Style::default().fg(Color::LightRed)),
+                    Span::styled(label, Style::default().fg(Color::LightRed)),
+                    Span::raw(" "),
+                    Span::styled(display, Style::default().fg(Color::DarkGray)),
                 ]);
                 Widget::render(Paragraph::new(line), buf.area, buf);
                 clear_wide_char_continuations(buf);
