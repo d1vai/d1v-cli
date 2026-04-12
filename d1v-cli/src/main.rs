@@ -106,7 +106,7 @@ async fn run(cli: Cli) -> Result<()> {
 
         if ctx.client.is_token_expired() {
             if stdin().is_terminal() && auth::prompt_relogin(&ctx).await? {
-                ctx.message(t!("auth-relogin-success"));
+                ctx.success(t!("auth-relogin-success"));
             } else {
                 return Err(Error::TokenExpired);
             }

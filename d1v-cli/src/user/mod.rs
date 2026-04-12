@@ -154,7 +154,7 @@ pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
         UserCommand::Onboard => {
             debug!("marking user as onboarded");
             ctx.client.user().set_onboarded(true).await?;
-            ctx.message(t!("onboard-success"));
+            ctx.success(t!("onboard-success"));
             Ok(())
         }
         UserCommand::Activity(args) => activity::run(ctx, args).await,

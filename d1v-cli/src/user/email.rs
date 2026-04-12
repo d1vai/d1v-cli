@@ -14,7 +14,7 @@ pub async fn bind(ctx: &Context) -> Result<()> {
 
     ctx.client.user().confirm_bind_email(&email, &code).await?;
     debug!(%email, "email bound");
-    ctx.message(t!("email-bind-success"));
+    ctx.success(t!("email-bind-success"));
 
     Ok(())
 }
@@ -33,7 +33,7 @@ pub async fn change(ctx: &Context) -> Result<()> {
         .confirm_change_email(&new_email, &code)
         .await?;
     debug!(email = %new_email, "email changed");
-    ctx.message(t!("email-change-success"));
+    ctx.success(t!("email-change-success"));
 
     Ok(())
 }

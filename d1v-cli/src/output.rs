@@ -103,6 +103,14 @@ impl Output {
         Self { format, color }
     }
 
+    fn success_style(&self) -> Style {
+        if self.color {
+            Style::new().green()
+        } else {
+            Style::new()
+        }
+    }
+
     fn error_style(&self) -> Style {
         if self.color {
             Style::new().bright_red()
@@ -117,6 +125,17 @@ impl Output {
         } else {
             Style::new()
         }
+    }
+
+    pub fn success(&self, msg: impl Display) {
+        match self.format {
+            Format::Text => {
+                let message = format!("✓ {msg}");
+                writeln!(io::stdout(), "{}", message.style(self.success_style()))
+            }
+            Format::Json => writeln!(io::stderr(), "{msg}"),
+        }
+        .unwrap_or_else(|err| tracing::warn!(%err, "failed to write success message"));
     }
 
     /// Writes a status message (stdout in text mode, stderr in JSON mode).

@@ -9,7 +9,7 @@ pub async fn set(ctx: &Context) -> Result<()> {
     debug!("setting password");
     ctx.client.user().set_password(&password).await?;
     debug!("password set");
-    ctx.message(t!("password-set-success"));
+    ctx.success(t!("password-set-success"));
 
     Ok(())
 }
@@ -29,7 +29,7 @@ pub async fn reset(ctx: &Context) -> Result<()> {
         .reset_password(&email, &code, &new_password)
         .await?;
     debug!(%email, "password reset");
-    ctx.message(t!("password-reset-success"));
+    ctx.success(t!("password-reset-success"));
 
     Ok(())
 }

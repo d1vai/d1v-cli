@@ -25,7 +25,7 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     ctx.tokens.save(&token)?;
     ctx.client.token(token);
     debug!("login successful");
-    ctx.message(t!("auth-login-success"));
+    ctx.success(t!("auth-login-success"));
 
     Ok(())
 }
@@ -50,7 +50,7 @@ pub fn login_with_token(ctx: &Context) -> Result<()> {
     ctx.tokens.save(&token)?;
     ctx.client.token(token);
     debug!("login with token successful");
-    ctx.message(t!("auth-login-success"));
+    ctx.success(t!("auth-login-success"));
 
     Ok(())
 }
@@ -89,7 +89,7 @@ pub async fn logout(ctx: &Context) -> Result<()> {
 
     ctx.tokens.delete()?;
     debug!("logged out");
-    ctx.message(t!("auth-logout-success"));
+    ctx.success(t!("auth-logout-success"));
 
     Ok(())
 }
