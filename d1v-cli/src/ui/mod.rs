@@ -130,14 +130,15 @@ impl Terminal {
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
+                    Span::styled("✓ ", Style::default().fg(Color::Green)),
                     Span::styled(
                         label,
                         Style::default()
-                            .fg(Color::DarkGray)
+                            .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw(" "),
-                    Span::styled(display, Style::default().fg(Color::DarkGray)),
+                    Span::styled(display, Style::default().fg(Color::Cyan)),
                 ]);
 
                 Widget::render(Paragraph::new(line), buf.area, buf);
@@ -172,12 +173,20 @@ impl Terminal {
         let _ = self
             .inner
             .insert_before(1, |buf| {
-                let line = Line::from(Span::styled(
-                    label,
-                    Style::default()
-                        .fg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD),
-                ));
+                let line = Line::from(vec![
+                    Span::styled(
+                        "✗ ",
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        label,
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]);
                 Widget::render(Paragraph::new(line), buf.area, buf);
                 clear_wide_char_continuations(buf);
             })
