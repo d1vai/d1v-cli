@@ -22,6 +22,9 @@ use unicode_width::UnicodeWidthStr;
 use crate::error::Error;
 use crate::ui::input::InputState;
 
+/// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
+const PREFIX_WIDTH: u16 = 2;
+
 /// Inline terminal for interactive prompt rendering.
 ///
 /// Wraps a ratatui inline-viewport terminal. Enters raw mode on creation
@@ -95,6 +98,7 @@ impl Terminal {
             }
 
             lines.push(Line::from(vec![
+                Span::styled("? ", Style::default().fg(Color::Green)),
                 Span::styled(
                     label,
                     Style::default()
@@ -115,7 +119,10 @@ impl Terminal {
             frame.render_widget(Paragraph::new(lines), area);
 
             let error_offset = if error.is_some() { 1 } else { 0 };
-            frame.set_cursor_position((label_width + 1 + cursor_col as u16, area.y + error_offset));
+            frame.set_cursor_position((
+                PREFIX_WIDTH + label_width + 1 + cursor_col as u16,
+                area.y + error_offset,
+            ));
         })?;
 
         Ok(())
@@ -130,7 +137,12 @@ impl Terminal {
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
-                    Span::styled("✓ ", Style::default().fg(Color::Green)),
+                    Span::styled(
+                        "✓ ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
                     Span::styled(
                         label,
                         Style::default()
