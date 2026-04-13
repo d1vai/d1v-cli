@@ -1,7 +1,7 @@
 use crate::error::Result;
 use tracing::debug;
 
-use crate::{prompt, t, Context};
+use crate::{i18n, prompt, t, Context};
 
 pub async fn bind(ctx: &Context) -> Result<()> {
     let pending = prompt::email_pending()?;
@@ -9,7 +9,11 @@ pub async fn bind(ctx: &Context) -> Result<()> {
 
     debug!(%email, "binding email");
     pending
-        .spin_ok(ctx.client.user().send_bind_email_code(&email, None))
+        .spin_ok(
+            ctx.client
+                .user()
+                .send_bind_email_code(&email, i18n::locale()),
+        )
         .await?;
     ctx.message(t!("email-code-sent", email = &email));
 
@@ -31,7 +35,11 @@ pub async fn change(ctx: &Context) -> Result<()> {
 
     debug!(email = %new_email, "changing email");
     pending
-        .spin_ok(ctx.client.user().send_change_email_code(&new_email, None))
+        .spin_ok(
+            ctx.client
+                .user()
+                .send_change_email_code(&new_email, i18n::locale()),
+        )
         .await?;
     ctx.message(t!("email-code-sent", email = &new_email));
 

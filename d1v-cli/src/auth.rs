@@ -11,7 +11,7 @@ use crate::localize::Localize;
 use crate::output::{format_duration, pad_label};
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::{Confirm, Password};
-use crate::{prompt, t, Context};
+use crate::{i18n, prompt, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     let token = if password {
@@ -60,7 +60,7 @@ async fn authenticate_code(ctx: &Context) -> Result<SecretString> {
 
     debug!("sending verification code");
     pending
-        .spin_ok(ctx.client.user().send_code(&email, None))
+        .spin_ok(ctx.client.user().send_code(&email, i18n::locale()))
         .await?;
     ctx.message(t!("auth-code-sent", email = &email));
 

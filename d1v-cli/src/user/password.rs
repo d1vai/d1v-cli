@@ -1,7 +1,7 @@
 use crate::error::Result;
 use tracing::debug;
 
-use crate::{prompt, t, Context};
+use crate::{i18n, prompt, t, Context};
 
 pub async fn set(ctx: &Context) -> Result<()> {
     let password = prompt::new_password()?;
@@ -20,7 +20,11 @@ pub async fn reset(ctx: &Context) -> Result<()> {
 
     debug!(%email, "resetting password");
     pending
-        .spin_ok(ctx.client.user().send_forgot_password_email(&email, None))
+        .spin_ok(
+            ctx.client
+                .user()
+                .send_forgot_password_email(&email, i18n::locale()),
+        )
         .await?;
     ctx.message(t!("password-forgot-sent", email = &email));
 
