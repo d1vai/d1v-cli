@@ -59,7 +59,9 @@ async fn authenticate_code(ctx: &Context) -> Result<SecretString> {
     let email = pending.value().to_string();
 
     debug!("sending verification code");
-    pending.spin_ok(ctx.client.user().send_code(&email)).await?;
+    pending
+        .spin_ok(ctx.client.user().send_code(&email, None))
+        .await?;
     ctx.message(t!("auth-code-sent", email = &email));
 
     let pending = prompt::code_pending()?;

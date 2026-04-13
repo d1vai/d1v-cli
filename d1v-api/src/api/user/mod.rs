@@ -22,10 +22,16 @@ impl Client {
 
 impl UserApi {
     /// Sends a verification code to the given email.
-    pub async fn send_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn send_code(
+        &self,
+        email: impl AsRef<str>,
+        locale: Option<&str>,
+    ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct Query<'a> {
             email: Email<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            locale: Option<&'a str>,
         }
 
         let email = Email(email.as_ref());
@@ -33,7 +39,7 @@ impl UserApi {
 
         self.client
             .post("/api/user/verify-code")
-            .query(&Query { email })
+            .query(&Query { email, locale })
             .no_auth()
             .ok()
             .await
@@ -199,10 +205,16 @@ impl UserApi {
     }
 
     /// Sends a forgot-password email.
-    pub async fn send_forgot_password_email(&self, email: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn send_forgot_password_email(
+        &self,
+        email: impl AsRef<str>,
+        locale: Option<&str>,
+    ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct Payload<'a> {
             email: Email<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            locale: Option<&'a str>,
         }
 
         let email = Email(email.as_ref());
@@ -210,7 +222,7 @@ impl UserApi {
 
         self.client
             .post("/api/user/password/forgot/send")
-            .json(&Payload { email })
+            .json(&Payload { email, locale })
             .no_auth()
             .ok()
             .await
@@ -248,10 +260,16 @@ impl UserApi {
     }
 
     /// Sends a verification code to bind an email.
-    pub async fn send_bind_email_code(&self, email: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn send_bind_email_code(
+        &self,
+        email: impl AsRef<str>,
+        locale: Option<&str>,
+    ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct Payload<'a> {
             email: Email<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            locale: Option<&'a str>,
         }
 
         let email = Email(email.as_ref());
@@ -259,7 +277,7 @@ impl UserApi {
 
         self.client
             .post("/api/user/bind-email/send")
-            .json(&Payload { email })
+            .json(&Payload { email, locale })
             .ok()
             .await
     }
@@ -289,10 +307,16 @@ impl UserApi {
     }
 
     /// Sends a verification code to change email.
-    pub async fn send_change_email_code(&self, new_email: impl AsRef<str>) -> Result<(), Error> {
+    pub async fn send_change_email_code(
+        &self,
+        new_email: impl AsRef<str>,
+        locale: Option<&str>,
+    ) -> Result<(), Error> {
         #[derive(Serialize)]
         struct Payload<'a> {
             new_email: Email<'a>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            locale: Option<&'a str>,
         }
 
         let new_email = Email(new_email.as_ref());
@@ -300,7 +324,7 @@ impl UserApi {
 
         self.client
             .post("/api/user/email/change/send")
-            .json(&Payload { new_email })
+            .json(&Payload { new_email, locale })
             .ok()
             .await
     }

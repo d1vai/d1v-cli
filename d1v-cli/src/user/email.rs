@@ -9,7 +9,7 @@ pub async fn bind(ctx: &Context) -> Result<()> {
 
     debug!(%email, "binding email");
     pending
-        .spin_ok(ctx.client.user().send_bind_email_code(&email))
+        .spin_ok(ctx.client.user().send_bind_email_code(&email, None))
         .await?;
     ctx.message(t!("email-code-sent", email = &email));
 
@@ -31,7 +31,7 @@ pub async fn change(ctx: &Context) -> Result<()> {
 
     debug!(email = %new_email, "changing email");
     pending
-        .spin_ok(ctx.client.user().send_change_email_code(&new_email))
+        .spin_ok(ctx.client.user().send_change_email_code(&new_email, None))
         .await?;
     ctx.message(t!("email-code-sent", email = &new_email));
 

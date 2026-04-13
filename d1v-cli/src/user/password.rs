@@ -20,7 +20,7 @@ pub async fn reset(ctx: &Context) -> Result<()> {
 
     debug!(%email, "resetting password");
     pending
-        .spin_ok(ctx.client.user().send_forgot_password_email(&email))
+        .spin_ok(ctx.client.user().send_forgot_password_email(&email, None))
         .await?;
     ctx.message(t!("password-forgot-sent", email = &email));
 

@@ -20,7 +20,7 @@ async fn send_code() {
     });
 
     let client = test_client(&server);
-    client.user().send_code("test@example.com").await.unwrap();
+    client.user().send_code("test@example.com", None).await.unwrap();
 
     mock.assert();
 }
@@ -349,7 +349,7 @@ async fn send_forgot_password_email() {
     let client = test_client(&server);
     client
         .user()
-        .send_forgot_password_email("test@example.com")
+        .send_forgot_password_email("test@example.com", None)
         .await
         .unwrap();
 
@@ -409,7 +409,7 @@ async fn send_bind_email_code() {
         .unwrap();
     client
         .user()
-        .send_bind_email_code("new@example.com")
+        .send_bind_email_code("new@example.com", None)
         .await
         .unwrap();
 
@@ -468,7 +468,7 @@ async fn send_change_email_code() {
         .unwrap();
     client
         .user()
-        .send_change_email_code("new@example.com")
+        .send_change_email_code("new@example.com", None)
         .await
         .unwrap();
 
