@@ -17,7 +17,7 @@ clap = { version = "4.6", features = ["derive", "env"] }
 fluent-templates = "0.13"
 crossterm = "0.29"
 jiff = "0.2"
-rattles = "0.2"
+rattles = "0.3"
 ratatui = "0.30"
 unicode-segmentation = "1.13"
 unicode-width = "0.2"
