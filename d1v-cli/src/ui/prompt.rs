@@ -33,15 +33,18 @@ impl PendingPrompt {
         &self.value
     }
 
+    /// Marks the prompt as answered and returns the collected value.
     pub fn commit(mut self) -> String {
         self.term.show_answered(&self.label, &self.display);
         self.value
     }
 
+    /// Marks the prompt as canceled and discards the value.
     pub fn dismiss(mut self) {
         self.term.show_canceled(&self.label, &self.display);
     }
 
+    /// Like [`spin`](Self::spin), but commits on `Ok` and dismisses on `Err`.
     pub async fn spin_ok<T>(
         self,
         task: impl Future<Output = Result<T, impl Into<Error>>>,
@@ -59,6 +62,7 @@ impl PendingPrompt {
         }
     }
 
+    /// Animates a spinner while `task` runs, catching Ctrl+C as [`Error::Canceled`].
     pub async fn spin<T>(mut self, task: impl Future<Output = T>) -> Result<(Self, T), Error> {
         let _ = terminal::disable_raw_mode();
 
