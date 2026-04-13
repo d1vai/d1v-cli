@@ -42,6 +42,23 @@ impl PendingPrompt {
         self.term.show_canceled(&self.label, &self.display);
     }
 
+    pub async fn spin_ok<T>(
+        self,
+        task: impl Future<Output = Result<T, impl Into<Error>>>,
+    ) -> Result<T, Error> {
+        let (this, result) = self.spin(task).await?;
+        match result {
+            Ok(value) => {
+                this.commit();
+                Ok(value)
+            }
+            Err(err) => {
+                this.dismiss();
+                Err(err.into())
+            }
+        }
+    }
+
     pub async fn spin<T>(mut self, task: impl Future<Output = T>) -> Result<(Self, T), Error> {
         let _ = terminal::disable_raw_mode();
 
