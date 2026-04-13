@@ -5,6 +5,7 @@ use rattles::presets::braille::Dots;
 use rattles::TickedRattler;
 
 use super::Terminal;
+use crate::error::Error;
 
 pub struct PendingPrompt {
     term: Terminal,
@@ -41,7 +42,7 @@ impl PendingPrompt {
         self.term.show_canceled(&self.label, &self.display);
     }
 
-    pub async fn spin<T>(mut self, task: impl Future<Output = T>) -> (Self, T) {
+    pub async fn spin<T>(mut self, task: impl Future<Output = T>) -> Result<(Self, T), Error> {
         let _ = terminal::disable_raw_mode();
 
         let mut rattler = TickedRattler::<Dots>::new();
@@ -56,10 +57,11 @@ impl PendingPrompt {
         timer.tick().await;
 
         tokio::pin!(task);
-        let result = loop {
+        let interrupted = loop {
             tokio::select! {
                 biased;
-                result = &mut task => break result,
+                result = &mut task => break Ok(result),
+                _ = tokio::signal::ctrl_c() => break Err(()),
                 _ = timer.tick() => {
                     self.term.show_pending(
                         &self.label,
@@ -71,6 +73,12 @@ impl PendingPrompt {
             }
         };
 
-        (self, result)
+        match interrupted {
+            Ok(value) => Ok((self, value)),
+            Err(()) => {
+                self.dismiss();
+                Err(Error::Canceled)
+            }
+        }
     }
 }
