@@ -2,6 +2,7 @@ pub mod api;
 pub mod client;
 pub mod error;
 pub mod jwt;
+pub mod locale;
 #[cfg(feature = "record")]
 pub mod record;
 pub mod response;
@@ -13,6 +14,7 @@ pub use crate::error::{
     ApiCode, Error, HttpStatusError, Location, ServerValidationError, ValidationDetail,
 };
 pub use crate::jwt::Token;
+pub use crate::locale::{IntoLocale, Locale, ParseLocaleError};
 pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 

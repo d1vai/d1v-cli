@@ -16,8 +16,10 @@ reqwest = { version = "0.13", features = ["json", "query"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+strum = { version = "0.28", features = ["derive"] }
 thiserror = "2.0"
 tracing = "0.1"
+unic-langid = "0.9"
 url = "2.5"
 serde_with = "3.18"
 garde = { version = "0.22", features = ["email"] }
