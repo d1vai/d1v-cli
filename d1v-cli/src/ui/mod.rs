@@ -1,10 +1,12 @@
 pub mod confirm;
 pub mod input;
 pub mod password;
+pub mod prompt;
 pub mod text;
 
 pub use confirm::Confirm;
 pub use password::Password;
+pub use prompt::PendingPrompt;
 pub use text::Text;
 
 use std::io::{self, Stdout};
@@ -154,6 +156,37 @@ impl Terminal {
                 clear_wide_char_continuations(buf);
             })
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
+    }
+
+    /// Draws the spinner state on the viewport without committing.
+    fn show_pending(
+        &mut self,
+        label: impl AsRef<str>,
+        display: impl AsRef<str>,
+        spinner: impl AsRef<str>,
+    ) {
+        let label = label.as_ref();
+        let display = display.as_ref();
+        let spinner = spinner.as_ref();
+
+        let _ = self.inner.hide_cursor();
+        let _ = self
+            .inner
+            .draw(|frame| {
+                let line = Line::from(vec![
+                    Span::styled(format!("{spinner} "), Style::default().fg(Color::Green)),
+                    Span::styled(
+                        label,
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" "),
+                    Span::styled(display, Style::default().fg(Color::Cyan)),
+                ]);
+                Paragraph::new(line).render(frame.area(), frame.buffer_mut());
+            })
+            .inspect_err(|err| debug!("failed to render pending state: {err}"));
     }
 
     /// Renders the canceled prompt state with the label and partial input.

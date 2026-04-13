@@ -1,4 +1,5 @@
 use super::input::InputState;
+use super::prompt::PendingPrompt;
 use super::{Action, Terminal};
 use crate::error::Error;
 
@@ -23,6 +24,14 @@ impl Text {
 
     /// Runs the prompt and returns the entered text.
     pub fn prompt(self) -> Result<String, Error> {
+        Ok(self.prompt_pending()?.commit())
+    }
+
+    /// Runs the prompt but defers committing the answered line.
+    ///
+    /// Returns a [`PendingPrompt`] that can animate a spinner while an async
+    /// operation runs, or be committed immediately via [`PendingPrompt::commit`].
+    pub fn prompt_pending(self) -> Result<PendingPrompt, Error> {
         let mut input = InputState::new();
         let mut error: Option<String> = None;
         let mut term = Terminal::new(1)?;
@@ -58,8 +67,13 @@ impl Text {
                 continue;
             }
 
-            term.show_answered(&self.label, input.text());
-            return Ok(String::from(input));
+            term.set_viewport_height(1)?;
+            return Ok(PendingPrompt::new(
+                term,
+                self.label,
+                input.text(),
+                input.text(),
+            ));
         }
     }
 }
