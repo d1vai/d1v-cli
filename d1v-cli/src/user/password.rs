@@ -15,11 +15,14 @@ pub async fn set(ctx: &Context) -> Result<()> {
 }
 
 pub async fn reset(ctx: &Context) -> Result<()> {
-    let email = prompt::email()?;
+    let pending = prompt::email_pending()?;
+    let email = pending.value().to_string();
 
     debug!(%email, "resetting password");
-    ctx.client.user().send_forgot_password_email(&email).await?;
-    ctx.message(t!("password-forgot-sent", email = email));
+    pending
+        .spin_ok(ctx.client.user().send_forgot_password_email(&email))
+        .await?;
+    ctx.message(t!("password-forgot-sent", email = &email));
 
     let code = prompt::code()?;
     let new_password = prompt::new_password()?;

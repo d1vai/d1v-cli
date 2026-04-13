@@ -4,15 +4,21 @@ use tracing::debug;
 use crate::{prompt, t, Context};
 
 pub async fn bind(ctx: &Context) -> Result<()> {
-    let email = prompt::email()?;
+    let pending = prompt::email_pending()?;
+    let email = pending.value().to_string();
 
     debug!(%email, "binding email");
-    ctx.client.user().send_bind_email_code(&email).await?;
-    ctx.message(t!("email-code-sent", email = email));
+    pending
+        .spin_ok(ctx.client.user().send_bind_email_code(&email))
+        .await?;
+    ctx.message(t!("email-code-sent", email = &email));
 
-    let code = prompt::code()?;
+    let pending = prompt::code_pending()?;
+    let code = pending.value().to_string();
 
-    ctx.client.user().confirm_bind_email(&email, &code).await?;
+    pending
+        .spin_ok(ctx.client.user().confirm_bind_email(&email, &code))
+        .await?;
     debug!(%email, "email bound");
     ctx.success(t!("email-bind-success"));
 
@@ -20,17 +26,20 @@ pub async fn bind(ctx: &Context) -> Result<()> {
 }
 
 pub async fn change(ctx: &Context) -> Result<()> {
-    let new_email = prompt::email()?;
+    let pending = prompt::email_pending()?;
+    let new_email = pending.value().to_string();
 
     debug!(email = %new_email, "changing email");
-    ctx.client.user().send_change_email_code(&new_email).await?;
-    ctx.message(t!("email-code-sent", email = new_email));
+    pending
+        .spin_ok(ctx.client.user().send_change_email_code(&new_email))
+        .await?;
+    ctx.message(t!("email-code-sent", email = &new_email));
 
-    let code = prompt::code()?;
+    let pending = prompt::code_pending()?;
+    let code = pending.value().to_string();
 
-    ctx.client
-        .user()
-        .confirm_change_email(&new_email, &code)
+    pending
+        .spin_ok(ctx.client.user().confirm_change_email(&new_email, &code))
         .await?;
     debug!(email = %new_email, "email changed");
     ctx.success(t!("email-change-success"));

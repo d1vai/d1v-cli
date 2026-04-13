@@ -14,12 +14,11 @@ use crate::ui::{Confirm, Password};
 use crate::{prompt, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
-    let email = prompt::email()?;
-
     let token = if password {
+        let email = prompt::email()?;
         authenticate_password(ctx, &email).await?
     } else {
-        authenticate_code(ctx, &email).await?
+        authenticate_code(ctx).await?
     };
 
     ctx.tokens.save(&token)?;
@@ -55,15 +54,21 @@ pub fn login_with_token(ctx: &Context) -> Result<()> {
     Ok(())
 }
 
-async fn authenticate_code(ctx: &Context, email: &str) -> Result<SecretString> {
-    debug!("sending verification code");
-    ctx.client.user().send_code(email).await?;
-    ctx.message(t!("auth-code-sent", email = email));
+async fn authenticate_code(ctx: &Context) -> Result<SecretString> {
+    let pending = prompt::email_pending()?;
+    let email = pending.value().to_string();
 
-    let code = prompt::code()?;
+    debug!("sending verification code");
+    pending.spin_ok(ctx.client.user().send_code(&email)).await?;
+    ctx.message(t!("auth-code-sent", email = &email));
+
+    let pending = prompt::code_pending()?;
+    let code = pending.value().to_string();
 
     debug!("logging in with verification code");
-    Ok(ctx.client.user().login(email, &code).await?)
+    Ok(pending
+        .spin_ok(ctx.client.user().login(&email, &code))
+        .await?)
 }
 
 async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretString> {
