@@ -93,6 +93,7 @@ async fn run(cli: Cli) -> Result<()> {
     #[cfg(feature = "record")]
     let _recorder = cli
         .record
+        .or_else(|| Config::load().ok()?.record.resolve_path())
         .map(|path| d1v_api::set_recorder(d1v_cli::recorder::FileRecorder::new(path)))
         .transpose()
         .map_err(anyhow::Error::from)?;

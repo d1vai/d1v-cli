@@ -39,6 +39,30 @@ pub struct Config {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+
+    #[cfg(feature = "record")]
+    #[serde(default, skip_serializing_if = "RecordConfig::is_default")]
+    pub record: RecordConfig,
+}
+
+/// Configuration for HTTP recording.
+///
+/// ```toml
+/// [record]
+/// enabled = true
+/// path = "~/.d1v/recordings"
+/// ```
+#[cfg(feature = "record")]
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RecordConfig {
+    /// Whether recording is enabled. Equivalent to passing `--record`.
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Directory or file path for recordings. When omitted, defaults to
+    /// `~/.d1v/recordings/{date}.json`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 impl Default for Config {
@@ -47,6 +71,25 @@ impl Default for Config {
             base_url: default_base_url(),
             token: None,
             language: None,
+            #[cfg(feature = "record")]
+            record: RecordConfig::default(),
+        }
+    }
+}
+
+#[cfg(feature = "record")]
+impl RecordConfig {
+    fn is_default(&self) -> bool {
+        !self.enabled && self.path.is_none()
+    }
+
+    /// Resolves the recording file path from this configuration, returning
+    /// `None` when recording is disabled or no path is configured.
+    pub fn resolve_path(&self) -> Option<PathBuf> {
+        if self.enabled {
+            self.path.as_deref().map(PathBuf::from)
+        } else {
+            None
         }
     }
 }
