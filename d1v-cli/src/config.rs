@@ -84,14 +84,25 @@ impl RecordConfig {
     }
 
     /// Resolves the recording file path from this configuration, returning
-    /// `None` when recording is disabled or no path is configured.
+    /// `None` when recording is disabled.
     pub fn resolve_path(&self) -> Option<PathBuf> {
         if self.enabled {
-            self.path.as_deref().map(PathBuf::from)
+            self.path
+                .as_deref()
+                .map(PathBuf::from)
+                .or_else(|| default_record_path().ok())
         } else {
             None
         }
     }
+}
+
+/// Returns the default recording path: `~/.d1v/recordings/{date}.json`.
+#[cfg(feature = "record")]
+pub fn default_record_path() -> Result<PathBuf> {
+    let dir = Config::dir()?.join("recordings");
+    let today = jiff::Zoned::now().date();
+    Ok(dir.join(format!("{today}.json")))
 }
 
 fn default_base_url() -> String {

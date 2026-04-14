@@ -38,10 +38,10 @@ struct Cli {
     #[arg(short, long, global = true, action = clap::ArgAction::Count)]
     verbose: u8,
 
-    /// Save HTTP exchanges to a JSON file
+    /// Save HTTP exchanges to a JSON file [default: ~/.d1v/recordings/{date}.json]
     #[cfg(feature = "record")]
-    #[arg(long, env = "D1V_RECORD_FILE")]
-    record: Option<std::path::PathBuf>,
+    #[arg(long, value_name = "FILE", num_args = 0..=1, env = "D1V_RECORD_FILE")]
+    record: Option<Option<std::path::PathBuf>>,
 
     #[command(subcommand)]
     command: Command,
@@ -91,12 +91,26 @@ enum AuthCommand {
 
 async fn run(cli: Cli) -> Result<()> {
     #[cfg(feature = "record")]
-    let _recorder = cli
-        .record
-        .or_else(|| Config::load().ok()?.record.resolve_path())
-        .map(|path| d1v_api::set_recorder(d1v_cli::recorder::FileRecorder::new(path)))
-        .transpose()
-        .map_err(anyhow::Error::from)?;
+    let _recorder = {
+        use d1v_cli::config::default_record_path;
+        use d1v_cli::recorder::FileRecorder;
+        use std::path::PathBuf;
+
+        let path = match cli.record {
+            Some(Some(path)) => Some(path),
+            Some(None) => Some(
+                Config::load()
+                    .ok()
+                    .and_then(|c| c.record.path.map(PathBuf::from))
+                    .unwrap_or(default_record_path()?),
+            ),
+            None => Config::load().ok().and_then(|c| c.record.resolve_path()),
+        };
+
+        path.map(|path| d1v_api::set_recorder(FileRecorder::new(path)))
+            .transpose()
+            .map_err(anyhow::Error::from)?
+    };
 
     let ctx = Context::new(cli.format, cli.color, cli.base_url)?;
 
