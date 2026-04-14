@@ -14,6 +14,7 @@ record = ["d1v-api/record"]
 d1v-api = { path = "../d1v-api" }
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive", "env"] }
+const_format = { version = "0.2", features = ["fmt"] }
 fluent-templates = "0.13"
 crossterm = "0.29"
 jiff = "0.2"

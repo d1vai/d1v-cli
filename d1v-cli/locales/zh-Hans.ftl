@@ -26,8 +26,7 @@ debug-label-config = 配置:
 debug-label-base-url = 接口地址:
 debug-label-token = 令牌:
 debug-unknown = 未知
-debug-token-found = ✓（{ $source }）
-debug-token-missing = ✗
+debug-token-found = { $source }
 debug-token-expires-in = { $duration }后过期
 debug-token-expired = 已过期
 

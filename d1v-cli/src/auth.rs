@@ -11,7 +11,7 @@ use crate::localize::Localize;
 use crate::output::{format_duration, pad_label};
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::{Confirm, Password};
-use crate::{i18n, prompt, t, Context};
+use crate::{i18n, prompt, symbols, t, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     let token = if password {
@@ -133,13 +133,13 @@ struct AuthStatus {
 impl Display for AuthStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.logged_in {
-            return write!(f, "✗ {}", t!("auth-status-not-logged-in"));
+            return write!(f, "{} {}", symbols::ERROR, t!("auth-status-not-logged-in"));
         }
 
         if self.expired == Some(true) {
-            write!(f, "✗ {}", t!("auth-status-expired"))?;
+            write!(f, "{} {}", symbols::ERROR, t!("auth-status-expired"))?;
         } else {
-            write!(f, "✓ {}", t!("auth-status-logged-in"))?;
+            write!(f, "{} {}", symbols::SUCCESS, t!("auth-status-logged-in"))?;
         }
 
         if let Some(source) = &self.source {

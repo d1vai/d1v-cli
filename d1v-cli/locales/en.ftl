@@ -26,8 +26,7 @@ debug-label-config = config:
 debug-label-base-url = base-url:
 debug-label-token = token:
 debug-unknown = unknown
-debug-token-found = ✓ ({ $source })
-debug-token-missing = ✗
+debug-token-found = { $source }
 debug-token-expires-in = expires in { $duration }
 debug-token-expired = expired
 

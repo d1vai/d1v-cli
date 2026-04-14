@@ -9,6 +9,7 @@ pub mod output;
 pub mod prompt;
 #[cfg(feature = "record")]
 pub mod recorder;
+pub mod symbols;
 pub mod token;
 pub mod ui;
 pub mod user;

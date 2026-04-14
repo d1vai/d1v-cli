@@ -8,8 +8,8 @@ use crate::config::Config;
 use crate::error::Result;
 use crate::output::format_duration;
 use crate::output::pad_label;
-use crate::t;
 use crate::Context;
+use crate::{symbols, t};
 
 #[derive(Debug, Serialize)]
 struct DebugInfo {
@@ -78,10 +78,14 @@ fn write_claims(mut status: impl Write, claims: &Claims) -> fmt::Result {
 
 fn token_status(ctx: &Context) -> String {
     let Some(source) = ctx.tokens.source() else {
-        return t!("debug-token-missing");
+        return symbols::ERROR.to_string();
     };
 
-    let mut status = t!("debug-token-found", source = source);
+    let mut status = format!(
+        "{} ({})",
+        symbols::SUCCESS,
+        t!("debug-token-found", source = source)
+    );
 
     if let Some(claims) = ctx.client.claims() {
         write_claims(&mut status, &claims).unwrap();

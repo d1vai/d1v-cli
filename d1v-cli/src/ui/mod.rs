@@ -21,6 +21,8 @@ use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
+use crate::symbols;
+
 /// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
 const PREFIX_WIDTH: u16 = 2;
 
@@ -97,7 +99,7 @@ impl Terminal {
             }
 
             lines.push(Line::from(vec![
-                Span::styled("? ", Style::default().fg(Color::Green)),
+                Span::styled(symbols::PROMPT_PREFIX, Style::default().fg(Color::Green)),
                 Span::styled(
                     label,
                     Style::default()
@@ -138,7 +140,7 @@ impl Terminal {
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
                     Span::styled(
-                        "✓ ",
+                        symbols::SUCCESS_PREFIX,
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
@@ -200,7 +202,7 @@ impl Terminal {
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
-                    Span::styled("✗ ", Style::default().fg(Color::LightRed)),
+                    Span::styled(symbols::ERROR_PREFIX, Style::default().fg(Color::LightRed)),
                     Span::styled(label, Style::default().fg(Color::LightRed)),
                     Span::raw(" "),
                     Span::styled(display, Style::default().fg(Color::DarkGray)),

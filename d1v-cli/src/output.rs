@@ -9,6 +9,7 @@ use serde_json::json;
 use unicode_width::UnicodeWidthStr;
 
 use crate::error::Result;
+use crate::symbols;
 use crate::t;
 
 /// Output format.
@@ -138,7 +139,7 @@ impl Output {
     pub fn success(&self, msg: impl Display) {
         match self.format {
             Format::Text => {
-                let message = format!("✓ {msg}");
+                let message = format!("{} {msg}", symbols::SUCCESS);
                 writeln!(io::stdout(), "{}", message.style(self.success_style()))
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -150,7 +151,7 @@ impl Output {
     pub fn info(&self, msg: impl Display) {
         match self.format {
             Format::Text => {
-                let message = format!("→ {msg}");
+                let message = format!("{} {msg}", symbols::INFO);
                 writeln!(io::stdout(), "{}", message.style(self.info_style()))
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -162,7 +163,7 @@ impl Output {
     pub fn info_to(&self, w: &mut impl Write, msg: impl Display) -> io::Result<()> {
         match self.format {
             Format::Text => {
-                let message = format!("→ {msg}");
+                let message = format!("{} {msg}", symbols::INFO);
                 writeln!(w, "{}", message.style(self.info_style()))
             }
             Format::Json => writeln!(w, "{msg}"),
@@ -225,7 +226,7 @@ impl Output {
     pub fn error_to(&self, w: &mut impl Write, err: &dyn Display) -> io::Result<()> {
         match self.format {
             Format::Text => {
-                let message = format!("✗ {err}");
+                let message = format!("{} {err}", symbols::ERROR);
                 writeln!(w, "{}", message.style(self.error_style()))
             }
             Format::Json => Self::write_json(w, &json!({ "error": format!("{err}") })),
