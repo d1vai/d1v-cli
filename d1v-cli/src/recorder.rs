@@ -84,7 +84,7 @@ fn load_existing(path: impl AsRef<Path>) -> Vec<Exchange> {
         Ok(exchanges) => exchanges,
         Err(err) => {
             warn!(%err, "malformed recording file, backing up");
-            let backup = path.with_added_extension(".bak");
+            let backup = path.with_added_extension("bak");
 
             if let Err(err) = fs::rename(path, &backup) {
                 warn!(%err, "failed to back up malformed recording file");
