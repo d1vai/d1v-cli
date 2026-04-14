@@ -132,6 +132,7 @@ impl Terminal {
         let label = label.as_ref();
         let display = display.as_ref();
 
+        let _ = self.set_viewport_height(1);
         let _ = self
             .inner
             .insert_before(1, |buf| {
@@ -194,6 +195,7 @@ impl Terminal {
         let label = label.as_ref();
         let display = display.as_ref();
 
+        let _ = self.set_viewport_height(1);
         let _ = self
             .inner
             .insert_before(1, |buf| {

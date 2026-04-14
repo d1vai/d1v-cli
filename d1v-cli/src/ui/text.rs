@@ -67,7 +67,6 @@ impl Text {
                 continue;
             }
 
-            term.set_viewport_height(1)?;
             return Ok(PendingPrompt::new(
                 term,
                 self.label,

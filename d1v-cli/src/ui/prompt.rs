@@ -100,12 +100,6 @@ impl PendingPrompt {
             }
         };
 
-        // Restore before commit/dismiss.
-        let _ = self
-            .term
-            .set_viewport_height(1)
-            .inspect_err(|err| tracing::debug!("failed to restore viewport: {err}"));
-
         match interrupted {
             Ok(value) => Ok((self, value)),
             Err(()) => {
