@@ -66,6 +66,12 @@ impl PendingPrompt {
     pub async fn spin<T>(mut self, task: impl Future<Output = T>) -> Result<(Self, T), Error> {
         let _ = terminal::disable_raw_mode();
 
+        // Extra line below spinner as visual "Enter pressed" feedback.
+        let _ = self
+            .term
+            .set_viewport_height(2)
+            .inspect_err(|err| tracing::debug!("failed to expand viewport: {err}"));
+
         let mut rattler = TickedRattler::<Dots>::new();
         let interval = rattler.interval();
 
@@ -93,6 +99,12 @@ impl PendingPrompt {
                 }
             }
         };
+
+        // Restore before commit/dismiss.
+        let _ = self
+            .term
+            .set_viewport_height(1)
+            .inspect_err(|err| tracing::debug!("failed to restore viewport: {err}"));
 
         match interrupted {
             Ok(value) => Ok((self, value)),
