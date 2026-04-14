@@ -1,18 +1,19 @@
 use d1v_api::record::{Request, Response};
 use d1v_api::Recorder;
 use parking_lot::Mutex;
-use serde::Serialize;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 use tracing::warn;
 
-/// A [`Recorder`] that collects HTTP exchanges in memory and writes them
-/// to a single JSON file on drop.
+/// A [`Recorder`] that buffers HTTP exchanges in memory and appends them
+/// to a JSON file when dropped.
 pub struct FileRecorder {
     path: PathBuf,
     exchanges: Mutex<Vec<Exchange>>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct Exchange {
     request: Request,
     response: Response,
@@ -38,8 +39,8 @@ impl Recorder for FileRecorder {
 
 impl Drop for FileRecorder {
     fn drop(&mut self) {
-        let exchanges = self.exchanges.get_mut();
-        if exchanges.is_empty() {
+        let pending = self.exchanges.get_mut();
+        if pending.is_empty() {
             return;
         }
 
@@ -50,13 +51,43 @@ impl Drop for FileRecorder {
             return;
         }
 
-        match serde_json::to_string_pretty(exchanges) {
+        let mut all = load_existing(&self.path);
+        all.append(pending);
+
+        match serde_json::to_string_pretty(&all) {
             Ok(json) => {
                 if let Err(err) = std::fs::write(&self.path, json) {
                     warn!(%err, "failed to write recordings");
                 }
             }
             Err(err) => warn!(%err, "failed to serialize recordings"),
+        }
+    }
+}
+
+fn load_existing(path: impl AsRef<Path>) -> Vec<Exchange> {
+    let path = path.as_ref();
+
+    let data = match fs::read(path) {
+        Ok(data) => data,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Vec::new(),
+        Err(err) => {
+            warn!(%err, "failed to read existing recordings");
+            return Vec::new();
+        }
+    };
+
+    match serde_json::from_slice::<Vec<Exchange>>(&data) {
+        Ok(exchanges) => exchanges,
+        Err(err) => {
+            warn!(%err, "malformed recording file, backing up");
+            let backup = path.with_added_extension(".bak");
+
+            if let Err(err) = fs::rename(path, &backup) {
+                warn!(%err, "failed to back up malformed recording file");
+            }
+
+            Vec::new()
         }
     }
 }
