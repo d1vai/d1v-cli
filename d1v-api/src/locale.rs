@@ -302,3 +302,84 @@ impl IntoLocale for LanguageIdentifier {
         Locale::resolve_id(&self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use strum::IntoEnumIterator;
+
+    #[test]
+    fn variant_count() {
+        assert_eq!(Locale::COUNT, 35);
+        assert_eq!(Locale::iter().count(), 35);
+    }
+
+    #[test]
+    fn parse() {
+        assert_eq!("en".parse::<Locale>().unwrap(), Locale::English);
+        assert_eq!(
+            "zh-CN".parse::<Locale>().unwrap(),
+            Locale::SimplifiedChinese
+        );
+
+        assert_eq!(
+            "zh-Hans".parse::<Locale>().unwrap(),
+            Locale::SimplifiedChinese
+        );
+        assert_eq!("en-US".parse::<Locale>().unwrap(), Locale::English);
+
+        assert!("unknown".parse::<Locale>().is_err());
+    }
+
+    #[test]
+    fn resolve() {
+        assert_eq!(Locale::resolve("zh-Hans"), Some(Locale::SimplifiedChinese));
+        assert_eq!(Locale::resolve("zh-Hant"), Some(Locale::TraditionalChinese));
+        assert_eq!(
+            Locale::resolve("zh-Hant-TW"),
+            Some(Locale::TraditionalChinese)
+        );
+        assert_eq!(
+            Locale::resolve("zh-Hans-CN"),
+            Some(Locale::SimplifiedChinese)
+        );
+
+        assert_eq!(Locale::resolve("zh-TW"), Some(Locale::TraditionalChinese));
+        assert_eq!(Locale::resolve("zh-HK"), Some(Locale::TraditionalChinese));
+        assert_eq!(Locale::resolve("zh-MO"), Some(Locale::TraditionalChinese));
+
+        assert_eq!(Locale::resolve("en-US"), Some(Locale::English));
+        assert_eq!(Locale::resolve("en-GB"), Some(Locale::English));
+        assert_eq!(Locale::resolve("fr-FR"), Some(Locale::French));
+
+        assert_eq!(Locale::resolve("unknown"), None);
+    }
+
+    #[test]
+    fn display_and_serialize() {
+        assert_eq!(Locale::SimplifiedChinese.to_string(), "zh-CN");
+        assert_eq!(Locale::English.to_string(), "en");
+
+        assert_eq!(Locale::English.display_name(), "English");
+        assert_eq!(Locale::SimplifiedChinese.display_name(), "简体中文");
+
+        assert_eq!(
+            serde_json::to_string(&Locale::SimplifiedChinese).unwrap(),
+            r#""zh-CN""#
+        );
+        assert_eq!(serde_json::to_string(&Locale::English).unwrap(), r#""en""#);
+    }
+
+    #[test]
+    fn into_locale() {
+        assert_eq!(Locale::English.into_locale(), Some(Locale::English));
+        assert_eq!(Some(Locale::French).into_locale(), Some(Locale::French));
+        assert_eq!(None::<Locale>.into_locale(), None);
+        assert_eq!("zh-Hans".into_locale(), Some(Locale::SimplifiedChinese));
+        assert_eq!("unknown".into_locale(), None);
+
+        let id: LanguageIdentifier = "en-US".parse().unwrap();
+        assert_eq!(id.into_locale(), Some(Locale::English));
+    }
+}
