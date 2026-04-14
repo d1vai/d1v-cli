@@ -15,7 +15,7 @@ pub async fn bind(ctx: &Context) -> Result<()> {
                 .send_bind_email_code(&email, i18n::locale()),
         )
         .await?;
-    ctx.message(t!("email-code-sent", email = &email));
+    ctx.info(t!("email-code-sent", email = &email));
 
     let pending = prompt::code_pending()?;
     let code = pending.value().to_string();
@@ -41,7 +41,7 @@ pub async fn change(ctx: &Context) -> Result<()> {
                 .send_change_email_code(&new_email, i18n::locale()),
         )
         .await?;
-    ctx.message(t!("email-code-sent", email = &new_email));
+    ctx.info(t!("email-code-sent", email = &new_email));
 
     let pending = prompt::code_pending()?;
     let code = pending.value().to_string();

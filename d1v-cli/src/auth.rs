@@ -62,7 +62,7 @@ async fn authenticate_code(ctx: &Context) -> Result<SecretString> {
     pending
         .spin_ok(ctx.client.user().send_code(&email, i18n::locale()))
         .await?;
-    ctx.message(t!("auth-code-sent", email = &email));
+    ctx.info(t!("auth-code-sent", email = &email));
 
     let pending = prompt::code_pending()?;
     let code = pending.value().to_string();

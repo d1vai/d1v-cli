@@ -57,6 +57,11 @@ impl Context {
         self.output.success(msg);
     }
 
+    /// Writes an informational message via the output formatter.
+    pub fn info(&self, msg: impl Display) {
+        self.output.info(msg);
+    }
+
     /// Writes a status message via the output formatter.
     pub fn message(&self, msg: impl Display) {
         self.output.message(msg);

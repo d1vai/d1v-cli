@@ -119,6 +119,14 @@ impl Output {
         }
     }
 
+    fn info_style(&self) -> Style {
+        if self.color {
+            Style::new().cyan()
+        } else {
+            Style::new()
+        }
+    }
+
     fn hint_style(&self) -> Style {
         if self.color {
             Style::new().yellow().bold()
@@ -136,6 +144,29 @@ impl Output {
             Format::Json => writeln!(io::stderr(), "{msg}"),
         }
         .unwrap_or_else(|err| tracing::warn!(%err, "failed to write success message"));
+    }
+
+    /// Writes an informational message (e.g., "code sent", "email delivered").
+    pub fn info(&self, msg: impl Display) {
+        match self.format {
+            Format::Text => {
+                let message = format!("→ {msg}");
+                writeln!(io::stdout(), "{}", message.style(self.info_style()))
+            }
+            Format::Json => writeln!(io::stderr(), "{msg}"),
+        }
+        .unwrap_or_else(|err| tracing::warn!(%err, "failed to write info message"));
+    }
+
+    /// Writes an informational message to the given writer.
+    pub fn info_to(&self, w: &mut impl Write, msg: impl Display) -> io::Result<()> {
+        match self.format {
+            Format::Text => {
+                let message = format!("→ {msg}");
+                writeln!(w, "{}", message.style(self.info_style()))
+            }
+            Format::Json => writeln!(w, "{msg}"),
+        }
     }
 
     /// Writes a status message (stdout in text mode, stderr in JSON mode).
@@ -380,6 +411,32 @@ mod tests {
                   "error": "api error 1: something broke"
                 }
             "#}
+        );
+    }
+
+    #[test]
+    fn info_text() {
+        let mut buf = Vec::new();
+        Output::new(Format::Text, false)
+            .info_to(&mut buf, "Code sent to user@example.com")
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "→ Code sent to user@example.com\n"
+        );
+    }
+
+    #[test]
+    fn info_json() {
+        let mut buf = Vec::new();
+        Output::new(Format::Json, false)
+            .info_to(&mut buf, "Code sent to user@example.com")
+            .unwrap();
+
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "Code sent to user@example.com\n"
         );
     }
 

@@ -26,7 +26,7 @@ pub async fn reset(ctx: &Context) -> Result<()> {
                 .send_forgot_password_email(&email, i18n::locale()),
         )
         .await?;
-    ctx.message(t!("password-forgot-sent", email = &email));
+    ctx.info(t!("password-forgot-sent", email = &email));
 
     let code = prompt::code()?;
     let new_password = prompt::new_password()?;
