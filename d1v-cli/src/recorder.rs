@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
-use tracing::warn;
+use tracing::{info, warn};
 
 /// A [`Recorder`] that buffers HTTP exchanges in memory and appends them
 /// to a JSON file when dropped.
@@ -52,12 +52,15 @@ impl Drop for FileRecorder {
         }
 
         let mut all = load_existing(&self.path);
+        let new = pending.len();
         all.append(pending);
 
         match serde_json::to_string_pretty(&all) {
             Ok(json) => {
                 if let Err(err) = std::fs::write(&self.path, json) {
                     warn!(%err, "failed to write recordings");
+                } else {
+                    info!(new, total = all.len(), path = %self.path.display(), "recorded HTTP exchanges");
                 }
             }
             Err(err) => warn!(%err, "failed to serialize recordings"),
