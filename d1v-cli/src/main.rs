@@ -92,18 +92,15 @@ enum AuthCommand {
 async fn run(cli: Cli) -> Result<()> {
     #[cfg(feature = "record")]
     let _recorder = {
-        use d1v_cli::config::default_record_path;
+        use d1v_cli::config::record_path;
         use d1v_cli::recorder::FileRecorder;
-        use std::path::PathBuf;
 
         let path = match cli.record {
             Some(Some(path)) => Some(path),
-            Some(None) => Some(
-                Config::load()
-                    .ok()
-                    .and_then(|c| c.record.path.map(PathBuf::from))
-                    .unwrap_or(default_record_path()?),
-            ),
+            Some(None) => {
+                let dir = Config::load().ok().and_then(|c| c.record.dir);
+                Some(record_path(dir.as_deref())?)
+            }
             None => Config::load().ok().and_then(|c| c.record.resolve_path()),
         };
 

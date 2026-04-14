@@ -50,19 +50,19 @@ pub struct Config {
 /// ```toml
 /// [record]
 /// enabled = true
-/// path = "~/.d1v/recordings"
+/// dir = "~/.d1v/recordings"
 /// ```
 #[cfg(feature = "record")]
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct RecordConfig {
-    /// Whether recording is enabled. Equivalent to passing `--record`.
+    /// Equivalent to passing `--record`.
     #[serde(default)]
     pub enabled: bool,
 
-    /// Directory or file path for recordings. When omitted, defaults to
-    /// `~/.d1v/recordings/{date}.json`.
+    /// Recording directory. Files are named `{date}.json`.
+    /// Defaults to `~/.d1v/recordings/`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
+    pub dir: Option<PathBuf>,
 }
 
 impl Default for Config {
@@ -80,27 +80,28 @@ impl Default for Config {
 #[cfg(feature = "record")]
 impl RecordConfig {
     fn is_default(&self) -> bool {
-        !self.enabled && self.path.is_none()
+        !self.enabled && self.dir.is_none()
     }
 
-    /// Resolves the recording file path from this configuration, returning
-    /// `None` when recording is disabled.
+    /// Resolves the recording file path, or `None` when disabled.
     pub fn resolve_path(&self) -> Option<PathBuf> {
         if self.enabled {
-            self.path
-                .as_deref()
-                .map(PathBuf::from)
-                .or_else(|| default_record_path().ok())
+            record_path(self.dir.as_deref()).ok()
         } else {
             None
         }
     }
 }
 
-/// Returns the default recording path: `~/.d1v/recordings/{date}.json`.
+/// Returns a date-stamped recording path (`{dir}/{date}.json`),
+/// falling back to `~/.d1v/recordings/` when `dir` is `None`.
 #[cfg(feature = "record")]
-pub fn default_record_path() -> Result<PathBuf> {
-    let dir = Config::dir()?.join("recordings");
+pub fn record_path(dir: Option<&std::path::Path>) -> Result<PathBuf> {
+    let dir = match dir {
+        Some(d) => d.to_path_buf(),
+        None => Config::dir()?.join("recordings"),
+    };
+
     let today = jiff::Zoned::now().date();
     Ok(dir.join(format!("{today}.json")))
 }
