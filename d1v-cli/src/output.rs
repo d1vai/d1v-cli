@@ -11,6 +11,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::error::Result;
 use crate::symbols;
 use crate::t;
+use crate::theme;
 
 /// Output format.
 #[derive(Debug, Copy, Clone, Default, ValueEnum)]
@@ -106,7 +107,7 @@ impl Output {
 
     fn success_style(&self) -> Style {
         if self.color {
-            Style::new().green()
+            theme::owo::success()
         } else {
             Style::new()
         }
@@ -114,7 +115,7 @@ impl Output {
 
     fn error_style(&self) -> Style {
         if self.color {
-            Style::new().bright_red()
+            theme::owo::error()
         } else {
             Style::new()
         }
@@ -122,7 +123,7 @@ impl Output {
 
     fn info_style(&self) -> Style {
         if self.color {
-            Style::new().cyan()
+            theme::owo::info()
         } else {
             Style::new()
         }
@@ -130,7 +131,7 @@ impl Output {
 
     fn hint_style(&self) -> Style {
         if self.color {
-            Style::new().yellow().bold()
+            theme::owo::hint()
         } else {
             Style::new()
         }

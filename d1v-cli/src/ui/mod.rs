@@ -14,7 +14,6 @@ use std::io::{self, Stdout};
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
@@ -22,6 +21,7 @@ use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
 use crate::symbols;
+use crate::theme;
 
 /// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
 const PREFIX_WIDTH: u16 = 2;
@@ -92,29 +92,18 @@ impl Terminal {
             let mut lines = Vec::new();
 
             if let Some(msg) = error {
-                lines.push(Line::from(Span::styled(
-                    msg,
-                    Style::default().fg(Color::LightRed),
-                )));
+                lines.push(Line::from(Span::styled(msg, theme::tui::error())));
             }
 
             lines.push(Line::from(vec![
-                Span::styled(symbols::PROMPT_PREFIX, Style::default().fg(Color::Green)),
-                Span::styled(
-                    label,
-                    Style::default()
-                        .fg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
-                ),
+                Span::styled(symbols::PROMPT_PREFIX, theme::tui::prompt()),
+                Span::styled(label, theme::tui::label()),
                 Span::raw(" "),
                 Span::raw(input_text),
             ]));
 
             if let Some(msg) = help {
-                lines.push(Line::from(Span::styled(
-                    msg,
-                    Style::default().fg(Color::DarkGray),
-                )));
+                lines.push(Line::from(Span::styled(msg, theme::tui::dim())));
             }
 
             frame.render_widget(Paragraph::new(lines), area);
@@ -139,20 +128,10 @@ impl Terminal {
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
-                    Span::styled(
-                        symbols::SUCCESS_PREFIX,
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        label,
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
+                    Span::styled(symbols::SUCCESS_PREFIX, theme::tui::success()),
+                    Span::styled(label, theme::tui::label()),
                     Span::raw(" "),
-                    Span::styled(display, Style::default().fg(Color::Cyan)),
+                    Span::styled(display, theme::tui::value()),
                 ]);
 
                 Widget::render(Paragraph::new(line), buf.area, buf);
@@ -177,15 +156,10 @@ impl Terminal {
             .inner
             .draw(|frame| {
                 let line = Line::from(vec![
-                    Span::styled(format!("{spinner} "), Style::default().fg(Color::Green)),
-                    Span::styled(
-                        label,
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
+                    Span::styled(format!("{spinner} "), theme::tui::prompt()),
+                    Span::styled(label, theme::tui::label()),
                     Span::raw(" "),
-                    Span::styled(display, Style::default().fg(Color::Cyan)),
+                    Span::styled(display, theme::tui::value()),
                 ]);
                 Paragraph::new(line).render(frame.area(), frame.buffer_mut());
             })
@@ -202,10 +176,10 @@ impl Terminal {
             .inner
             .insert_before(1, |buf| {
                 let line = Line::from(vec![
-                    Span::styled(symbols::ERROR_PREFIX, Style::default().fg(Color::LightRed)),
-                    Span::styled(label, Style::default().fg(Color::LightRed)),
+                    Span::styled(symbols::ERROR_PREFIX, theme::tui::error()),
+                    Span::styled(label, theme::tui::error()),
                     Span::raw(" "),
-                    Span::styled(display, Style::default().fg(Color::DarkGray)),
+                    Span::styled(display, theme::tui::dim()),
                 ]);
                 Widget::render(Paragraph::new(line), buf.area, buf);
                 clear_wide_char_continuations(buf);
