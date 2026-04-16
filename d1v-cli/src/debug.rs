@@ -116,13 +116,12 @@ fn token_status(ctx: &Context) -> String {
 }
 
 fn enabled_features() -> String {
-    #[allow(unused_mut)]
-    let mut features: Vec<&str> = Vec::new();
-
-    #[cfg(feature = "record")]
-    features.push("record");
-    #[cfg(feature = "mock")]
-    features.push("mock");
+    let features: &[&str] = &[
+        #[cfg(feature = "record")]
+        "record",
+        #[cfg(feature = "mock")]
+        "mock",
+    ];
 
     if features.is_empty() {
         t!("debug-features-none")
