@@ -116,7 +116,9 @@ fn token_status(ctx: &Context) -> String {
 }
 
 fn enabled_features() -> String {
-    let mut features = Vec::new();
+    #[allow(unused_mut)]
+    let mut features: Vec<&str> = Vec::new();
+
     #[cfg(feature = "record")]
     features.push("record");
     #[cfg(feature = "mock")]
