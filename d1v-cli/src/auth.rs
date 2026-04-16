@@ -2,6 +2,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::io::{stdin, IsTerminal};
 
+use owo_colors::{OwoColorize, Stream};
 use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
@@ -133,24 +134,46 @@ struct AuthStatus {
 impl Display for AuthStatus {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if !self.logged_in {
-            return write!(f, "{} {}", symbols::ERROR, t!("auth-status-not-logged-in"));
+            return write!(
+                f,
+                "{} {}",
+                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.bright_red()),
+                t!("auth-status-not-logged-in")
+                    .if_supports_color(Stream::Stdout, |s| s.bright_red()),
+            );
         }
 
         if self.expired == Some(true) {
-            write!(f, "{} {}", symbols::ERROR, t!("auth-status-expired"))?;
+            write!(
+                f,
+                "{} {}",
+                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.bright_red()),
+                t!("auth-status-expired").if_supports_color(Stream::Stdout, |s| s.bright_red()),
+            )?;
         } else {
-            write!(f, "{} {}", symbols::SUCCESS, t!("auth-status-logged-in"))?;
+            write!(
+                f,
+                "{} {}",
+                symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.green()),
+                t!("auth-status-logged-in").if_supports_color(Stream::Stdout, |s| s.green()),
+            )?;
         }
 
         if let Some(source) = &self.source {
-            write!(f, " ({source})")?;
+            let s = format!("({source})");
+            write!(
+                f,
+                " {}",
+                s.if_supports_color(Stream::Stdout, |s| s.dimmed())
+            )?;
         }
 
         if let Some(subject) = &self.subject {
             write!(
                 f,
-                "\n  {}{subject}",
-                pad_label(t!("auth-status-label-user"), 12)
+                "\n  {}{}",
+                pad_label(t!("auth-status-label-user"), 12),
+                subject.if_supports_color(Stream::Stdout, |s| s.cyan()),
             )?;
         }
 
@@ -159,7 +182,7 @@ impl Display for AuthStatus {
                 f,
                 "\n  {}{}",
                 pad_label(t!("auth-status-label-expires"), 12),
-                format_duration(secs),
+                format_duration(secs).if_supports_color(Stream::Stdout, |s| s.cyan()),
             )?;
         }
 
