@@ -89,7 +89,7 @@ impl Error {
 
     pub fn handle(&self, output: &Output) -> ExitCode {
         if self.is_canceled() {
-            output.message(self.localize());
+            output.error(&self.localize());
             return self.exit_code();
         }
 
