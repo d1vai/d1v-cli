@@ -22,42 +22,114 @@ var defaultToken = jwt.Encode(&jwt.Payload{
 	IssuedAt:       time.Now().Unix(),
 })
 
-func token(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, newResponse(defaultToken))
+var expiredToken = jwt.Encode(&jwt.Payload{
+	Subject:        "d1v",
+	ExpirationTime: 1000000000,
+	IssuedAt:       1000000000,
+})
+
+func scenario(r *http.Request) string {
+	return r.Header.Get("X-Test-Scenario")
+}
+
+const (
+	scenarioFail       = "fail"
+	scenarioExpired    = "expired"
+	scenarioNoPassword = "nopassword"
+	scenarioInvalid    = "invalid"
+)
+
+func codeLogin(w http.ResponseWriter, r *http.Request) {
+	switch scenario(r) {
+	case scenarioExpired:
+		writeJSON(w, newResponse(expiredToken))
+	case scenarioFail:
+		writeJSON(w, fail(1, "login failed"))
+	default:
+		writeJSON(w, newResponse(defaultToken))
+	}
+}
+
+func passwordLogin(w http.ResponseWriter, r *http.Request) {
+	switch scenario(r) {
+	case scenarioExpired:
+		writeJSON(w, newResponse(expiredToken))
+	case scenarioFail:
+		writeJSON(w, fail(1, "login failed"))
+	case scenarioNoPassword:
+		writeJSON(w, fail(40000, "password not set"))
+	default:
+		writeJSON(w, newResponse(defaultToken))
+	}
+}
+
+func verifyCode(w http.ResponseWriter, r *http.Request) {
+	switch scenario(r) {
+	case scenarioFail:
+		writeJSON(w, fail(1, "send code failed"))
+	case scenarioInvalid:
+		writeJSON(w, fail(2, "invalid email"))
+	default:
+		writeJSON(w, newResponse(nil))
+	}
+}
+
+func checkCode(w http.ResponseWriter, r *http.Request) {
+	if scenario(r) == scenarioInvalid {
+		writeJSON(w, fail(3, "invalid verification code"))
+		return
+	}
+	writeJSON(w, newResponse(nil))
+}
+
+func passwordHandler(w http.ResponseWriter, r *http.Request) {
+	switch scenario(r) {
+	case scenarioFail:
+		writeJSON(w, fail(1, "operation failed"))
+	case scenarioInvalid:
+		writeJSON(w, fail(3, "invalid code"))
+	default:
+		writeJSON(w, newResponse(nil))
+	}
+}
+
+func emailHandler(w http.ResponseWriter, r *http.Request) {
+	switch scenario(r) {
+	case scenarioFail:
+		writeJSON(w, fail(1, "operation failed"))
+	case scenarioInvalid:
+		writeJSON(w, fail(3, "invalid code"))
+	default:
+		writeJSON(w, newResponse(nil))
+	}
 }
 
 func registerUserRoutes(r chi.Router) {
 	r.Route("/api/user", func(r chi.Router) {
-		// Auth
-		r.Post("/verify-code", emptyResponse)
-		r.Post("/verify-code/check", emptyResponse)
-		r.Post("/login", token)
-		r.Post("/login/password", token)
-		r.Post("/password/login", token)
+		r.Post("/verify-code", verifyCode)
+		r.Post("/verify-code/check", checkCode)
+		r.Post("/login", codeLogin)
+		r.Post("/login/password", passwordLogin)
+		r.Post("/password/login", passwordLogin)
 
-		// User info
 		r.Get("/info", fixture(userData))
 		r.Put("/info", fixture(userData))
 		r.Get("/public/{user_id}", fixture(userData))
 		r.Get("/public/slug/{slug}", fixture(userData))
 		r.Get("/all", fixtureList(userData))
 
-		// Password
 		r.Post("/password/set", emptyResponse)
-		r.Post("/password/forgot/send", emptyResponse)
-		r.Post("/password/reset", emptyResponse)
+		r.Post("/password/forgot/send", passwordHandler)
+		r.Post("/password/reset", passwordHandler)
 
-		// Email
-		r.Post("/bind-email/send", emptyResponse)
-		r.Post("/bind-email/confirm", emptyResponse)
-		r.Post("/email/change/send", emptyResponse)
-		r.Post("/email/change/confirm", emptyResponse)
+		r.Post("/bind-email/send", emailHandler)
+		r.Post("/bind-email/confirm", emailHandler)
+		r.Post("/email/change/send", emailHandler)
+		r.Post("/email/change/confirm", emailHandler)
 
-		// Invitations
 		r.Post("/invitation/accept", emptyResponse)
 		r.Get("/invitations", fixtureList(userData))
 
-		// Other
 		r.Post("/onboarded/set", emptyResponse)
 		r.Get("/activity/prompt-daily", fixture(activityData))
 		r.Get("/activity/prompt-daily/slug/{slug}", fixture(activityData))

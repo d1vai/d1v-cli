@@ -21,6 +21,10 @@ func newResponse(data any) Response {
 	return Response{Code: 0, Message: "success", Data: data}
 }
 
+func fail(code int, msg string) Response {
+	return Response{Code: code, Message: msg}
+}
+
 func writeJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 
