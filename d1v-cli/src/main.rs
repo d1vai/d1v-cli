@@ -172,6 +172,7 @@ async fn main() -> ExitCode {
     i18n::init(locale_sources(cli.lang.as_deref()));
 
     let output = Output::new(cli.format, cli.color.resolve());
+    owo_colors::set_override(output.color);
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 

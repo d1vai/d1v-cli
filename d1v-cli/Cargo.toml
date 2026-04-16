@@ -37,7 +37,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 unic-langid = { version = "0.9", features = ["macros"] }
-owo-colors = "4.3"
+owo-colors = { version = "4.3", features = ["supports-colors"] }
 
 [dev-dependencies]
 indoc = "2"
