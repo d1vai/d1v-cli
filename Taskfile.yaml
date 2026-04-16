@@ -39,6 +39,14 @@ tasks:
     cmds:
       - task: cli:install-record
 
+  install-mock:
+    cmds:
+      - task: cli:install-mock
+
+  install-dev:
+    cmds:
+      - task: cli:install-dev
+
   record:
     cmds:
       - task: cli:record

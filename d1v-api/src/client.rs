@@ -62,7 +62,16 @@ impl ClientBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Client, Error> {
+    pub fn build(mut self) -> Result<Client, Error> {
+        #[cfg(feature = "mock")]
+        if let Ok(scenario) = std::env::var("D1V_TEST_SCENARIO")
+            && let Ok(value) = reqwest::header::HeaderValue::from_str(&scenario)
+        {
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert("X-Test-Scenario", value);
+            self.inner = self.inner.default_headers(headers);
+        }
+
         Ok(Client {
             inner: Arc::new(ClientInner {
                 http: self.inner.build()?,

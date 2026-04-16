@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [features]
 record = ["d1v-api/record"]
+mock = ["d1v-api/mock"]
 
 [dependencies]
 d1v-api = { path = "../d1v-api" }

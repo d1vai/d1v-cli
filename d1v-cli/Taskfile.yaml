@@ -35,6 +35,16 @@ tasks:
     cmds:
       - cargo install --path . --features record
 
+  install-mock:
+    desc: Install with mock feature enabled
+    cmds:
+      - cargo install --path . --features mock
+
+  install-dev:
+    desc: Install with all features enabled
+    cmds:
+      - cargo install --path . --features record,mock
+
   test:
     cmds:
       - cargo test
