@@ -61,7 +61,11 @@ pub struct RecordConfig {
 
     /// Recording directory. Files are named `{date}.json`.
     /// Defaults to `~/.d1v/recordings/`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_path"
+    )]
     pub dir: Option<PathBuf>,
 }
 
@@ -108,6 +112,16 @@ pub fn record_path(dir: Option<&std::path::Path>) -> Result<PathBuf> {
 
 fn default_base_url() -> String {
     d1v_api::DEFAULT_BASE_URL.to_string()
+}
+
+/// Deserializes an optional path, expanding `~` to the home directory.
+#[cfg(feature = "record")]
+fn deserialize_path<'de, D>(deserializer: D) -> std::result::Result<Option<PathBuf>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<&str>::deserialize(deserializer)?
+        .map(|s| PathBuf::from(shellexpand::tilde(s).as_ref())))
 }
 
 fn serialize_token<S>(token: &Option<SecretString>, serializer: S) -> Result<S::Ok, S::Error>
