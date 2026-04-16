@@ -22,10 +22,14 @@ auth-relogin-success = Re-authenticated successfully!
 ## Debug
 debug-label-version = version:
 debug-label-user-agent = user-agent:
+debug-label-locale = locale:
+debug-label-features = features:
 debug-label-config = config:
+debug-label-log-dir = log-dir:
 debug-label-base-url = base-url:
 debug-label-token = token:
 debug-unknown = unknown
+debug-features-none = none
 debug-token-found = { $source }
 debug-token-expires-in = expires in { $duration }
 debug-token-expired = expired

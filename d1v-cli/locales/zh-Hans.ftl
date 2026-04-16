@@ -22,10 +22,14 @@ auth-relogin-success = 重新认证成功！
 ## 调试
 debug-label-version = 版本:
 debug-label-user-agent = 用户代理:
+debug-label-locale = 语言:
+debug-label-features = 特性:
 debug-label-config = 配置:
+debug-label-log-dir = 日志目录:
 debug-label-base-url = 接口地址:
 debug-label-token = 令牌:
 debug-unknown = 未知
+debug-features-none = 无
 debug-token-found = { $source }
 debug-token-expires-in = { $duration }后过期
 debug-token-expired = 已过期
