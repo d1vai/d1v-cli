@@ -1,4 +1,5 @@
 use crate::error::Result;
+use crate::output::pad_label;
 use d1v_api::{UpdateUser, User};
 use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
@@ -9,6 +10,8 @@ use tracing::debug;
 use super::{GetArgs, UpdateArgs};
 use crate::t;
 use crate::Context;
+
+const LABEL_WIDTH: usize = 13;
 
 #[derive(Serialize)]
 #[serde(transparent)]
@@ -57,16 +60,116 @@ impl From<UpdateArgs> for UpdateUser {
     }
 }
 
+#[derive(Serialize)]
+#[serde(transparent)]
+struct UserDetail<'a>(&'a User);
+
+impl UserDetail<'_> {
+    fn write_row(&self, f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
+        write!(
+            f,
+            "\n{}{}",
+            pad_label(t!(label), LABEL_WIDTH).if_supports_color(Stream::Stdout, |s| s.bold()),
+            value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+        )
+    }
+}
+
+fn format_roles(user: &User) -> String {
+    let mut roles: Vec<String> = Vec::new();
+
+    if user.is_super_admin {
+        roles.push(
+            "super-admin"
+                .if_supports_color(Stream::Stdout, |s| s.bright_red())
+                .to_string(),
+        );
+    }
+
+    if user.is_admin {
+        roles.push(
+            "admin"
+                .if_supports_color(Stream::Stdout, |s| s.bright_red())
+                .to_string(),
+        );
+    }
+
+    if user.is_agent {
+        roles.push(
+            "agent"
+                .if_supports_color(Stream::Stdout, |s| s.yellow())
+                .to_string(),
+        );
+    }
+
+    if roles.is_empty() {
+        roles.push("user".to_string());
+    }
+
+    roles.join(", ")
+}
+
+impl Display for UserDetail<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let user = self.0;
+
+        write!(
+            f,
+            "{}{}",
+            pad_label(t!("user-label-id"), LABEL_WIDTH)
+                .if_supports_color(Stream::Stdout, |s| s.bold()),
+            user.id.if_supports_color(Stream::Stdout, |s| s.cyan()),
+        )?;
+
+        if !user.slug.is_empty() {
+            self.write_row(f, "user-label-slug", &user.slug)?;
+        }
+
+        if let Some(email) = &user.email
+            && !email.is_empty()
+        {
+            self.write_row(f, "user-label-email", email)?;
+        }
+
+        write!(
+            f,
+            "\n{}{}",
+            pad_label(t!("user-label-roles"), LABEL_WIDTH)
+                .if_supports_color(Stream::Stdout, |s| s.bold()),
+            format_roles(user),
+        )?;
+
+        if user.is_company {
+            if !user.company_name.is_empty() {
+                self.write_row(f, "user-label-company", &user.company_name)?;
+            }
+            if !user.company_website.is_empty() {
+                self.write_row(f, "user-label-website", &user.company_website)?;
+            }
+        }
+
+        if !user.industry.is_empty() {
+            self.write_row(f, "user-label-industry", &user.industry)?;
+        }
+
+        if !user.invite_code.is_empty() {
+            self.write_row(f, "user-label-invite-code", &user.invite_code)?;
+        }
+
+        Ok(())
+    }
+}
+
 pub async fn info(ctx: &Context) -> Result<()> {
     let user = ctx.client.user().info().await?;
-    ctx.print(&user)
+    ctx.print(&UserDetail(&user))
 }
 
 pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
     debug!("updating user info");
     let user = ctx.client.user().update_info(&args.into()).await?;
     ctx.success(t!("user-info-updated"));
-    ctx.print(&user)
+    ctx.print(&UserDetail(&user))
 }
 
 pub async fn get(ctx: &Context, target: GetArgs) -> Result<()> {

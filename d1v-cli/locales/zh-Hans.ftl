@@ -81,6 +81,14 @@ validation-url-invalid = 链接格式无效
 
 ## 用户
 user-info-updated = 用户信息已更新。
+user-label-id = ID:
+user-label-slug = 标识:
+user-label-email = 邮箱:
+user-label-roles = 角色:
+user-label-company = 公司:
+user-label-website = 网站:
+user-label-industry = 行业:
+user-label-invite-code = 邀请码:
 
 ## 密码
 password-new-prompt = 新密码:

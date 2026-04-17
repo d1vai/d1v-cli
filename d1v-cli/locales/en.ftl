@@ -81,6 +81,14 @@ validation-url-invalid = invalid URL
 
 ## User
 user-info-updated = User info updated.
+user-label-id = id:
+user-label-slug = slug:
+user-label-email = email:
+user-label-roles = roles:
+user-label-company = company:
+user-label-website = website:
+user-label-industry = industry:
+user-label-invite-code = invite code:
 
 ## Password
 password-new-prompt = New password:
