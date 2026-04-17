@@ -1,5 +1,6 @@
 use d1v_api::jwt::Claims;
 use d1v_api::UserAgent;
+use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter, Write};
@@ -25,54 +26,30 @@ struct DebugInfo {
 
 impl Display for DebugInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-version"), 13),
-            self.version
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-user-agent"), 13),
-            self.user_agent
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-locale"), 13),
-            self.locale
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-features"), 13),
-            self.features
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-config"), 13),
-            self.config
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-log-dir"), 13),
-            self.log_dir
-        )?;
-        writeln!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-base-url"), 13),
-            self.base_url
-        )?;
-        write!(
-            f,
-            "{}{}",
-            pad_label(t!("debug-label-token"), 13),
-            self.token
-        )
+        let rows: &[(&str, &str)] = &[
+            ("debug-label-version", &self.version),
+            ("debug-label-user-agent", &self.user_agent),
+            ("debug-label-locale", &self.locale),
+            ("debug-label-features", &self.features),
+            ("debug-label-config", &self.config),
+            ("debug-label-log-dir", &self.log_dir),
+            ("debug-label-base-url", &self.base_url),
+            ("debug-label-token", &self.token),
+        ];
+
+        for (i, (key, value)) in rows.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(
+                f,
+                "{}{}",
+                pad_label(t!(key), 13).if_supports_color(Stream::Stdout, |s| s.bold()),
+                value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+            )?;
+        }
+
+        Ok(())
     }
 }
 
@@ -99,12 +76,14 @@ fn write_claims(mut status: impl Write, claims: &Claims) -> fmt::Result {
 
 fn token_status(ctx: &Context) -> String {
     let Some(source) = ctx.tokens.source() else {
-        return symbols::ERROR.to_string();
+        return symbols::ERROR
+            .if_supports_color(Stream::Stdout, |s| s.bright_red())
+            .to_string();
     };
 
     let mut status = format!(
         "{} ({})",
-        symbols::SUCCESS,
+        symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.green()),
         t!("debug-token-found", source = source)
     );
 
