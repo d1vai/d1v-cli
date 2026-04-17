@@ -1,10 +1,48 @@
 use crate::error::Result;
-use d1v_api::UpdateUser;
+use d1v_api::{UpdateUser, User};
+use owo_colors::{OwoColorize, Stream};
+use serde::Serialize;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use tracing::debug;
 
 use super::{GetArgs, UpdateArgs};
 use crate::t;
 use crate::Context;
+
+#[derive(Serialize)]
+#[serde(transparent)]
+pub struct UserListItem<'a>(pub &'a User);
+
+impl Display for UserListItem<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0.id.if_supports_color(Stream::Stdout, |s| s.dimmed())
+        )?;
+
+        if !self.0.slug.is_empty() {
+            write!(
+                f,
+                " {}",
+                self.0.slug.if_supports_color(Stream::Stdout, |s| s.bold())
+            )?;
+        }
+
+        if let Some(email) = &self.0.email
+            && !email.is_empty()
+        {
+            write!(
+                f,
+                " {}",
+                format!("<{email}>").if_supports_color(Stream::Stdout, |s| s.cyan())
+            )?;
+        }
+
+        Ok(())
+    }
+}
 
 impl From<UpdateArgs> for UpdateUser {
     fn from(args: UpdateArgs) -> Self {
@@ -37,10 +75,10 @@ pub async fn get(ctx: &Context, target: GetArgs) -> Result<()> {
         GetArgs::Slug { slug } => ctx.client.user().public_user_by_slug(&slug).await?,
     };
 
-    ctx.print(&user)
+    ctx.print(&UserListItem(&user))
 }
 
 pub async fn list(ctx: &Context) -> Result<()> {
     let users = ctx.client.user().all_users().await?;
-    ctx.print_list(&users)
+    ctx.print_list(users.iter().map(UserListItem))
 }
