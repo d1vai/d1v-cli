@@ -1,5 +1,6 @@
 pub mod owo {
-    use owo_colors::Style;
+    use colorgrad::Gradient;
+    use owo_colors::{OwoColorize, Stream, Style};
 
     pub const fn success() -> Style {
         Style::new().green()
@@ -15,6 +16,22 @@ pub mod owo {
 
     pub const fn hint() -> Style {
         Style::new().yellow()
+    }
+
+    /// Applies a color gradient across each character of a string.
+    pub fn gradient(text: impl AsRef<str>, gradient: &impl Gradient) -> String {
+        let text = text.as_ref();
+
+        gradient
+            .colors(text.chars().count())
+            .into_iter()
+            .zip(text.chars())
+            .map(|(color, ch)| {
+                let [r, g, b, _] = color.to_rgba8();
+                ch.if_supports_color(Stream::Stdout, |s| s.truecolor(r, g, b))
+                    .to_string()
+            })
+            .collect()
     }
 }
 
