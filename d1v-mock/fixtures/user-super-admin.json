@@ -1,0 +1,22 @@
+{
+  "id": 3,
+  "slug": "super-admin",
+  "is_agent": false,
+  "picture": "",
+  "is_onboarded": true,
+  "is_admin": true,
+  "is_super_admin": true,
+  "is_company": true,
+  "company_name": "d1v",
+  "company_website": "https://d1v.ai",
+  "industry": "AI",
+  "invite_code": "Mock123",
+  "referral_code": "",
+  "sol_wallet": "",
+  "sui_wallet": "",
+  "evm_wallet": "",
+  "sub": "super-sub",
+  "email": "root@example.com",
+  "last_login_type": "password",
+  "stripe_customer_id": null
+}

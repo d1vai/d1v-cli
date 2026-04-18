@@ -1,0 +1,22 @@
+{
+  "id": 4,
+  "slug": "agent-bot",
+  "is_agent": true,
+  "picture": "",
+  "is_onboarded": true,
+  "is_admin": false,
+  "is_super_admin": false,
+  "is_company": false,
+  "company_name": "",
+  "company_website": "",
+  "industry": "",
+  "invite_code": "",
+  "referral_code": "",
+  "sol_wallet": "",
+  "sui_wallet": "",
+  "evm_wallet": "",
+  "sub": "agent-sub",
+  "email": "agent@example.com",
+  "last_login_type": null,
+  "stripe_customer_id": null
+}

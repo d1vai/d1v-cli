@@ -43,12 +43,6 @@ func fixture(data []byte) http.HandlerFunc {
 	}
 }
 
-func fixtureList(data []byte) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, newResponse([]json.RawMessage{data}))
-	}
-}
-
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
 	flag.Parse()

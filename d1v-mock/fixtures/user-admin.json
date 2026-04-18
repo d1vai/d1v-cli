@@ -1,0 +1,22 @@
+{
+  "id": 2,
+  "slug": "admin-user",
+  "is_agent": false,
+  "picture": "",
+  "is_onboarded": true,
+  "is_admin": true,
+  "is_super_admin": false,
+  "is_company": true,
+  "company_name": "Mock",
+  "company_website": "https://mock.example.com",
+  "industry": "Technology",
+  "invite_code": "Mock123",
+  "referral_code": "",
+  "sol_wallet": "",
+  "sui_wallet": "",
+  "evm_wallet": "",
+  "sub": "admin-sub",
+  "email": "admin@example.com",
+  "last_login_type": "password",
+  "stripe_customer_id": null
+}
