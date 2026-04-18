@@ -1,15 +1,17 @@
-use crate::error::Result;
-use crate::output::pad_label;
+use colorgrad::{GradientBuilder, LinearGradient};
 use d1v_api::{UpdateUser, User};
 use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::sync::LazyLock;
 use tracing::debug;
 
 use super::{GetArgs, UpdateArgs};
-use crate::t;
+use crate::error::Result;
+use crate::output::pad_label;
 use crate::Context;
+use crate::{t, theme};
 
 const LABEL_WIDTH: usize = 13;
 
@@ -75,15 +77,18 @@ impl UserDetail<'_> {
     }
 }
 
+static SUPER_ADMIN_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
+    GradientBuilder::new()
+        .html_colors(&["#C83CFF", "#FFC83C"])
+        .build()
+        .expect("valid gradient colors")
+});
+
 fn format_roles(user: &User) -> String {
     let mut roles: Vec<String> = Vec::new();
 
     if user.is_super_admin {
-        roles.push(
-            "super-admin"
-                .if_supports_color(Stream::Stdout, |s| s.bright_red())
-                .to_string(),
-        );
+        roles.push(theme::owo::gradient("super-admin", &*SUPER_ADMIN_GRADIENT));
     }
 
     if user.is_admin {
