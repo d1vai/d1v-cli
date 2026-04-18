@@ -53,12 +53,10 @@ impl Terminal {
         Ok(Self { inner, height })
     }
 
-    /// Resizes the inline viewport if the height has changed.
-    ///
-    /// Keeps the terminal alive across validation retries, avoiding orphaned
-    /// viewport content and unnecessary raw mode toggling.
+    /// Adjusts the viewport height, clearing stale content beforehand.
     fn set_viewport_height(&mut self, height: u16) -> io::Result<()> {
         if height != self.height {
+            self.inner.clear()?;
             self.inner = ratatui::Terminal::with_options(
                 CrosstermBackend::new(io::stdout()),
                 TerminalOptions {
@@ -66,10 +64,6 @@ impl Terminal {
                 },
             )?;
             self.height = height;
-            // The new terminal's previous buffer is all spaces. Clearing
-            // the viewport ensures the physical screen matches, preventing
-            // stale characters left over from the prior terminal instance.
-            self.inner.clear()?;
         }
         Ok(())
     }
