@@ -90,6 +90,10 @@ user-label-website = 网站:
 user-label-industry = 行业:
 user-label-invite-code = 邀请码:
 
+## 活动
+activity-label-period = 时间范围:
+activity-label-days = 天数:
+
 ## 密码
 password-new-prompt = 新密码:
 password-confirm-prompt = 确认密码:

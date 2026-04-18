@@ -90,6 +90,10 @@ user-label-website = website:
 user-label-industry = industry:
 user-label-invite-code = invite code:
 
+## Activity
+activity-label-period = period:
+activity-label-days = days:
+
 ## Password
 password-new-prompt = New password:
 password-confirm-prompt = Confirm password:

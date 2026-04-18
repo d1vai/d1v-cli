@@ -1,7 +1,96 @@
-use crate::error::Result;
+use colorgrad::{Gradient, GradientBuilder, LinearGradient};
+use d1v_api::PromptDailyActivity;
+use owo_colors::{OwoColorize, Stream};
+use serde::Serialize;
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use std::sync::LazyLock;
 
 use super::{ActivityArgs, ActivityTarget};
+use crate::error::Result;
+use crate::output::pad_label;
+use crate::t;
 use crate::Context;
+
+const LABEL_WIDTH: usize = 13;
+const BAR_WIDTH: usize = 20;
+
+#[derive(Serialize)]
+#[serde(transparent)]
+struct ActivityDisplay<'a>(&'a PromptDailyActivity);
+
+impl ActivityDisplay<'_> {
+    fn write_row(&self, f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
+        write!(
+            f,
+            "\n{}{}",
+            pad_label(t!(label), LABEL_WIDTH).if_supports_color(Stream::Stdout, |s| s.bold()),
+            value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+        )
+    }
+}
+
+static BAR_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
+    GradientBuilder::new()
+        .html_colors(&["#4A9EFF", "#36D399"])
+        .build::<LinearGradient>()
+        .expect("valid gradient colors")
+});
+
+impl Display for ActivityDisplay<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let a = self.0;
+
+        write!(
+            f,
+            "{}{}",
+            pad_label(t!("activity-label-period"), LABEL_WIDTH)
+                .if_supports_color(Stream::Stdout, |s| s.bold()),
+            format!("{} ~ {}", a.start_date, a.end_date)
+                .if_supports_color(Stream::Stdout, |s| s.cyan()),
+        )?;
+        self.write_row(f, "activity-label-days", &a.days.to_string())?;
+
+        if a.counts.is_empty() {
+            return Ok(());
+        }
+
+        let max_count = a.counts.iter().map(|c| c.count).max().unwrap_or(1).max(1);
+        let bar_colors = BAR_GRADIENT.colors(BAR_WIDTH);
+
+        write!(f, "\n")?;
+        for entry in &a.counts {
+            let ratio = entry.count as f32 / max_count as f32;
+            let filled = (ratio * BAR_WIDTH as f32).round() as usize;
+            let empty = BAR_WIDTH - filled;
+
+            let filled_bar: String = bar_colors[..filled]
+                .iter()
+                .map(|c| {
+                    let [r, g, b, _] = c.to_rgba8();
+                    '█'
+                        .if_supports_color(Stream::Stdout, |s| s.truecolor(r, g, b))
+                        .to_string()
+                })
+                .collect();
+            let empty_bar = "░"
+                .repeat(empty)
+                .if_supports_color(Stream::Stdout, |s| s.truecolor(60, 60, 60))
+                .to_string();
+
+            write!(
+                f,
+                "\n  {} {}{} {}",
+                entry.date.if_supports_color(Stream::Stdout, |s| s.dimmed()),
+                filled_bar,
+                empty_bar,
+                entry.count.if_supports_color(Stream::Stdout, |s| s.bold()),
+            )?;
+        }
+
+        Ok(())
+    }
+}
 
 pub async fn run(ctx: &Context, args: ActivityArgs) -> Result<()> {
     let days = args.days;
@@ -17,5 +106,5 @@ pub async fn run(ctx: &Context, args: ActivityArgs) -> Result<()> {
         None => api.prompt_daily_activity(days).await?,
     };
 
-    ctx.print(&activity)
+    ctx.print(&ActivityDisplay(&activity))
 }
