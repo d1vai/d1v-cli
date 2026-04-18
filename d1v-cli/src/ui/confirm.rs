@@ -1,109 +1,58 @@
-use super::input::InputState;
 use super::{Action, Terminal};
 use crate::error::Error;
 use crate::t;
+use crossterm::event::KeyCode;
 
-/// Yes/no confirmation prompt with default value support.
+/// Yes/no confirmation prompt with toggle selector.
 ///
-/// Accepts `y`/`yes`/`n`/`no` (case-insensitive). Empty input uses the default
-/// when set; invalid input shows an error and retries.
+/// Uses Left/Right/Tab to switch between Yes and No, Enter to confirm.
 pub struct Confirm {
     label: String,
-    default: Option<bool>,
-    help: Option<String>,
+    default: bool,
 }
 
 impl Confirm {
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
-            default: None,
-            help: None,
+            default: false,
         }
     }
 
     pub fn default(mut self, default: bool) -> Self {
-        self.default = Some(default);
+        self.default = default;
         self
-    }
-
-    pub fn help(mut self, msg: impl Into<String>) -> Self {
-        self.help = Some(msg.into());
-        self
-    }
-
-    fn hint(&self) -> &str {
-        match self.default {
-            Some(true) => "[Y/n]",
-            Some(false) => "[y/N]",
-            None => "[y/n]",
-        }
     }
 
     /// Runs the prompt and returns the user's choice.
     pub fn prompt(self) -> Result<bool, Error> {
-        let display_label = format!("{} {}", self.label, self.hint());
-
-        let mut input = InputState::new();
-        let mut error: Option<String> = None;
-        let height = 1 + self.help.is_some() as u16;
-        let mut term = Terminal::new(height)?;
+        let mut selected = self.default;
+        let options = [t!("confirm-yes"), t!("confirm-no")];
+        let mut term = Terminal::new(1)?;
 
         loop {
-            let height = 1 + error.is_some() as u16 + self.help.is_some() as u16;
-            term.set_viewport_height(height)?;
+            let idx = if selected { 0 } else { 1 };
+            term.draw_toggle(&self.label, [&options[0], &options[1]], idx)?;
 
-            loop {
-                term.draw_prompt(
-                    &display_label,
-                    input.text(),
-                    input.cursor_col(),
-                    error.as_deref(),
-                    self.help.as_deref(),
-                )?;
-
-                match Action::read()? {
-                    Some(Action::Submit) => break,
-                    Some(Action::Cancel) => {
-                        term.show_canceled(&self.label, input.text());
-                        return Err(Error::Canceled);
-                    }
-                    Some(Action::Input(key)) => input.handle_key(&key),
-                    None => {}
+            match Action::read()? {
+                Some(Action::Submit) => {
+                    term.show_answered(&self.label, &options[idx]);
+                    return Ok(selected);
                 }
+                Some(Action::Cancel) => {
+                    term.show_canceled(&self.label, &options[idx]);
+                    return Err(Error::Canceled);
+                }
+                Some(Action::Input(key)) => match key.code {
+                    KeyCode::Left | KeyCode::Right | KeyCode::Tab | KeyCode::BackTab => {
+                        selected = !selected;
+                    }
+                    KeyCode::Char('y' | 'Y') => selected = true,
+                    KeyCode::Char('n' | 'N') => selected = false,
+                    _ => {}
+                },
+                None => {}
             }
-
-            let text = input.text().trim();
-            let result = if text.is_empty() {
-                self.default
-            } else {
-                parse_bool(text)
-            };
-
-            if let Some(value) = result {
-                let answer = format_bool(value);
-                term.show_answered(&self.label, &answer);
-                return Ok(value);
-            }
-
-            error = Some(t!("confirm-invalid"));
-            input.clear();
         }
-    }
-}
-
-fn parse_bool(input: &str) -> Option<bool> {
-    match input.to_lowercase().as_str() {
-        "y" | "yes" => Some(true),
-        "n" | "no" => Some(false),
-        _ => None,
-    }
-}
-
-fn format_bool(value: bool) -> String {
-    if value {
-        t!("confirm-yes")
-    } else {
-        t!("confirm-no")
     }
 }

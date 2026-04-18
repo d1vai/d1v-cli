@@ -118,6 +118,37 @@ impl Terminal {
         Ok(())
     }
 
+    /// Draws an inline toggle selector.
+    fn draw_toggle(
+        &mut self,
+        label: impl AsRef<str>,
+        options: [&str; 2],
+        selected: usize,
+    ) -> io::Result<()> {
+        let label = label.as_ref();
+
+        let styles = if selected == 0 {
+            [theme::tui::toggle_active(), theme::tui::toggle_inactive()]
+        } else {
+            [theme::tui::toggle_inactive(), theme::tui::toggle_active()]
+        };
+
+        self.inner.hide_cursor()?;
+        self.inner.draw(|frame| {
+            let line = Line::from(vec![
+                Span::styled(symbols::PROMPT_PREFIX, theme::tui::prompt()),
+                Span::styled(label, theme::tui::label()),
+                Span::raw("  "),
+                Span::styled(options[0], styles[0]),
+                Span::styled(" / ", theme::tui::dim()),
+                Span::styled(options[1], styles[1]),
+            ]);
+            frame.render_widget(Paragraph::new(line), frame.area());
+        })?;
+
+        Ok(())
+    }
+
     /// Renders the answered state above the inline viewport and terminates it.
     fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
         let label = label.as_ref();

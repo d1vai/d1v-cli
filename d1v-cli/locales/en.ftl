@@ -113,9 +113,8 @@ invitation-accepted = Invitation accepted.
 onboard-success = Onboarding marked as complete.
 
 ## Confirm
-confirm-yes = yes
-confirm-no = no
-confirm-invalid = Please type y or n.
+confirm-yes = Yes
+confirm-no = No
 
 ## Duration
 duration-days-hours = { $days }d { $hours }h

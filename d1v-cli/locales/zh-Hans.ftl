@@ -115,7 +115,6 @@ onboard-success = 引导已标记为完成。
 ## 确认
 confirm-yes = 是
 confirm-no = 否
-confirm-invalid = 请输入 y 或 n。
 
 ## 时间
 duration-days-hours = { $days } 天 { $hours } 小时

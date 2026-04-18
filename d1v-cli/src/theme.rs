@@ -61,4 +61,12 @@ pub mod tui {
     pub const fn dim() -> Style {
         Style::new().fg(Color::DarkGray)
     }
+
+    pub const fn toggle_active() -> Style {
+        Style::new().fg(Color::Cyan).bold().underlined()
+    }
+
+    pub const fn toggle_inactive() -> Style {
+        Style::new().fg(Color::DarkGray)
+    }
 }
