@@ -114,14 +114,18 @@ fn default_base_url() -> String {
     d1v_api::DEFAULT_BASE_URL.to_string()
 }
 
-/// Deserializes an optional path, expanding `~` to the home directory.
+/// Deserializes an optional path, expanding `~` and normalizing separators.
 #[cfg(feature = "record")]
 fn deserialize_path<'de, D>(deserializer: D) -> std::result::Result<Option<PathBuf>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    Ok(Option::<&str>::deserialize(deserializer)?
-        .map(|s| PathBuf::from(shellexpand::tilde(s).as_ref())))
+    use normpath::PathExt;
+
+    Ok(Option::<&str>::deserialize(deserializer)?.map(|s| {
+        let path = PathBuf::from(shellexpand::tilde(s).as_ref());
+        path.normalize_virtually().map(Into::into).unwrap_or(path)
+    }))
 }
 
 fn serialize_token<S>(token: &Option<SecretString>, serializer: S) -> Result<S::Ok, S::Error>

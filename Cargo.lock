@@ -630,6 +630,7 @@ dependencies = [
  "itertools",
  "jiff",
  "keyring",
+ "normpath",
  "owo-colors",
  "parking_lot",
  "ratatui",
@@ -2013,6 +2014,15 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "normpath"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf23ab2b905654b4cb177e30b629937b3868311d4e1cba859f899c041046e69b"
+dependencies = [
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
