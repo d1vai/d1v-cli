@@ -16,7 +16,7 @@ auth-status-expired = Token expired
 auth-status-label-user = user:
 auth-status-label-expires = expires in:
 warn-token-expiring = Token expires in { $duration }. Run `d1v auth login` to refresh.
-auth-relogin-prompt = Log in again?
+auth-relogin-prompt = Token expired. Log in again?
 auth-relogin-success = Re-authenticated successfully!
 
 ## Debug
