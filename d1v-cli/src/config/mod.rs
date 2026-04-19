@@ -1,3 +1,5 @@
+pub mod cmd;
+
 use std::fs;
 use std::path::PathBuf;
 
@@ -24,6 +26,12 @@ pub enum ConfigError {
 
     #[error("failed to serialize config")]
     Serialize(#[from] toml::ser::Error),
+
+    #[error("invalid value for {key}: {value}")]
+    InvalidValue { key: String, value: String },
+
+    #[error("failed to open config file: {0}")]
+    Open(#[source] std::io::Error),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -99,6 +99,10 @@ impl Localize for ConfigError {
             Self::Write(_) => t!("error-write-config"),
             Self::Parse(_) => t!("error-parse-config"),
             Self::Serialize(_) => t!("error-serialize-config"),
+            Self::InvalidValue { key, value } => {
+                t!("error-invalid-config-value", key = key, value = value)
+            }
+            Self::Open(_) => t!("config-edit-failed"),
         }
     }
 }

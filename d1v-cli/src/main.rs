@@ -6,11 +6,12 @@ use jiff::SignedDuration;
 use tracing::info;
 
 use d1v_cli::banner::Banner;
+use d1v_cli::config::cmd::ConfigKey;
 use d1v_cli::config::Config;
 use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{format_duration, Color, Format, Output};
 use d1v_cli::token::TokenLoader;
-use d1v_cli::{auth, debug, i18n, logging, t, user, Context};
+use d1v_cli::{auth, config, debug, i18n, logging, t, user, Context};
 
 #[derive(Parser)]
 #[command(name = "d1v", version, before_help = banner())]
@@ -67,6 +68,11 @@ enum Command {
         #[command(subcommand)]
         command: user::UserCommand,
     },
+    /// Manage CLI configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
     /// Show debug information
     Debug,
     /// Print the ASCII art banner
@@ -76,10 +82,38 @@ enum Command {
 impl Command {
     fn requires_auth(&self) -> bool {
         match self {
-            Command::Auth { .. } | Command::Debug | Command::Banner => false,
+            Command::Auth { .. } | Command::Config { .. } | Command::Debug | Command::Banner => {
+                false
+            }
             Command::User { command } => command.requires_auth(),
         }
     }
+}
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Show current configuration
+    Show,
+    /// Get a config value
+    Get {
+        /// Config key
+        key: ConfigKey,
+    },
+    /// Set a config value
+    Set {
+        /// Config key
+        key: ConfigKey,
+        /// New value (empty string clears optional fields)
+        value: String,
+    },
+    /// List available config keys
+    List,
+    /// Print config file path
+    Path,
+    /// Reset configuration to defaults
+    Reset,
+    /// Open config file in editor
+    Edit,
 }
 
 #[derive(Subcommand)]
@@ -160,6 +194,15 @@ async fn run(cli: Cli) -> Result<()> {
             AuthCommand::Status => auth::status(&ctx),
         },
         Command::User { command } => user::run(&ctx, command).await,
+        Command::Config { command } => match command {
+            ConfigCommand::Show => config::cmd::show(&ctx),
+            ConfigCommand::Get { key } => config::cmd::get(&ctx, key),
+            ConfigCommand::Set { key, value } => config::cmd::set(&ctx, key, &value),
+            ConfigCommand::List => config::cmd::list(&ctx),
+            ConfigCommand::Path => config::cmd::path(&ctx),
+            ConfigCommand::Reset => config::cmd::reset(&ctx),
+            ConfigCommand::Edit => config::cmd::edit(),
+        },
         Command::Debug => debug::run(&ctx),
         Command::Banner => {
             print!("{}", Banner::new().render());

@@ -70,6 +70,10 @@ error-read-config = 读取配置文件失败
 error-write-config = 写入配置文件失败
 error-parse-config = 解析配置文件失败
 error-serialize-config = 序列化配置失败
+error-invalid-config-value = { $key } 的值无效: { $value }
+config-set-success = { $key } = { $value }
+config-reset-success = 配置已重置为默认值。
+config-edit-failed = 无法打开配置文件
 
 ## 校验
 validation-email-required = 请输入邮箱地址

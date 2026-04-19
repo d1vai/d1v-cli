@@ -70,6 +70,10 @@ error-read-config = failed to read config file
 error-write-config = failed to write config file
 error-parse-config = failed to parse config file
 error-serialize-config = failed to serialize config
+error-invalid-config-value = invalid value for { $key }: { $value }
+config-set-success = { $key } = { $value }
+config-reset-success = Configuration reset to defaults.
+config-edit-failed = failed to open config file
 
 ## Validation
 validation-email-required = email address is required
