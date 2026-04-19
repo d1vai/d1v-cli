@@ -48,7 +48,7 @@ impl Password {
             match self.read(confirm_label, None, None) {
                 Ok(second) if second.expose_secret() == first.expose_secret() => return Ok(first),
                 Ok(_) => error = Some(t!("password-mismatch")),
-                Err(err) if err.is_canceled() => continue,
+                Err(err) if err.is_canceled() => {},
                 Err(err) => return Err(err),
             }
         }
