@@ -68,9 +68,9 @@ async fn authenticate_code(ctx: &Context) -> Result<SecretString> {
     let code = pending.value().to_string();
 
     debug!("logging in with verification code");
-    Ok(pending
+    pending
         .spin_ok(ctx.client.user().login(&email, &code))
-        .await?)
+        .await
 }
 
 async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretString> {
