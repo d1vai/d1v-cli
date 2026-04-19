@@ -23,13 +23,13 @@ pub enum TokenError {
 
 /// A source that provides authentication tokens.
 pub trait TokenLoader {
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
     fn load(&self) -> Result<Option<SecretString>>;
 }
 
 /// Persistent storage for authentication tokens.
 pub trait TokenStore {
-    fn name(&self) -> &str;
+    fn name(&self) -> &'static str;
     fn save(&self, token: &SecretString) -> Result;
     fn delete(&self) -> Result;
 }
@@ -46,7 +46,7 @@ impl EnvProvider {
 }
 
 impl TokenLoader for EnvProvider {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         self.var_name
     }
 
@@ -75,7 +75,7 @@ impl KeyringProvider {
 }
 
 impl TokenLoader for KeyringProvider {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "keyring"
     }
 
@@ -91,7 +91,7 @@ impl TokenLoader for KeyringProvider {
 }
 
 impl TokenStore for KeyringProvider {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "keyring"
     }
 
@@ -125,7 +125,7 @@ impl TokenStore for KeyringProvider {
 pub struct ConfigProvider;
 
 impl TokenLoader for ConfigProvider {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "config"
     }
 
@@ -137,7 +137,7 @@ impl TokenLoader for ConfigProvider {
 }
 
 impl TokenStore for ConfigProvider {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "config"
     }
 
@@ -182,7 +182,7 @@ impl TokenChain {
 }
 
 impl TokenLoader for TokenChain {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "chain"
     }
 
@@ -207,7 +207,7 @@ impl TokenLoader for TokenChain {
 }
 
 impl TokenStore for TokenChain {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "chain"
     }
 
@@ -297,7 +297,7 @@ mod tests {
     }
 
     impl TokenLoader for InMemoryProvider {
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             self.name
         }
 
@@ -307,7 +307,7 @@ mod tests {
     }
 
     impl TokenStore for InMemoryProvider {
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             self.name
         }
 
@@ -325,7 +325,7 @@ mod tests {
     struct FailingLoader;
 
     impl TokenLoader for FailingLoader {
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             "failing"
         }
 
@@ -337,7 +337,7 @@ mod tests {
     struct FailingStore;
 
     impl TokenStore for FailingStore {
-        fn name(&self) -> &str {
+        fn name(&self) -> &'static str {
             "failing"
         }
 
