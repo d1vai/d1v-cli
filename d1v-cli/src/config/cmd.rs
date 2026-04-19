@@ -225,3 +225,111 @@ pub fn edit() -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_display() {
+        assert_eq!(ConfigKey::BaseUrl.to_string(), "base_url");
+        assert_eq!(ConfigKey::Language.to_string(), "language");
+    }
+
+    #[test]
+    fn get_base_url() {
+        let config = Config::default();
+        assert!(config.get(ConfigKey::BaseUrl).is_some());
+    }
+
+    #[test]
+    fn get_language_none() {
+        let config = Config::default();
+        assert!(config.get(ConfigKey::Language).is_none());
+    }
+
+    #[test]
+    fn set_base_url() {
+        let mut config = Config::default();
+        config
+            .set(ConfigKey::BaseUrl, "https://example.com")
+            .unwrap();
+        assert_eq!(config.base_url, "https://example.com");
+    }
+
+    #[test]
+    fn set_base_url_empty() {
+        let mut config = Config::default().base_url("https://example.com");
+        config.set(ConfigKey::BaseUrl, "").unwrap();
+        assert_eq!(config.base_url, d1v_api::DEFAULT_BASE_URL);
+    }
+
+    #[test]
+    fn set_language() {
+        let mut config = Config::default();
+        config.set(ConfigKey::Language, "zh-Hans").unwrap();
+        assert_eq!(config.language.as_deref(), Some("zh-Hans"));
+    }
+
+    #[test]
+    fn set_language_empty() {
+        let mut config = Config::default().language("en");
+        config.set(ConfigKey::Language, "").unwrap();
+        assert!(config.language.is_none());
+    }
+
+    #[test]
+    fn info_display() {
+        let config = Config {
+            base_url: "https://api.d1v.ai".into(),
+            language: Some("en".into()),
+            ..Config::default()
+        };
+
+        let info = ConfigInfo::from(&config);
+        let text = info.to_string();
+
+        assert!(text.contains("base_url"));
+        assert!(text.contains("https://api.d1v.ai"));
+        assert!(text.contains("language"));
+        assert!(text.contains("en"));
+    }
+
+    #[test]
+    fn info_json() {
+        let config = Config {
+            base_url: "https://api.d1v.ai".into(),
+            language: Some("en".into()),
+            ..Config::default()
+        };
+
+        let info = ConfigInfo::from(&config);
+        let json: serde_json::Value = serde_json::to_value(&info).unwrap();
+
+        assert_eq!(json["base_url"], "https://api.d1v.ai");
+        assert_eq!(json["language"], "en");
+    }
+
+    #[test]
+    fn value_display() {
+        let with = ConfigValue {
+            key: "base_url".into(),
+            value: Some("https://api.d1v.ai".into()),
+        };
+        assert_eq!(with.to_string(), "https://api.d1v.ai");
+
+        let without = ConfigValue {
+            key: "language".into(),
+            value: None,
+        };
+        assert_eq!(without.to_string(), "");
+    }
+
+    #[test]
+    fn path_display() {
+        let p = ConfigPath {
+            path: "/home/user/.d1v/config.toml".into(),
+        };
+        assert_eq!(p.to_string(), "/home/user/.d1v/config.toml");
+    }
+}
