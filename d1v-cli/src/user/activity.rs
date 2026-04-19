@@ -58,7 +58,7 @@ impl Display for ActivityDisplay<'_> {
         let max_count = a.counts.iter().map(|c| c.count).max().unwrap_or(1).max(1);
         let bar_colors = BAR_GRADIENT.colors(BAR_WIDTH);
 
-        write!(f, "\n")?;
+        writeln!(f)?;
         for entry in &a.counts {
             let ratio = entry.count as f32 / max_count as f32;
             let filled = (ratio * BAR_WIDTH as f32).round() as usize;
