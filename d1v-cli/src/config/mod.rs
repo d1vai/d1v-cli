@@ -147,6 +147,25 @@ where
 }
 
 impl Config {
+    pub fn new() -> Config {
+        Self::default()
+    }
+
+    pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = base_url.into();
+        self
+    }
+
+    pub fn token(mut self, token: SecretString) -> Self {
+        self.token = Some(token);
+        self
+    }
+
+    pub fn language(mut self, language: impl Into<String>) -> Self {
+        self.language = Some(language.into());
+        self
+    }
+
     pub fn dir() -> Result<PathBuf> {
         dirs::home_dir()
             .map(|p| p.join(".d1v"))
