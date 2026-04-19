@@ -163,9 +163,9 @@ impl Banner {
 
     fn dim(&self, r: u8, g: u8, b: u8) -> (u8, u8, u8) {
         (
-            (r as f32 * self.shadow_dim) as u8,
-            (g as f32 * self.shadow_dim) as u8,
-            (b as f32 * self.shadow_dim) as u8,
+            (f32::from(r) * self.shadow_dim) as u8,
+            (f32::from(g) * self.shadow_dim) as u8,
+            (f32::from(b) * self.shadow_dim) as u8,
         )
     }
 
