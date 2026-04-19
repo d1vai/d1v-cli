@@ -121,8 +121,8 @@ pub enum ActivityTarget {
 impl UserCommand {
     pub fn requires_auth(&self) -> bool {
         match self {
-            Self::Get { .. } => false,
-            Self::Password {
+            Self::Get { .. }
+            | Self::Password {
                 command: PasswordCommand::Reset,
             } => false,
             Self::Activity(args) => args.target.is_none(),

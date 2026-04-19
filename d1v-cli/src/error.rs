@@ -75,8 +75,7 @@ impl Error {
             Self::Api(err) if err.is_timeout() => Some(t!("hint-timeout")),
             Self::Api(err) if err.is_connect() => Some(t!("hint-connection")),
             Self::Api(err) if err.is_network() => Some(t!("hint-network")),
-            Self::Api(APIError::Url(_)) => Some(t!("hint-config")),
-            Self::Config(_) => Some(t!("hint-config")),
+            Self::Api(APIError::Url(_)) | Self::Config(_) => Some(t!("hint-config")),
             Self::Token(_) => Some(t!("hint-token-storage")),
             _ => None,
         }
