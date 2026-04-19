@@ -171,7 +171,7 @@ impl Display for ServerValidationError {
             let location = location
                 .iter()
                 .map(|l| match l {
-                    Location::String(s) => s.to_string(),
+                    Location::String(s) => s.clone(),
                     Location::Integer(i) => i.to_string(),
                 })
                 .collect::<Vec<_>>()
