@@ -40,6 +40,7 @@ tracing-appender = "0.2"
 unic-langid = { version = "0.9", features = ["macros"] }
 owo-colors = { version = "4.3", features = ["supports-colors"] }
 shellexpand = "3.1"
+itertools = "0.14"
 
 [dev-dependencies]
 indoc = "2"

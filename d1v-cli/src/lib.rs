@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod banner;
 pub mod config;
 pub mod debug;
 pub mod error;

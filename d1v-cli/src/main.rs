@@ -5,6 +5,7 @@ use clap::{Parser, Subcommand};
 use jiff::SignedDuration;
 use tracing::info;
 
+use d1v_cli::banner::Banner;
 use d1v_cli::config::Config;
 use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{format_duration, Color, Format, Output};
@@ -12,7 +13,7 @@ use d1v_cli::token::TokenLoader;
 use d1v_cli::{auth, debug, i18n, logging, t, user, Context};
 
 #[derive(Parser)]
-#[command(name = "d1v", version, about = "D1V CLI")]
+#[command(name = "d1v", version, before_help = banner())]
 struct Cli {
     /// Output format
     #[arg(short, long, global = true, default_value_t, env = "D1V_FORMAT")]
@@ -47,6 +48,13 @@ struct Cli {
     command: Command,
 }
 
+fn banner() -> String {
+    Banner::new()
+        .padding_top("\n\n\n")
+        .padding_bottom("")
+        .render()
+}
+
 #[derive(Subcommand)]
 enum Command {
     /// Manage authentication
@@ -61,12 +69,14 @@ enum Command {
     },
     /// Show debug information
     Debug,
+    /// Print the ASCII art banner
+    Banner,
 }
 
 impl Command {
     fn requires_auth(&self) -> bool {
         match self {
-            Command::Auth { .. } | Command::Debug => false,
+            Command::Auth { .. } | Command::Debug | Command::Banner => false,
             Command::User { command } => command.requires_auth(),
         }
     }
@@ -151,6 +161,10 @@ async fn run(cli: Cli) -> Result<()> {
         },
         Command::User { command } => user::run(&ctx, command).await,
         Command::Debug => debug::run(&ctx),
+        Command::Banner => {
+            print!("{}", Banner::new().render());
+            Ok(())
+        }
     }
 }
 

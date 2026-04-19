@@ -627,6 +627,7 @@ dependencies = [
  "dirs",
  "fluent-templates",
  "indoc",
+ "itertools",
  "jiff",
  "keyring",
  "owo-colors",
