@@ -88,7 +88,7 @@ async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretStrin
     Ok(ctx.client.user().login_password(email, &password).await?)
 }
 
-pub async fn logout(ctx: &Context) -> Result<()> {
+pub fn logout(ctx: &Context) -> Result<()> {
     if ctx.tokens.load()?.is_none() {
         ctx.message(t!("auth-not-logged-in"));
         return Ok(());

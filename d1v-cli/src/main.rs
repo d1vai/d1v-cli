@@ -190,7 +190,7 @@ async fn run(cli: Cli) -> Result<()> {
                     auth::login(&ctx, password).await
                 }
             }
-            AuthCommand::Logout => auth::logout(&ctx).await,
+            AuthCommand::Logout => auth::logout(&ctx),
             AuthCommand::Status => auth::status(&ctx),
         },
         Command::User { command } => user::run(&ctx, command).await,
