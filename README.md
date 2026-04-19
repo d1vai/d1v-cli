@@ -50,6 +50,25 @@ Run `d1v --help` for all available commands.
 | `d1v auth logout` | Log out          |
 | `d1v auth status` | Show auth status |
 
+### Configuration
+
+| Command            | Description                     |
+| ------------------ | ------------------------------- |
+| `d1v config show`  | Show current configuration      |
+| `d1v config get`   | Get a config value              |
+| `d1v config set`   | Set a config value              |
+| `d1v config list`  | List available config keys      |
+| `d1v config path`  | Print config file path          |
+| `d1v config reset` | Reset configuration to defaults |
+| `d1v config edit`  | Open config file in editor      |
+
+Available config keys:
+
+| Key        | Description               |
+| ---------- | ------------------------- |
+| `base_url` | API base URL              |
+| `language` | Display language override |
+
 ### User
 
 | Command           | Description            |
@@ -171,3 +190,10 @@ Run with recording:
 ```sh
 d1v --record trace.json auth login
 ```
+
+Config keys available with the `record` feature:
+
+| Key              | Description                             |
+| ---------------- | --------------------------------------- |
+| `record.enabled` | Enable recording by default             |
+| `record.dir`     | Directory to write recording files into |

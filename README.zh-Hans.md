@@ -50,6 +50,25 @@
 | `d1v auth logout` | 退出登录     |
 | `d1v auth status` | 查看认证状态 |
 
+### 配置
+
+| 命令               | 描述                 |
+| ------------------ | -------------------- |
+| `d1v config show`  | 显示当前配置         |
+| `d1v config get`   | 获取配置项值         |
+| `d1v config set`   | 设置配置项值         |
+| `d1v config list`  | 列出所有配置项       |
+| `d1v config path`  | 显示配置文件路径     |
+| `d1v config reset` | 将配置重置为默认值   |
+| `d1v config edit`  | 用编辑器打开配置文件 |
+
+可用配置项：
+
+| 键         | 描述         |
+| ---------- | ------------ |
+| `base_url` | API 基础地址 |
+| `language` | 显示语言覆盖 |
+
 ### 用户
 
 | 命令              | 描述             |
@@ -171,3 +190,10 @@ cargo install --path d1v-cli --features record
 ```sh
 d1v --record trace.json auth login
 ```
+
+启用 `record` 特性后可用的配置项：
+
+| 键               | 描述             |
+| ---------------- | ---------------- |
+| `record.enabled` | 默认启用录制     |
+| `record.dir`     | 录制文件保存目录 |
