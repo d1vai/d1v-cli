@@ -188,7 +188,7 @@ impl Client {
             .token
             .read()
             .as_ref()
-            .is_some_and(|t| t.is_expired())
+            .is_some_and(Token::is_expired)
     }
 }
 

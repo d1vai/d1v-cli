@@ -30,7 +30,7 @@ impl Claims {
     pub fn expires_in(&self) -> Option<SignedDuration> {
         self.expiration_time
             .map(|time| time.duration_since(Timestamp::now()))
-            .filter(|duration| duration.is_positive())
+            .filter(SignedDuration::is_positive)
     }
 }
 
@@ -43,7 +43,7 @@ impl Display for Claims {
         let separator = if self
             .subject
             .as_ref()
-            .is_none_or(|subject| subject.is_empty())
+            .is_none_or(String::is_empty)
         {
             ""
         } else {
