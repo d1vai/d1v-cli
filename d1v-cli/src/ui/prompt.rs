@@ -100,12 +100,11 @@ impl PendingPrompt {
             }
         };
 
-        match interrupted {
-            Ok(value) => Ok((self, value)),
-            Err(()) => {
-                self.dismiss();
-                Err(Error::Canceled)
-            }
+        if let Ok(value) = interrupted {
+            Ok((self, value))
+        } else {
+            self.dismiss();
+            Err(Error::Canceled)
         }
     }
 }
