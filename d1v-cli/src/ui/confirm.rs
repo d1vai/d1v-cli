@@ -31,7 +31,7 @@ impl Confirm {
         let mut term = Terminal::new(1)?;
 
         loop {
-            let idx = if selected { 0 } else { 1 };
+            let idx = usize::from(!selected);
             term.draw_toggle(&self.label, [&options[0], &options[1]], idx)?;
 
             match Action::read()? {

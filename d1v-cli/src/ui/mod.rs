@@ -102,7 +102,7 @@ impl Terminal {
 
             frame.render_widget(Paragraph::new(lines), area);
 
-            let error_offset = if error.is_some() { 1 } else { 0 };
+            let error_offset = u16::from(error.is_some());
             frame.set_cursor_position((
                 PREFIX_WIDTH + label_width + 1 + cursor_col as u16,
                 area.y + error_offset,
