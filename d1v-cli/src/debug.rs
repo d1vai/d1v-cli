@@ -112,13 +112,10 @@ fn enabled_features() -> String {
 pub fn run(ctx: &Context) -> Result<()> {
     let ua = UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION"));
 
-    let config_path = Config::path()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| t!("debug-unknown"));
+    let config_path =
+        Config::path().map_or_else(|_| t!("debug-unknown"), |p| p.display().to_string());
 
-    let log_dir = Config::dir()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| t!("debug-unknown"));
+    let log_dir = Config::dir().map_or_else(|_| t!("debug-unknown"), |p| p.display().to_string());
 
     let info = DebugInfo {
         version: env!("CARGO_PKG_VERSION").into(),
