@@ -10,7 +10,7 @@ use crate::error::Result;
 use crate::output::format_duration;
 use crate::output::pad_label;
 use crate::Context;
-use crate::{i18n, symbols, t};
+use crate::{i18n, symbols, t, theme};
 
 #[derive(Debug, Serialize)]
 struct DebugInfo {
@@ -44,8 +44,9 @@ impl Display for DebugInfo {
             write!(
                 f,
                 "{}{}",
-                pad_label(t!(key), 13).if_supports_color(Stream::Stdout, |s| s.bold()),
-                value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+                pad_label(t!(key), 13)
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
             )?;
         }
 
@@ -77,13 +78,13 @@ fn write_claims(mut status: impl Write, claims: &Claims) -> fmt::Result {
 fn token_status(ctx: &Context) -> String {
     let Some(source) = ctx.tokens.source() else {
         return symbols::ERROR
-            .if_supports_color(Stream::Stdout, |s| s.bright_red())
+            .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error()))
             .to_string();
     };
 
     let mut status = format!(
         "{} ({})",
-        symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.green()),
+        symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::success())),
         t!("debug-token-found", source = source)
     );
 

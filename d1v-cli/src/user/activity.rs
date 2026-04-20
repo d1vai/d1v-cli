@@ -9,8 +9,8 @@ use std::sync::LazyLock;
 use super::{ActivityArgs, ActivityTarget};
 use crate::error::Result;
 use crate::output::pad_label;
-use crate::t;
 use crate::Context;
+use crate::{t, theme};
 
 const LABEL_WIDTH: usize = 13;
 const BAR_WIDTH: usize = 20;
@@ -24,8 +24,9 @@ impl ActivityDisplay<'_> {
         write!(
             f,
             "\n{}{}",
-            pad_label(t!(label), LABEL_WIDTH).if_supports_color(Stream::Stdout, |s| s.bold()),
-            value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+            pad_label(t!(label), LABEL_WIDTH)
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+            value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )
     }
 }
@@ -45,9 +46,9 @@ impl Display for ActivityDisplay<'_> {
             f,
             "{}{}",
             pad_label(t!("activity-label-period"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.bold()),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
             format!("{} ~ {}", a.start_date, a.end_date)
-                .if_supports_color(Stream::Stdout, |s| s.cyan()),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )?;
         self.write_row(f, "activity-label-days", &a.days.to_string())?;
 
@@ -81,10 +82,14 @@ impl Display for ActivityDisplay<'_> {
             write!(
                 f,
                 "\n  {} {}{} {}",
-                entry.date.if_supports_color(Stream::Stdout, |s| s.dimmed()),
+                entry
+                    .date
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::dim())),
                 filled_bar,
                 empty_bar,
-                entry.count.if_supports_color(Stream::Stdout, |s| s.bold()),
+                entry
+                    .count
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
             )?;
         }
 

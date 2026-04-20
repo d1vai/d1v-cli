@@ -11,7 +11,7 @@ use crate::error::Result;
 use crate::output::{format_duration, pad_label};
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::{Password, Select, SelectOption};
-use crate::{i18n, prompt, symbols, t, Context};
+use crate::{i18n, prompt, symbols, t, theme, Context};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     let token = if password {
@@ -167,9 +167,9 @@ impl Display for AuthStatus {
             return write!(
                 f,
                 "{} {}",
-                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.bright_red()),
+                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error())),
                 t!("auth-status-not-logged-in")
-                    .if_supports_color(Stream::Stdout, |s| s.bright_red()),
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error())),
             );
         }
 
@@ -177,15 +177,18 @@ impl Display for AuthStatus {
             write!(
                 f,
                 "{} {}",
-                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.bright_red()),
-                t!("auth-status-expired").if_supports_color(Stream::Stdout, |s| s.bright_red()),
+                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error())),
+                t!("auth-status-expired")
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error())),
             )?;
         } else {
             write!(
                 f,
                 "{} {}",
-                symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.green()),
-                t!("auth-status-logged-in").if_supports_color(Stream::Stdout, |s| s.green()),
+                symbols::SUCCESS
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::success())),
+                t!("auth-status-logged-in")
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::success())),
             )?;
         }
 
@@ -194,7 +197,7 @@ impl Display for AuthStatus {
             write!(
                 f,
                 " {}",
-                s.if_supports_color(Stream::Stdout, |s| s.dimmed())
+                s.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::dim()))
             )?;
         }
 
@@ -203,7 +206,7 @@ impl Display for AuthStatus {
                 f,
                 "\n  {}{}",
                 pad_label(t!("auth-status-label-user"), 12),
-                subject.if_supports_color(Stream::Stdout, |s| s.cyan()),
+                subject.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
             )?;
         }
 
@@ -212,7 +215,8 @@ impl Display for AuthStatus {
                 f,
                 "\n  {}{}",
                 pad_label(t!("auth-status-label-expires"), 12),
-                format_duration(secs).if_supports_color(Stream::Stdout, |s| s.cyan()),
+                format_duration(secs)
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
             )?;
         }
 

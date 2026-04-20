@@ -10,12 +10,28 @@ pub mod owo {
         Style::new().truecolor(221, 57, 98) // #DD3962
     }
 
+    pub const fn warning() -> Style {
+        Style::new().truecolor(202, 186, 45) // #CABA2D
+    }
+
     pub const fn info() -> Style {
         Style::new().truecolor(89, 139, 255) // #598BFF
     }
 
     pub const fn hint() -> Style {
         Style::new().truecolor(165, 163, 180) // #A5A3B4
+    }
+
+    pub const fn label() -> Style {
+        Style::new().truecolor(208, 208, 217).bold() // #D0D0D9
+    }
+
+    pub const fn value() -> Style {
+        Style::new().truecolor(178, 121, 242) // #B279F2
+    }
+
+    pub const fn dim() -> Style {
+        Style::new().truecolor(109, 106, 128) // #6D6A80
     }
 
     /// Applies a color gradient across each character of a string.

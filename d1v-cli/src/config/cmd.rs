@@ -8,7 +8,7 @@ use tracing::debug;
 use crate::config::{Config, ConfigError};
 use crate::error::Result;
 use crate::output::pad_label;
-use crate::{t, Context};
+use crate::{t, theme, Context};
 
 #[derive(Debug, Clone, Copy, ValueEnum, strum::Display)]
 #[strum(serialize_all = "snake_case")]
@@ -125,8 +125,9 @@ impl Display for ConfigInfo {
             write!(
                 f,
                 "{}{}",
-                pad_label(key, LABEL_WIDTH).if_supports_color(Stream::Stdout, |s| s.bold()),
-                value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+                pad_label(key, LABEL_WIDTH)
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
             )?;
         }
 

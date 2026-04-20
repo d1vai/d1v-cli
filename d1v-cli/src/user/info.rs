@@ -25,14 +25,18 @@ impl Display for UserListItem<'_> {
         write!(
             f,
             "{}",
-            self.0.id.if_supports_color(Stream::Stdout, |s| s.dimmed())
+            self.0
+                .id
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::dim()))
         )?;
 
         if !self.0.slug.is_empty() {
             write!(
                 f,
                 " {}",
-                self.0.slug.if_supports_color(Stream::Stdout, |s| s.bold())
+                self.0
+                    .slug
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label()))
             )?;
         }
 
@@ -42,7 +46,8 @@ impl Display for UserListItem<'_> {
             write!(
                 f,
                 " {}",
-                format!("<{email}>").if_supports_color(Stream::Stdout, |s| s.cyan())
+                format!("<{email}>")
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value()))
             )?;
         }
 
@@ -72,8 +77,9 @@ impl UserDetail<'_> {
         write!(
             f,
             "\n{}{}",
-            pad_label(t!(label), LABEL_WIDTH).if_supports_color(Stream::Stdout, |s| s.bold()),
-            value.if_supports_color(Stream::Stdout, |s| s.cyan()),
+            pad_label(t!(label), LABEL_WIDTH)
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+            value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )
     }
 }
@@ -95,7 +101,7 @@ fn format_roles(user: &User) -> String {
     if user.is_admin {
         roles.push(
             "admin"
-                .if_supports_color(Stream::Stdout, |s| s.bright_red())
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error()))
                 .to_string(),
         );
     }
@@ -103,7 +109,7 @@ fn format_roles(user: &User) -> String {
     if user.is_agent {
         roles.push(
             "agent"
-                .if_supports_color(Stream::Stdout, |s| s.yellow())
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::warning()))
                 .to_string(),
         );
     }
@@ -123,8 +129,9 @@ impl Display for UserDetail<'_> {
             f,
             "{}{}",
             pad_label(t!("user-label-id"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.bold()),
-            user.id.if_supports_color(Stream::Stdout, |s| s.cyan()),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+            user.id
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )?;
 
         if !user.slug.is_empty() {
@@ -141,7 +148,7 @@ impl Display for UserDetail<'_> {
             f,
             "\n{}{}",
             pad_label(t!("user-label-roles"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.bold()),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
             format_roles(user),
         )?;
 
