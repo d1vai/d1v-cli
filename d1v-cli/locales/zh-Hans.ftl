@@ -120,6 +120,12 @@ onboard-success = 引导已标记为完成。
 confirm-yes = 是
 confirm-no = 否
 
+## 选择
+select-action-navigate = 移动
+select-action-confirm = 确认
+select-action-cancel = 取消
+select-ctrl-c-hint = 再次按 ⌃C 退出
+
 ## 时间
 duration-days-hours = { $days } 天 { $hours } 小时
 duration-hours-minutes = { $hours } 小时 { $minutes } 分钟

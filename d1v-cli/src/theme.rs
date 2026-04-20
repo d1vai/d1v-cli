@@ -69,4 +69,28 @@ pub mod tui {
     pub const fn toggle_inactive() -> Style {
         Style::new().fg(Color::DarkGray)
     }
+
+    pub const fn select_label() -> Style {
+        Style::new().fg(Color::Rgb(208, 208, 217)).bold()
+    }
+
+    pub const fn select_arrow() -> Style {
+        Style::new().fg(Color::Rgb(178, 121, 242))
+    }
+
+    pub const fn select_active() -> Style {
+        Style::new().fg(Color::Rgb(178, 121, 242))
+    }
+
+    pub const fn select_inactive() -> Style {
+        Style::new()
+    }
+
+    pub const fn select_dim() -> Style {
+        Style::new().fg(Color::Rgb(109, 106, 128))
+    }
+
+    pub const fn select_key() -> Style {
+        Style::new().fg(Color::Rgb(160, 155, 180))
+    }
 }

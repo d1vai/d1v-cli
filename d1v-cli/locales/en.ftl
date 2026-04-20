@@ -120,6 +120,12 @@ onboard-success = Onboarding marked as complete.
 confirm-yes = Yes
 confirm-no = No
 
+## Select
+select-action-navigate = navigate
+select-action-confirm = select
+select-action-cancel = cancel
+select-ctrl-c-hint = Press ⌃C again to exit
+
 ## Duration
 duration-days-hours = { $days }d { $hours }h
 duration-hours-minutes = { $hours }h { $minutes }m
