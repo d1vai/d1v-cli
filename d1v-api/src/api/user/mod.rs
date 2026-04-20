@@ -14,6 +14,7 @@ pub struct UserApi {
 }
 
 impl Client {
+    #[must_use]
     pub fn user(&self) -> UserApi {
         UserApi {
             client: self.clone(),

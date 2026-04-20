@@ -152,6 +152,7 @@ pub enum Locale {
 
 impl Locale {
     /// Returns the native display name (e.g. "简体中文", "English").
+    #[must_use]
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::English => "English",

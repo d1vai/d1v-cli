@@ -50,6 +50,7 @@ impl UserAgent {
     }
 
     /// Overrides the language and its version.
+    #[must_use]
     pub fn lang(mut self, lang: impl Into<String>, version: impl Into<String>) -> Self {
         self.lang = lang.into();
         self.lang_version = version.into();

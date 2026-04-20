@@ -24,11 +24,13 @@ impl Password {
         }
     }
 
+    #[must_use]
     pub fn with_confirmation(mut self, label: impl Into<String>) -> Self {
         self.confirmation = Some(label.into());
         self
     }
 
+    #[must_use]
     pub fn with_validator(mut self, f: impl Fn(&str) -> Result<(), String> + 'static) -> Self {
         self.validator = Some(Box::new(f));
         self

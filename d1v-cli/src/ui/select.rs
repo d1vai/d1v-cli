@@ -22,6 +22,7 @@ impl<T> SelectOption<T> {
         }
     }
 
+    #[must_use]
     pub fn description(mut self, desc: impl Into<String>) -> Self {
         self.description = Some(desc.into());
         self
@@ -160,16 +161,19 @@ impl<T> Select<T> {
         }
     }
 
+    #[must_use]
     pub fn option(mut self, opt: SelectOption<T>) -> Self {
         self.options.push(opt);
         self
     }
 
+    #[must_use]
     pub fn options(mut self, opts: impl IntoIterator<Item = SelectOption<T>>) -> Self {
         self.options.extend(opts);
         self
     }
 
+    #[must_use]
     pub fn default_index(mut self, idx: usize) -> Self {
         self.default = Some(idx);
         self

@@ -14,6 +14,7 @@ pub enum ApiCode {
 }
 
 impl ApiCode {
+    #[must_use]
     pub fn raw(&self) -> i64 {
         match self {
             Self::PasswordNotSet => 40000,
@@ -71,6 +72,7 @@ pub enum Error {
 }
 
 impl Error {
+    #[must_use]
     pub fn is_api(&self) -> bool {
         matches!(self, Error::Api { .. })
     }
@@ -82,10 +84,12 @@ impl Error {
         }
     }
 
+    #[must_use]
     pub fn is_server_validation(&self) -> bool {
         matches!(self, Error::ServerValidation(_))
     }
 
+    #[must_use]
     pub fn is_status(&self) -> bool {
         matches!(self, Error::HttpStatus(_))
     }
@@ -97,22 +101,27 @@ impl Error {
         }
     }
 
+    #[must_use]
     pub fn is_network(&self) -> bool {
         matches!(self, Error::Http(_))
     }
 
+    #[must_use]
     pub fn is_connect(&self) -> bool {
         matches!(self, Error::Http(e) if e.is_connect())
     }
 
+    #[must_use]
     pub fn is_validation(&self) -> bool {
         matches!(self, Error::Validation(_))
     }
 
+    #[must_use]
     pub fn is_timeout(&self) -> bool {
         matches!(self, Error::Http(e) if e.is_timeout())
     }
 
+    #[must_use]
     pub fn is_token_expired(&self) -> bool {
         matches!(self, Error::TokenExpired)
     }

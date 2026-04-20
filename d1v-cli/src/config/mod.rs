@@ -151,16 +151,19 @@ impl Config {
         Self::default()
     }
 
+    #[must_use]
     pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into();
         self
     }
 
+    #[must_use]
     pub fn token(mut self, token: SecretString) -> Self {
         self.token = Some(token);
         self
     }
 
+    #[must_use]
     pub fn language(mut self, language: impl Into<String>) -> Self {
         self.language = Some(language.into());
         self

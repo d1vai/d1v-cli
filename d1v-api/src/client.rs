@@ -29,34 +29,41 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn from_reqwest(builder: reqwest::ClientBuilder) -> Self {
         builder.into()
     }
 
+    #[must_use]
     pub fn base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
         self
     }
 
+    #[must_use]
     pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
         self.inner = self.inner.user_agent(user_agent.to_string());
         self
     }
 
+    #[must_use]
     pub fn token(mut self, token: impl Into<Token>) -> Self {
         self.token = Some(token.into());
         self
     }
 
+    #[must_use]
     pub fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.inner = self.inner.connect_timeout(timeout);
         self
     }
 
+    #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.inner = self.inner.timeout(timeout);
         self
@@ -110,6 +117,7 @@ impl Client {
         ClientBuilder::new().build()
     }
 
+    #[must_use]
     pub fn builder() -> ClientBuilder {
         ClientBuilder::new()
     }
@@ -129,6 +137,7 @@ impl Client {
         self
     }
 
+    #[must_use]
     pub fn base_url(&self) -> &str {
         self.inner.base_url.as_str()
     }
@@ -199,6 +208,7 @@ pub struct RequestBuilder {
 }
 
 impl RequestBuilder {
+    #[must_use]
     pub fn query(self, query: &(impl Serialize + ?Sized)) -> Self {
         Self {
             inner: self.inner.map(|inner| inner.query(query)),
@@ -206,6 +216,7 @@ impl RequestBuilder {
         }
     }
 
+    #[must_use]
     pub fn query_if_some<T>(self, key: &str, value: Option<T>) -> Self
     where
         T: Serialize,
@@ -216,6 +227,7 @@ impl RequestBuilder {
         }
     }
 
+    #[must_use]
     pub fn json(self, json: &(impl Serialize + ?Sized)) -> Self {
         Self {
             inner: self.inner.map(|inner| inner.json(json)),
@@ -223,6 +235,7 @@ impl RequestBuilder {
         }
     }
 
+    #[must_use]
     pub fn no_auth(self) -> Self {
         Self {
             auth: false,

@@ -19,6 +19,7 @@ impl Confirm {
         }
     }
 
+    #[must_use]
     pub fn default(mut self, default: bool) -> Self {
         self.default = default;
         self

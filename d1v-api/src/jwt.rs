@@ -22,6 +22,7 @@ pub struct Claims {
 }
 
 impl Claims {
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         self.expiration_time
             .is_some_and(|time| time <= Timestamp::now())
@@ -105,6 +106,7 @@ impl Token {
     }
 
     /// Returns whether the token has expired.
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         self.claims().is_ok_and(|c| c.is_expired())
     }

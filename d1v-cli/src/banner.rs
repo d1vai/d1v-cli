@@ -109,31 +109,37 @@ impl Banner {
         Self::default()
     }
 
+    #[must_use]
     pub fn padding_top(mut self, padding_top: &'static str) -> Self {
         self.padding_top = padding_top;
         self
     }
 
+    #[must_use]
     pub fn padding_bottom(mut self, padding_bottom: &'static str) -> Self {
         self.padding_bottom = padding_bottom;
         self
     }
 
+    #[must_use]
     pub fn padding_left(mut self, padding_left: &'static str) -> Self {
         self.padding_left = padding_left;
         self
     }
 
+    #[must_use]
     pub fn letter_spacing(mut self, letter_spacing: &'static str) -> Self {
         self.letter_spacing = letter_spacing;
         self
     }
 
+    #[must_use]
     pub fn word_spacing(mut self, word_spacing: &'static str) -> Self {
         self.word_spacing = word_spacing;
         self
     }
 
+    #[must_use]
     pub fn shadow_dim(mut self, shadow_dim: f32) -> Self {
         self.shadow_dim = shadow_dim;
         self

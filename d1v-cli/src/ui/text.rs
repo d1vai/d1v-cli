@@ -17,6 +17,7 @@ impl Text {
         }
     }
 
+    #[must_use]
     pub fn with_validator(mut self, f: impl Fn(&str) -> Result<(), String> + 'static) -> Self {
         self.validator = Some(Box::new(f));
         self
