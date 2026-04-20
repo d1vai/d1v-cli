@@ -30,7 +30,7 @@ impl<T> SelectOption<T> {
 }
 
 /// Key press classified as a select action.
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 enum SelectAction {
     /// Move selection up (↑ / k / Shift+Tab).
     Up,
