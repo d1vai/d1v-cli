@@ -10,6 +10,7 @@ use tracing::debug;
 use super::{GetArgs, UpdateArgs};
 use crate::error::Result;
 use crate::output::pad_label;
+use crate::ui::{Select, SelectOption, Text};
 use crate::Context;
 use crate::{t, theme};
 
@@ -173,6 +174,63 @@ pub async fn info(ctx: &Context) -> Result<()> {
 pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
     debug!("updating user info");
     let user = ctx.client.user().update_info(&args.into()).await?;
+    ctx.success(t!("user-info-updated"));
+    ctx.print(&UserDetail(&user))
+}
+
+pub async fn update_interactive(ctx: &Context) -> Result<()> {
+    enum Field {
+        CompanyName,
+        CompanyWebsite,
+        Picture,
+        Industry,
+        ReferralCode,
+    }
+
+    let field = Select::new(t!("user-update-field-prompt"))
+        .option(SelectOption::new(
+            Field::CompanyName,
+            t!("user-update-field-company-name"),
+        ))
+        .option(SelectOption::new(
+            Field::CompanyWebsite,
+            t!("user-update-field-company-website"),
+        ))
+        .option(SelectOption::new(
+            Field::Picture,
+            t!("user-update-field-picture"),
+        ))
+        .option(SelectOption::new(
+            Field::Industry,
+            t!("user-update-field-industry"),
+        ))
+        .option(SelectOption::new(
+            Field::ReferralCode,
+            t!("user-update-field-referral-code"),
+        ))
+        .prompt()?;
+
+    let label = match field {
+        Field::CompanyName => t!("user-update-field-company-name"),
+        Field::CompanyWebsite => t!("user-update-field-company-website"),
+        Field::Picture => t!("user-update-field-picture"),
+        Field::Industry => t!("user-update-field-industry"),
+        Field::ReferralCode => t!("user-update-field-referral-code"),
+    };
+
+    let value = Text::new(format!("{label}:")).prompt()?;
+
+    let mut update = UpdateUser::default();
+    match field {
+        Field::CompanyName => update.company_name = Some(value),
+        Field::CompanyWebsite => update.company_website = Some(value),
+        Field::Picture => update.picture = Some(value),
+        Field::Industry => update.industry = Some(value),
+        Field::ReferralCode => update.referral_code = Some(value),
+    }
+
+    debug!("updating user info (interactive)");
+    let user = ctx.client.user().update_info(&update).await?;
     ctx.success(t!("user-info-updated"));
     ctx.print(&UserDetail(&user))
 }

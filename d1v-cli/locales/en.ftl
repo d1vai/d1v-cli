@@ -91,6 +91,12 @@ validation-url-invalid = invalid URL
 
 ## User
 user-info-updated = User info updated.
+user-update-field-prompt = What to update
+user-update-field-company-name = Company name
+user-update-field-company-website = Company website
+user-update-field-picture = Avatar URL
+user-update-field-industry = Industry
+user-update-field-referral-code = Referral code
 user-label-id = id:
 user-label-slug = slug:
 user-label-email = email:

@@ -4,6 +4,8 @@ mod info;
 mod invitation;
 mod password;
 
+use std::io::{stdin, IsTerminal};
+
 use crate::error::Result;
 use clap::{Args, Subcommand};
 use tracing::debug;
@@ -64,6 +66,22 @@ pub struct UpdateArgs {
     /// Referral code
     #[arg(long)]
     pub referral_code: Option<String>,
+}
+
+impl UpdateArgs {
+    pub fn is_empty(&self) -> bool {
+        matches!(
+            self,
+            Self {
+                company_name: None,
+                company_website: None,
+                picture: None,
+                industry: None,
+                is_company: None,
+                referral_code: None,
+            }
+        )
+    }
 }
 
 #[derive(Subcommand)]
@@ -134,7 +152,13 @@ impl UserCommand {
 pub async fn run(ctx: &Context, command: UserCommand) -> Result<()> {
     match command {
         UserCommand::Info => info::info(ctx).await,
-        UserCommand::Update(args) => info::update(ctx, args).await,
+        UserCommand::Update(args) => {
+            if args.is_empty() && stdin().is_terminal() {
+                info::update_interactive(ctx).await
+            } else {
+                info::update(ctx, args).await
+            }
+        }
         UserCommand::Get { target } => info::get(ctx, target).await,
         UserCommand::List => info::list(ctx).await,
         UserCommand::Password { command } => match command {

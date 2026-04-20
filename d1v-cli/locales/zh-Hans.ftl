@@ -91,6 +91,12 @@ validation-url-invalid = 链接格式无效
 
 ## 用户
 user-info-updated = 用户信息已更新。
+user-update-field-prompt = 选择要更新的信息
+user-update-field-company-name = 公司名称
+user-update-field-company-website = 公司网站
+user-update-field-picture = 头像 URL
+user-update-field-industry = 行业
+user-update-field-referral-code = 邀请码
 user-label-id = ID:
 user-label-slug = 标识:
 user-label-email = 邮箱:
