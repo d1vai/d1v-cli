@@ -190,8 +190,12 @@ async fn run(cli: Cli) -> Result<()> {
             } => {
                 if with_token {
                     auth::login_with_token(&ctx)
+                } else if password {
+                    auth::login(&ctx, true).await
+                } else if stdin().is_terminal() {
+                    auth::login_interactive(&ctx).await
                 } else {
-                    auth::login(&ctx, password).await
+                    auth::login(&ctx, false).await
                 }
             }
             AuthCommand::Logout => auth::logout(&ctx),

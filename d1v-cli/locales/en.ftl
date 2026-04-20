@@ -20,6 +20,10 @@ auth-relogin-prompt = Token expired. Log in again?
 auth-relogin-yes = Yes, log in again
 auth-relogin-no = No, exit
 auth-relogin-success = Re-authenticated successfully!
+auth-method-prompt = Login method
+auth-method-code = Verification code
+auth-method-password = Password
+auth-method-token = Authentication token
 
 ## Debug
 debug-label-version = version:

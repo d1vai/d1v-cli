@@ -20,6 +20,10 @@ auth-relogin-prompt = 令牌已过期，是否重新登录？
 auth-relogin-yes = 是，重新登录
 auth-relogin-no = 否，退出
 auth-relogin-success = 重新认证成功！
+auth-method-prompt = 登录方式
+auth-method-code = 验证码
+auth-method-password = 密码
+auth-method-token = 认证令牌
 
 ## 调试
 debug-label-version = 版本:

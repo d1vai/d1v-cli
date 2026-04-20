@@ -29,6 +29,31 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     Ok(())
 }
 
+/// Presents an interactive menu to choose a login method, then executes it.
+pub async fn login_interactive(ctx: &Context) -> Result<()> {
+    enum Method {
+        Code,
+        Password,
+        Token,
+    }
+
+    let method = Select::new(t!("auth-method-prompt"))
+        .option(SelectOption::new(Method::Code, t!("auth-method-code")))
+        .option(SelectOption::new(
+            Method::Password,
+            t!("auth-method-password"),
+        ))
+        .option(SelectOption::new(Method::Token, t!("auth-method-token")))
+        .default_index(0)
+        .prompt()?;
+
+    match method {
+        Method::Code => login(ctx, false).await,
+        Method::Password => login(ctx, true).await,
+        Method::Token => login_with_token(ctx),
+    }
+}
+
 pub fn login_with_token(ctx: &Context) -> Result<()> {
     let token = if stdin().is_terminal() {
         Password::new(t!("auth-token-prompt"))
