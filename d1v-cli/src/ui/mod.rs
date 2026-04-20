@@ -229,7 +229,7 @@ impl Terminal {
         self.inner.hide_cursor()?;
 
         // Width of the widest index string, e.g. "10." for 10 items.
-        let num_width = format!("{}.", n).len();
+        let num_width = format!("{n}.").len();
         // Width of the longest option label for description column alignment.
         let max_label_w: usize = items.iter().map(|i| i.label.width()).max().unwrap_or(0);
 
