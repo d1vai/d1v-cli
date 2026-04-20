@@ -46,7 +46,7 @@ impl ClientBuilder {
     }
 
     #[must_use]
-    pub fn user_agent(mut self, user_agent: UserAgent) -> Self {
+    pub fn user_agent(mut self, user_agent: &UserAgent) -> Self {
         self.inner = self.inner.user_agent(user_agent.to_string());
         self
     }

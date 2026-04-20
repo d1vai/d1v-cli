@@ -181,7 +181,7 @@ async fn user_agent() {
 
     let client = Client::builder()
         .base_url(server.base_url())
-        .user_agent(UserAgent::new("d1v-cli", "0.1.0"))
+        .user_agent(&UserAgent::new("d1v-cli", "0.1.0"))
         .build()
         .unwrap();
     client.get("/api/test").ok::<()>().await.unwrap();
