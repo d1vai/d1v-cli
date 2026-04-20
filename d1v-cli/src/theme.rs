@@ -38,48 +38,55 @@ pub mod owo {
 pub mod tui {
     use ratatui::style::{Color, Style};
 
+    // DarkPurple palette
+    const ACCENT: Color = Color::Rgb(178, 121, 242); // #B279F2
+    const FOREGROUND: Color = Color::Rgb(208, 208, 217); // #D0D0D9
+    const DIM: Color = Color::Rgb(109, 106, 128); // #6D6A80
+    const SUCCESS_GREEN: Color = Color::Rgb(35, 158, 98); // #239E62
+    const ERROR_RED: Color = Color::Rgb(221, 57, 98); // #DD3962
+
     pub const fn success() -> Style {
-        Style::new().fg(Color::Green).bold()
+        Style::new().fg(SUCCESS_GREEN).bold()
     }
 
     pub const fn error() -> Style {
-        Style::new().fg(Color::LightRed)
+        Style::new().fg(ERROR_RED)
     }
 
     pub const fn prompt() -> Style {
-        Style::new().fg(Color::Green)
+        Style::new().fg(ACCENT)
     }
 
     pub const fn label() -> Style {
-        Style::new().fg(Color::Green).bold()
+        Style::new().fg(FOREGROUND).bold()
     }
 
     pub const fn value() -> Style {
-        Style::new().fg(Color::Cyan)
+        Style::new().fg(ACCENT)
     }
 
     pub const fn dim() -> Style {
-        Style::new().fg(Color::DarkGray)
+        Style::new().fg(DIM)
     }
 
     pub const fn toggle_active() -> Style {
-        Style::new().fg(Color::Cyan).bold().underlined()
+        Style::new().fg(ACCENT).bold().underlined()
     }
 
     pub const fn toggle_inactive() -> Style {
-        Style::new().fg(Color::DarkGray)
+        Style::new().fg(DIM)
     }
 
     pub const fn select_label() -> Style {
-        Style::new().fg(Color::Rgb(208, 208, 217)).bold()
+        Style::new().fg(FOREGROUND).bold()
     }
 
     pub const fn select_arrow() -> Style {
-        Style::new().fg(Color::Rgb(178, 121, 242))
+        Style::new().fg(ACCENT)
     }
 
     pub const fn select_active() -> Style {
-        Style::new().fg(Color::Rgb(178, 121, 242))
+        Style::new().fg(ACCENT)
     }
 
     pub const fn select_inactive() -> Style {
@@ -87,7 +94,7 @@ pub mod tui {
     }
 
     pub const fn select_dim() -> Style {
-        Style::new().fg(Color::Rgb(109, 106, 128))
+        Style::new().fg(DIM)
     }
 
     pub const fn select_description() -> Style {
