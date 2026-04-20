@@ -148,6 +148,7 @@ impl State {
 /// Vertical list selector prompt.
 pub struct Select<T> {
     label: String,
+    description: Option<String>,
     options: Vec<SelectOption<T>>,
     default: Option<usize>,
 }
@@ -156,9 +157,16 @@ impl<T> Select<T> {
     pub fn new(label: impl Into<String>) -> Self {
         Self {
             label: label.into(),
+            description: None,
             options: Vec::new(),
             default: None,
         }
+    }
+
+    #[must_use]
+    pub fn description(mut self, desc: impl Into<String>) -> Self {
+        self.description = Some(desc.into());
+        self
     }
 
     #[must_use]
@@ -196,7 +204,8 @@ impl<T> Select<T> {
             .map(|option| (option.label.clone(), option.description.clone()))
             .collect();
 
-        let mut term = Terminal::new(n as u16 + 4)?;
+        let mut term =
+            Terminal::new(n as u16 + 6 + if self.description.is_some() { 2 } else { 0 })?;
 
         loop {
             let hint = if state.exit_pending {
@@ -213,7 +222,13 @@ impl<T> Select<T> {
                 })
                 .collect();
 
-            term.draw_select(&self.label, &items, state.selected, hint)?;
+            term.draw_select(
+                &self.label,
+                self.description.as_deref(),
+                &items,
+                state.selected,
+                hint,
+            )?;
 
             let Some(action) = SelectAction::read(n)? else {
                 continue;

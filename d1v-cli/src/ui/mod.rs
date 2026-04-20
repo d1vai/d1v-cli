@@ -218,13 +218,14 @@ impl Terminal {
     pub fn draw_select(
         &mut self,
         label: impl AsRef<str>,
+        description: Option<&str>,
         items: &[SelectItem<'_>],
         selected: usize,
         hint: Line<'_>,
     ) -> io::Result<()> {
         let label = label.as_ref();
         let n = items.len() as u16;
-        self.set_viewport_height(n + 4)?;
+        self.set_viewport_height(n + 6 + if description.is_some() { 2 } else { 0 })?;
         self.inner.hide_cursor()?;
 
         // Width of the widest index string, e.g. "10." for 10 items.
@@ -233,12 +234,22 @@ impl Terminal {
         let max_label_w: usize = items.iter().map(|i| i.label.width()).max().unwrap_or(0);
 
         self.inner.draw(|frame| {
-            let mut lines = Vec::with_capacity((n + 4) as usize);
+            let mut lines = Vec::with_capacity((n + 6) as usize);
+
+            lines.push(Line::raw(""));
 
             lines.push(Line::from(vec![
                 Span::styled(symbols::SELECT_PREFIX, theme::tui::select_arrow()),
                 Span::styled(label, theme::tui::select_label()),
             ]));
+
+            if let Some(desc) = description {
+                lines.push(Line::raw(""));
+                lines.push(Line::from(Span::styled(
+                    format!("   {desc}"),
+                    theme::tui::select_description(),
+                )));
+            }
 
             lines.push(Line::raw(""));
 
@@ -249,6 +260,8 @@ impl Terminal {
             lines.push(Line::raw(""));
 
             lines.push(hint);
+
+            lines.push(Line::raw(""));
 
             frame.render_widget(Paragraph::new(lines), frame.area());
         })?;
@@ -315,6 +328,7 @@ impl<'a> SelectItem<'a> {
 
     fn render_active(&self, num: String, max_label_w: usize) -> Line<'a> {
         let mut spans = vec![
+            Span::raw(" "),
             Span::styled(symbols::SELECT_ARROW, theme::tui::select_arrow()),
             Span::raw(" "),
             Span::styled(num, theme::tui::select_dim()),
@@ -333,7 +347,7 @@ impl<'a> SelectItem<'a> {
 
     fn render_inactive(&self, num: String, max_label_w: usize) -> Line<'a> {
         let mut spans = vec![
-            Span::raw("  "),
+            Span::raw("   "),
             Span::styled(num, theme::tui::select_dim()),
             Span::raw(" "),
             Span::styled(self.label, theme::tui::select_inactive()),

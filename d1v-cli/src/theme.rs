@@ -90,6 +90,10 @@ pub mod tui {
         Style::new().fg(Color::Rgb(109, 106, 128))
     }
 
+    pub const fn select_description() -> Style {
+        Style::new().fg(Color::Rgb(165, 163, 180))
+    }
+
     pub const fn select_key() -> Style {
         Style::new().fg(Color::Rgb(160, 155, 180))
     }
