@@ -3,19 +3,19 @@ pub mod owo {
     use owo_colors::{OwoColorize, Stream, Style};
 
     pub const fn success() -> Style {
-        Style::new().green()
+        Style::new().truecolor(35, 158, 98) // #239E62
     }
 
     pub const fn error() -> Style {
-        Style::new().bright_red()
+        Style::new().truecolor(221, 57, 98) // #DD3962
     }
 
     pub const fn info() -> Style {
-        Style::new().cyan()
+        Style::new().truecolor(89, 139, 255) // #598BFF
     }
 
     pub const fn hint() -> Style {
-        Style::new().yellow()
+        Style::new().truecolor(165, 163, 180) // #A5A3B4
     }
 
     /// Applies a color gradient across each character of a string.
