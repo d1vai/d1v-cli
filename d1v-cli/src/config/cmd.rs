@@ -179,7 +179,7 @@ pub fn set(ctx: &Context, key: ConfigKey, value: &str) -> Result<()> {
 pub fn list(ctx: &Context) -> Result<()> {
     let keys: Vec<String> = ConfigKey::value_variants()
         .iter()
-        .map(|k| k.to_string())
+        .map(ToString::to_string)
         .collect();
 
     ctx.print_list(keys)
