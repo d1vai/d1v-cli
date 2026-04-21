@@ -37,15 +37,15 @@ impl Claims {
 
 impl Display for Claims {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        static PRINTER: SpanPrinter = SpanPrinter::new()
+            .fractional(Some(FractionalUnit::Minute))
+            .precision(Some(0));
+
         if let Some(subject) = &self.subject {
             write!(f, "{subject}")?;
         }
 
-        let separator = if self
-            .subject
-            .as_ref()
-            .is_none_or(String::is_empty)
-        {
+        let separator = if self.subject.as_ref().is_none_or(String::is_empty) {
             ""
         } else {
             " "
@@ -58,10 +58,6 @@ impl Display for Claims {
 
             return Ok(());
         };
-
-        static PRINTER: SpanPrinter = SpanPrinter::new()
-            .fractional(Some(FractionalUnit::Minute))
-            .precision(Some(0));
 
         write!(
             f,
