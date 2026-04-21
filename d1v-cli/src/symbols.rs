@@ -3,7 +3,7 @@ use const_format::concatc;
 pub const SUCCESS: &str = "✓";
 pub const ERROR: &str = "✗";
 pub const INFO: &str = "→";
-pub const PROMPT: &str = "?";
+pub const PROMPT: &str = "◆";
 pub const SELECT: &str = "◆";
 pub const SELECT_ARROW: &str = "❯";
 
