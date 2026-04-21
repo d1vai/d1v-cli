@@ -194,7 +194,7 @@ impl Locale {
     }
 
     /// Returns the parsed [`LanguageIdentifier`] for this locale.
-    fn lang_id(&self) -> LanguageIdentifier {
+    fn lang_id(self) -> LanguageIdentifier {
         self.as_ref().parse().unwrap()
     }
 
