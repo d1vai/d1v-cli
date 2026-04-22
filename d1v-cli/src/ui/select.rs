@@ -2,7 +2,7 @@ use std::process;
 
 use crossterm::event::{self, KeyCode, KeyModifiers};
 
-use super::{ctrl_c_hint_line, nav_hint_line, SelectItem, Terminal};
+use super::{as_u16, ctrl_c_hint_line, nav_hint_line, SelectItem, Terminal};
 use crate::error::Error;
 
 /// A single choice in a [`Select`] prompt.
@@ -205,7 +205,7 @@ impl<T> Select<T> {
             .collect();
 
         let mut term =
-            Terminal::new(n as u16 + 6 + if self.description.is_some() { 2 } else { 0 })?;
+            Terminal::new(as_u16(n) + 6 + if self.description.is_some() { 2 } else { 0 })?;
 
         loop {
             let hint = if state.exit_pending {

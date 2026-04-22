@@ -31,6 +31,12 @@ const PREFIX_WIDTH: u16 = 2;
 
 pub type Validator = dyn Fn(&str) -> Result<(), String>;
 
+/// Casts a `usize` to a `u16`, saturating on overflow.
+#[inline]
+fn as_u16(n: usize) -> u16 {
+    u16::try_from(n).unwrap_or(u16::MAX)
+}
+
 /// Inline terminal for interactive prompt rendering.
 ///
 /// Wraps a ratatui inline-viewport terminal. Enters raw mode on creation
@@ -84,7 +90,7 @@ impl Terminal {
     ) -> io::Result<()> {
         let label = label.as_ref();
         let input_text = input_text.as_ref();
-        let label_width = label.width() as u16;
+        let label_width = as_u16(label.width());
 
         self.inner.draw(|frame| {
             let area = frame.area();
@@ -109,7 +115,7 @@ impl Terminal {
 
             let error_offset = u16::from(error.is_some());
             frame.set_cursor_position((
-                PREFIX_WIDTH + label_width + 1 + cursor_col as u16,
+                PREFIX_WIDTH + label_width + 1 + as_u16(cursor_col),
                 area.y + error_offset,
             ));
         })?;
@@ -226,7 +232,7 @@ impl Terminal {
         hint: Line<'_>,
     ) -> io::Result<()> {
         let label = label.as_ref();
-        let n = items.len() as u16;
+        let n = as_u16(items.len());
         self.set_viewport_height(n + 6 + if description.is_some() { 2 } else { 0 })?;
         self.inner.hide_cursor()?;
 
@@ -410,9 +416,9 @@ fn clear_wide_char_continuations(buf: &mut Buffer) {
         // backend as Print(" "), producing visible spurious spaces.
         // Setting symbol to "" makes Print("") a no-op, suppressing them.
         while col < width {
-            let cell_width = buf[(col as u16, row)].symbol().width().max(1);
+            let cell_width = buf[(as_u16(col), row)].symbol().width().max(1);
             for c in (col + 1)..(col + cell_width).min(width) {
-                buf[(c as u16, row)].set_symbol("");
+                buf[(as_u16(c), row)].set_symbol("");
             }
             col += cell_width;
         }
