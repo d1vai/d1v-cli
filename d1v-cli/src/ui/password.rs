@@ -2,7 +2,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::iter;
 
 use super::input::InputState;
-use super::{Action, Terminal};
+use super::{Action, Terminal, Validator};
 use crate::error::Error;
 use crate::t;
 
@@ -12,7 +12,7 @@ const MASK: char = '•';
 pub struct Password {
     label: String,
     confirmation: Option<String>,
-    validator: Option<Box<dyn Fn(&str) -> Result<(), String>>>,
+    validator: Option<Box<Validator>>,
 }
 
 impl Password {
@@ -60,7 +60,7 @@ impl Password {
         &self,
         label: &str,
         error: Option<String>,
-        validator: Option<&dyn Fn(&str) -> Result<(), String>>,
+        validator: Option<&Validator>,
     ) -> Result<SecretString, Error> {
         let mut error = error;
         let mut term = Terminal::new(if error.is_some() { 2 } else { 1 })?;

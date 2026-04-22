@@ -29,6 +29,8 @@ use crate::theme;
 /// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
 const PREFIX_WIDTH: u16 = 2;
 
+pub type Validator = dyn Fn(&str) -> Result<(), String>;
+
 /// Inline terminal for interactive prompt rendering.
 ///
 /// Wraps a ratatui inline-viewport terminal. Enters raw mode on creation

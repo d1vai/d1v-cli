@@ -1,12 +1,12 @@
 use super::input::InputState;
 use super::prompt::PendingPrompt;
-use super::{Action, Terminal};
+use super::{Action, Terminal, Validator};
 use crate::error::Error;
 
 /// Single-line text prompt with optional validation.
 pub struct Text {
     label: String,
-    validator: Option<Box<dyn Fn(&str) -> Result<(), String>>>,
+    validator: Option<Box<Validator>>,
 }
 
 impl Text {
