@@ -60,6 +60,8 @@ pub mod tui {
     const DIM: Color = Color::Rgb(109, 106, 128); // #6D6A80
     const SUCCESS_GREEN: Color = Color::Rgb(35, 158, 98); // #239E62
     const ERROR_RED: Color = Color::Rgb(221, 57, 98); // #DD3962
+    const DESCRIPTION: Color = Color::Rgb(165, 163, 180); // #A5A3B4
+    const KEY: Color = Color::Rgb(160, 155, 180); // #A09BB4
 
     pub const fn success() -> Style {
         Style::new().fg(SUCCESS_GREEN).bold()
@@ -77,6 +79,10 @@ pub mod tui {
         Style::new().fg(FOREGROUND).bold()
     }
 
+    pub const fn key() -> Style {
+        Style::new().fg(KEY)
+    }
+
     pub const fn value() -> Style {
         Style::new().fg(ACCENT)
     }
@@ -85,39 +91,15 @@ pub mod tui {
         Style::new().fg(DIM)
     }
 
-    pub const fn toggle_active() -> Style {
+    pub const fn active() -> Style {
         Style::new().fg(ACCENT).bold().underlined()
     }
 
-    pub const fn toggle_inactive() -> Style {
-        Style::new().fg(DIM)
-    }
-
-    pub const fn select_label() -> Style {
-        Style::new().fg(FOREGROUND).bold()
-    }
-
-    pub const fn select_arrow() -> Style {
-        Style::new().fg(ACCENT)
-    }
-
-    pub const fn select_active() -> Style {
-        Style::new().fg(ACCENT)
-    }
-
-    pub const fn select_inactive() -> Style {
+    pub const fn inactive() -> Style {
         Style::new()
     }
 
-    pub const fn select_dim() -> Style {
-        Style::new().fg(DIM)
-    }
-
-    pub const fn select_description() -> Style {
-        Style::new().fg(Color::Rgb(165, 163, 180))
-    }
-
-    pub const fn select_key() -> Style {
-        Style::new().fg(Color::Rgb(160, 155, 180))
+    pub const fn description() -> Style {
+        Style::new().fg(DESCRIPTION)
     }
 }

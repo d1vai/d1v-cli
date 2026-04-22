@@ -125,9 +125,9 @@ impl Terminal {
         let label = label.as_ref();
 
         let styles = if selected == 0 {
-            [theme::tui::toggle_active(), theme::tui::toggle_inactive()]
+            [theme::tui::active(), theme::tui::dim()]
         } else {
-            [theme::tui::toggle_inactive(), theme::tui::toggle_active()]
+            [theme::tui::dim(), theme::tui::active()]
         };
 
         self.inner.hide_cursor()?;
@@ -239,15 +239,15 @@ impl Terminal {
             lines.push(Line::raw(""));
 
             lines.push(Line::from(vec![
-                Span::styled(symbols::SELECT_PREFIX, theme::tui::select_arrow()),
-                Span::styled(label, theme::tui::select_label()),
+                Span::styled(symbols::SELECT_PREFIX, theme::tui::prompt()),
+                Span::styled(label, theme::tui::label()),
             ]));
 
             if let Some(desc) = description {
                 lines.push(Line::raw(""));
                 lines.push(Line::from(Span::styled(
                     format!("   {desc}"),
-                    theme::tui::select_description(),
+                    theme::tui::description(),
                 )));
             }
 
@@ -277,9 +277,9 @@ impl Drop for Terminal {
 }
 
 pub fn nav_hint_line() -> Line<'static> {
-    let sep = || Span::styled(" · ", theme::tui::select_dim());
-    let key = |s: &'static str| Span::styled(s, theme::tui::select_key());
-    let act = |s: String| Span::styled(s, theme::tui::select_dim());
+    let sep = || Span::styled(" · ", theme::tui::dim());
+    let key = |s: &'static str| Span::styled(s, theme::tui::key());
+    let act = |s: String| Span::styled(s, theme::tui::dim());
 
     Line::from(vec![
         Span::raw("  "),
@@ -300,7 +300,7 @@ pub fn nav_hint_line() -> Line<'static> {
 pub fn ctrl_c_hint_line() -> Line<'static> {
     Line::from(Span::styled(
         format!("  {}", t!("select-ctrl-c-hint")),
-        theme::tui::select_dim(),
+        theme::tui::dim(),
     ))
 }
 
@@ -329,17 +329,17 @@ impl<'a> SelectItem<'a> {
     fn render_active(&self, num: String, max_label_w: usize) -> Line<'a> {
         let mut spans = vec![
             Span::raw(" "),
-            Span::styled(symbols::SELECT_ARROW, theme::tui::select_arrow()),
+            Span::styled(symbols::SELECT_ARROW, theme::tui::prompt()),
             Span::raw(" "),
-            Span::styled(num, theme::tui::select_dim()),
+            Span::styled(num, theme::tui::dim()),
             Span::raw(" "),
-            Span::styled(self.label, theme::tui::select_active()),
+            Span::styled(self.label, theme::tui::value()),
         ];
 
         if let Some(desc) = self.description {
             let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
             spans.push(Span::raw(pad));
-            spans.push(Span::styled(desc, theme::tui::select_dim()));
+            spans.push(Span::styled(desc, theme::tui::dim()));
         }
 
         Line::from(spans)
@@ -348,15 +348,15 @@ impl<'a> SelectItem<'a> {
     fn render_inactive(&self, num: String, max_label_w: usize) -> Line<'a> {
         let mut spans = vec![
             Span::raw("   "),
-            Span::styled(num, theme::tui::select_dim()),
+            Span::styled(num, theme::tui::dim()),
             Span::raw(" "),
-            Span::styled(self.label, theme::tui::select_inactive()),
+            Span::styled(self.label, theme::tui::inactive()),
         ];
 
         if let Some(desc) = self.description {
             let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
             spans.push(Span::raw(pad));
-            spans.push(Span::styled(desc, theme::tui::select_dim()));
+            spans.push(Span::styled(desc, theme::tui::dim()));
         }
 
         Line::from(spans)
