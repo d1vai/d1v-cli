@@ -26,7 +26,7 @@ use crate::symbols;
 use crate::t;
 use crate::theme;
 
-/// Fixed display-width of the prompt status prefix (`? `, `✓ `, `✗ `).
+/// Fixed display-width of the prompt status prefix (`◆ `, `✓ `, `✗ `).
 const PREFIX_WIDTH: u16 = 2;
 
 pub type Validator = dyn Fn(&str) -> Result<(), String>;
