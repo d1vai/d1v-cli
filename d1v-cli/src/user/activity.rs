@@ -40,27 +40,33 @@ static BAR_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
 
 impl Display for ActivityDisplay<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let a = self.0;
+        let activity = self.0;
 
         write!(
             f,
             "{}{}",
             pad_label(t!("activity-label-period"), LABEL_WIDTH)
                 .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-            format!("{} ~ {}", a.start_date, a.end_date)
+            format!("{} ~ {}", activity.start_date, activity.end_date)
                 .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )?;
-        self.write_row(f, "activity-label-days", &a.days.to_string())?;
+        self.write_row(f, "activity-label-days", &activity.days.to_string())?;
 
-        if a.counts.is_empty() {
+        if activity.counts.is_empty() {
             return Ok(());
         }
 
-        let max_count = a.counts.iter().map(|c| c.count).max().unwrap_or(1).max(1);
+        let max_count = activity
+            .counts
+            .iter()
+            .map(|c| c.count)
+            .max()
+            .unwrap_or(1)
+            .max(1);
         let bar_colors = BAR_GRADIENT.colors(BAR_WIDTH);
 
         writeln!(f)?;
-        for entry in &a.counts {
+        for entry in &activity.counts {
             let ratio = entry.count as f32 / max_count as f32;
             let filled = (ratio * BAR_WIDTH as f32).round() as usize;
             let empty = BAR_WIDTH - filled;
