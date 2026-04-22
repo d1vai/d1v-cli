@@ -41,63 +41,62 @@ impl Password {
         let mut error: Option<String> = None;
 
         loop {
-            let first = self.read(&self.label, error.take(), self.validator.as_deref())?;
+            let first = read_password(&self.label, error.take(), self.validator.as_deref())?;
 
             let Some(confirm_label) = &self.confirmation else {
                 return Ok(first);
             };
 
-            match self.read(confirm_label, None, None) {
+            match read_password(confirm_label, None, None) {
                 Ok(second) if second.expose_secret() == first.expose_secret() => return Ok(first),
                 Ok(_) => error = Some(t!("password-mismatch")),
-                Err(err) if err.is_canceled() => {},
+                Err(err) if err.is_canceled() => {}
                 Err(err) => return Err(err),
             }
         }
     }
+}
 
-    fn read(
-        &self,
-        label: &str,
-        error: Option<String>,
-        validator: Option<&Validator>,
-    ) -> Result<SecretString, Error> {
-        let mut error = error;
-        let mut term = Terminal::new(if error.is_some() { 2 } else { 1 })?;
+fn read_password(
+    label: &str,
+    error: Option<String>,
+    validator: Option<&Validator>,
+) -> Result<SecretString, Error> {
+    let mut error = error;
+    let mut term = Terminal::new(if error.is_some() { 2 } else { 1 })?;
+
+    loop {
+        let height = if error.is_some() { 2 } else { 1 };
+        term.set_viewport_height(height)?;
+        let mut input = InputState::new();
 
         loop {
-            let height = if error.is_some() { 2 } else { 1 };
-            term.set_viewport_height(height)?;
-            let mut input = InputState::new();
+            let masked = input.masked(MASK);
+            let col = input.masked_cursor_col(MASK);
+            term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
 
-            loop {
-                let masked = input.masked(MASK);
-                let col = input.masked_cursor_col(MASK);
-                term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
-
-                match Action::read()? {
-                    Some(Action::Submit) => break,
-                    Some(Action::Cancel) => {
-                        term.show_canceled(label, masked);
-                        return Err(Error::Canceled);
-                    }
-                    Some(Action::Input(key)) => input.handle_key(&key),
-                    None => {}
+            match Action::read()? {
+                Some(Action::Submit) => break,
+                Some(Action::Cancel) => {
+                    term.show_canceled(label, masked);
+                    return Err(Error::Canceled);
                 }
+                Some(Action::Input(key)) => input.handle_key(&key),
+                None => {}
             }
-
-            if let Some(validator) = validator
-                && let Err(msg) = validator(input.text())
-            {
-                error = Some(msg);
-                continue;
-            }
-
-            let count = input.grapheme_count();
-            let answered = iter::repeat_n(MASK, count).collect::<String>();
-            term.show_answered(label, &answered);
-
-            return Ok(SecretString::from(String::from(input)));
         }
+
+        if let Some(validator) = validator
+            && let Err(msg) = validator(input.text())
+        {
+            error = Some(msg);
+            continue;
+        }
+
+        let count = input.grapheme_count();
+        let answered = iter::repeat_n(MASK, count).collect::<String>();
+        term.show_answered(label, &answered);
+
+        return Ok(SecretString::from(String::from(input)));
     }
 }

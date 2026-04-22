@@ -6,30 +6,17 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
 
-use super::{ActivityArgs, ActivityTarget};
+use super::{write_row, ActivityArgs, ActivityTarget, LABEL_WIDTH};
 use crate::error::Result;
 use crate::output::pad_label;
 use crate::Context;
 use crate::{t, theme};
 
-const LABEL_WIDTH: usize = 13;
 const BAR_WIDTH: usize = 20;
 
 #[derive(Serialize)]
 #[serde(transparent)]
 struct ActivityDisplay<'a>(&'a PromptDailyActivity);
-
-impl ActivityDisplay<'_> {
-    fn write_row(&self, f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
-        write!(
-            f,
-            "\n{}{}",
-            pad_label(t!(label), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-            value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
-        )
-    }
-}
 
 static BAR_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()
@@ -50,7 +37,7 @@ impl Display for ActivityDisplay<'_> {
             format!("{} ~ {}", activity.start_date, activity.end_date)
                 .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
         )?;
-        self.write_row(f, "activity-label-days", &activity.days.to_string())?;
+        write_row(f, "activity-label-days", &activity.days.to_string())?;
 
         if activity.counts.is_empty() {
             return Ok(());

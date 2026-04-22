@@ -4,13 +4,29 @@ mod info;
 mod invitation;
 mod password;
 
+use std::fmt::{self, Formatter};
 use std::io::{stdin, IsTerminal};
 
-use crate::error::Result;
 use clap::{Args, Subcommand};
+use owo_colors::{OwoColorize, Stream};
 use tracing::debug;
 
+use crate::error::Result;
+use crate::output::pad_label;
+use crate::theme;
 use crate::{t, Context};
+
+const LABEL_WIDTH: usize = 13;
+
+fn write_row(f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
+    write!(
+        f,
+        "\n{}{}",
+        pad_label(t!(label), LABEL_WIDTH)
+            .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+        value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+    )
+}
 
 #[derive(Subcommand)]
 pub enum UserCommand {

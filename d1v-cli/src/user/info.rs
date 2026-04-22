@@ -7,14 +7,12 @@ use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
 use tracing::debug;
 
-use super::{GetArgs, UpdateArgs};
+use super::{write_row, GetArgs, UpdateArgs, LABEL_WIDTH};
 use crate::error::Result;
 use crate::output::pad_label;
 use crate::ui::{Select, SelectOption, Text};
 use crate::Context;
 use crate::{t, theme};
-
-const LABEL_WIDTH: usize = 13;
 
 #[derive(Serialize)]
 #[serde(transparent)]
@@ -72,18 +70,6 @@ impl From<UpdateArgs> for UpdateUser {
 #[serde(transparent)]
 struct UserDetail<'a>(&'a User);
 
-impl UserDetail<'_> {
-    fn write_row(&self, f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
-        write!(
-            f,
-            "\n{}{}",
-            pad_label(t!(label), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-            value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
-        )
-    }
-}
-
 static SUPER_ADMIN_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()
         .html_colors(&["#C83CFF", "#FFC83C"])
@@ -135,13 +121,13 @@ impl Display for UserDetail<'_> {
         )?;
 
         if !user.slug.is_empty() {
-            self.write_row(f, "user-label-slug", &user.slug)?;
+            write_row(f, "user-label-slug", &user.slug)?;
         }
 
         if let Some(email) = &user.email
             && !email.is_empty()
         {
-            self.write_row(f, "user-label-email", email)?;
+            write_row(f, "user-label-email", email)?;
         }
 
         write!(
@@ -154,19 +140,19 @@ impl Display for UserDetail<'_> {
 
         if user.is_company {
             if !user.company_name.is_empty() {
-                self.write_row(f, "user-label-company", &user.company_name)?;
+                write_row(f, "user-label-company", &user.company_name)?;
             }
             if !user.company_website.is_empty() {
-                self.write_row(f, "user-label-website", &user.company_website)?;
+                write_row(f, "user-label-website", &user.company_website)?;
             }
         }
 
         if !user.industry.is_empty() {
-            self.write_row(f, "user-label-industry", &user.industry)?;
+            write_row(f, "user-label-industry", &user.industry)?;
         }
 
         if !user.invite_code.is_empty() {
-            self.write_row(f, "user-label-invite-code", &user.invite_code)?;
+            write_row(f, "user-label-invite-code", &user.invite_code)?;
         }
 
         Ok(())
