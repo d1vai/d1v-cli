@@ -5,14 +5,14 @@ pub mod password;
 pub mod prompt;
 pub mod select;
 pub mod text;
+pub mod widgets;
 
 pub use confirm::Confirm;
 pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-
-use std::io::{self, Stdout};
+pub use widgets::{Answered, Canceled};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -20,6 +20,7 @@ use ratatui::buffer::Buffer;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
+use std::io::{self, Stdout};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
@@ -78,6 +79,14 @@ impl Terminal {
             self.height = height;
         }
         Ok(())
+    }
+
+    fn insert_widget_before(&mut self, height: u16, widget: impl Widget) -> io::Result<()> {
+        self.set_viewport_height(height)?;
+        self.inner.insert_before(height, |buf| {
+            widget.render(buf.area, buf);
+            clear_wide_char_continuations(buf);
+        })
     }
 
     /// Draws the prompt line with cursor, optional error above and help below.
@@ -157,24 +166,26 @@ impl Terminal {
 
     /// Renders the answered state above the inline viewport and terminates it.
     fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let label = label.as_ref();
-        let display = display.as_ref();
+        let view = Answered {
+            label: label.as_ref(),
+            display: display.as_ref(),
+        };
 
-        let _ = self.set_viewport_height(1);
         let _ = self
-            .inner
-            .insert_before(1, |buf| {
-                let line = Line::from(vec![
-                    Span::styled(symbols::SUCCESS_PREFIX, theme::tui::success()),
-                    Span::styled(label, theme::tui::label()),
-                    Span::raw(" "),
-                    Span::styled(display, theme::tui::value()),
-                ]);
-
-                Widget::render(Paragraph::new(line), buf.area, buf);
-                clear_wide_char_continuations(buf);
-            })
+            .insert_widget_before(view.height(), &view)
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
+    }
+
+    /// Renders the canceled prompt state with the label and partial input.
+    fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
+        let view = Canceled {
+            label: label.as_ref(),
+            display: display.as_ref(),
+        };
+
+        let _ = self
+            .insert_widget_before(view.height(), &view)
+            .inspect_err(|err| debug!("failed to render canceled state: {err}"));
     }
 
     /// Draws the spinner state on the viewport without committing.
@@ -201,27 +212,6 @@ impl Terminal {
                 Paragraph::new(line).render(frame.area(), frame.buffer_mut());
             })
             .inspect_err(|err| debug!("failed to render pending state: {err}"));
-    }
-
-    /// Renders the canceled prompt state with the label and partial input.
-    fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let label = label.as_ref();
-        let display = display.as_ref();
-
-        let _ = self.set_viewport_height(1);
-        let _ = self
-            .inner
-            .insert_before(1, |buf| {
-                let line = Line::from(vec![
-                    Span::styled(symbols::ERROR_PREFIX, theme::tui::error()),
-                    Span::styled(label, theme::tui::error()),
-                    Span::raw(" "),
-                    Span::styled(display, theme::tui::dim()),
-                ]);
-                Widget::render(Paragraph::new(line), buf.area, buf);
-                clear_wide_char_continuations(buf);
-            })
-            .inspect_err(|err| debug!("failed to render canceled state: {err}"));
     }
 
     pub fn draw_select(
