@@ -1,5 +1,6 @@
 pub mod confirm;
 pub mod input;
+pub mod keys;
 pub mod password;
 pub mod prompt;
 pub mod select;
@@ -306,10 +307,26 @@ pub fn nav_hint_line() -> Line<'static> {
 }
 
 pub fn ctrl_c_hint_line() -> Line<'static> {
-    Line::from(Span::styled(
-        format!("  {}", t!("select-ctrl-c-hint")),
-        theme::tui::dim(),
-    ))
+    let key = keys::ctrl_c_label();
+    let rendered = t!("select-ctrl-c-hint", key = key);
+
+    let mut spans = vec![Span::raw("  ")];
+
+    if let Some((before, after)) = rendered.split_once(key) {
+        if !before.is_empty() {
+            spans.push(Span::styled(before.to_string(), theme::tui::dim()));
+        }
+
+        spans.push(Span::styled(key, theme::tui::key()));
+
+        if !after.is_empty() {
+            spans.push(Span::styled(after.to_string(), theme::tui::dim()));
+        }
+    } else {
+        spans.push(Span::styled(rendered, theme::tui::dim()))
+    }
+
+    Line::from(spans)
 }
 
 pub struct SelectItem<'a> {

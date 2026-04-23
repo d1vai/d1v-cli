@@ -137,7 +137,7 @@ confirm-no = 否
 select-action-navigate = 移动
 select-action-confirm = 确认
 select-action-cancel = 取消
-select-ctrl-c-hint = 再次按 ⌃C 退出
+select-ctrl-c-hint = 再次按 { $key } 退出
 
 ## 时间
 duration-days-hours = { $days } 天 { $hours } 小时

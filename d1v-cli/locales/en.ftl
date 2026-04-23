@@ -137,7 +137,7 @@ confirm-no = No
 select-action-navigate = navigate
 select-action-confirm = select
 select-action-cancel = cancel
-select-ctrl-c-hint = Press ⌃C again to exit
+select-ctrl-c-hint = Press { $key } again to exit
 
 ## Duration
 duration-days-hours = { $days }d { $hours }h
