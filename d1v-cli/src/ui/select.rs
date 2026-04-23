@@ -1,5 +1,3 @@
-use std::process;
-
 use crossterm::event::{self, KeyCode, KeyModifiers};
 
 use super::{as_u16, ctrl_c_hint_line, nav_hint_line, SelectItem, Terminal};
@@ -93,8 +91,8 @@ enum Outcome {
     Submit,
     /// User pressed Esc.
     Cancel,
-    /// Double Ctrl+C — force exit process.
-    ForceExit,
+    /// Double Ctrl+C.
+    Interrupt,
 }
 
 impl State {
@@ -112,7 +110,7 @@ impl State {
             SelectAction::Cancel => Some(Outcome::Cancel),
             SelectAction::CtrlC => {
                 if self.exit_pending {
-                    Some(Outcome::ForceExit)
+                    Some(Outcome::Interrupt)
                 } else {
                     self.exit_pending = true;
                     None
@@ -188,9 +186,6 @@ impl<T> Select<T> {
     }
 
     /// Runs the interactive select loop and returns the chosen value.
-    ///
-    /// Returns `Err(Error::Canceled)` if the user cancels with Esc.
-    /// Silently exits the process on double Ctrl+C.
     pub fn prompt(mut self) -> Result<T, Error> {
         let n = self.options.len();
         assert!(n > 0, "Select must have at least one option");
@@ -244,10 +239,7 @@ impl<T> Select<T> {
                     term.show_canceled(&self.label, &display[state.selected].0);
                     return Err(Error::Canceled);
                 }
-                Some(Outcome::ForceExit) => {
-                    drop(term);
-                    process::exit(0);
-                }
+                Some(Outcome::Interrupt) => return Err(Error::Interrupted),
                 None => {}
             }
         }
