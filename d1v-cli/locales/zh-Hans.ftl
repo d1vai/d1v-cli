@@ -64,6 +64,7 @@ api-error-unknown-code = 服务端错误 { $code }
 hint-config = 请检查配置文件 ~/.d1v/config.toml。
 hint-token-storage = 请尝试运行 `d1v auth login` 重新认证。
 canceled = 已取消。
+interrupted = 已中断。
 
 ## 令牌
 error-no-token-store = 没有可用的令牌存储

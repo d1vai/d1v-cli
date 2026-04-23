@@ -64,6 +64,7 @@ api-error-unknown-code = server error { $code }
 hint-config = Check your config file at ~/.d1v/config.toml.
 hint-token-storage = Try running `d1v auth login` to re-authenticate.
 canceled = Cancelled.
+interrupted = Interrupted.
 
 ## Token
 error-no-token-store = no writable token store available

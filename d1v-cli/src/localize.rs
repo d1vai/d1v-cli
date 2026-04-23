@@ -16,6 +16,7 @@ impl Localize for Error {
             Self::NotLoggedIn => t!("error-not-logged-in"),
             Self::TokenExpired => t!("error-token-expired"),
             Self::Canceled => t!("canceled"),
+            Self::Interrupted => t!("interrupted"),
             Self::Config(err) => err.localize(),
             Self::Token(err) => err.localize(),
             Self::Api(err) => err.localize(),
@@ -127,6 +128,7 @@ mod tests {
         assert_eq!(Error::NotLoggedIn.localize(), "not logged in");
         assert_eq!(Error::TokenExpired.localize(), "token has expired");
         assert_eq!(Error::Canceled.localize(), "Cancelled.");
+        assert_eq!(Error::Interrupted.localize(), "Interrupted.");
     }
 
     #[test]
