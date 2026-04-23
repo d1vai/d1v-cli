@@ -11,14 +11,36 @@ use crate::symbols;
 use crate::theme;
 
 pub struct Prompt<'a> {
-    pub label: &'a str,
-    pub input: &'a str,
-    pub cursor_col: usize,
-    pub error: Option<&'a str>,
-    pub help: Option<&'a str>,
+    label: &'a str,
+    input: &'a str,
+    cursor_col: usize,
+    error: Option<&'a str>,
+    help: Option<&'a str>,
 }
 
-impl Prompt<'_> {
+impl<'a> Prompt<'a> {
+    pub const fn new(label: &'a str, input: &'a str, cursor_col: usize) -> Self {
+        Self {
+            label,
+            input,
+            cursor_col,
+            error: None,
+            help: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn error(mut self, msg: &'a str) -> Self {
+        self.error = Some(msg);
+        self
+    }
+
+    #[must_use]
+    pub const fn help(mut self, msg: &'a str) -> Self {
+        self.help = Some(msg);
+        self
+    }
+
     pub fn height(&self) -> u16 {
         1 + u16::from(self.error.is_some()) + u16::from(self.help.is_some())
     }
@@ -58,11 +80,15 @@ impl Widget for &Prompt<'_> {
 }
 
 pub struct Answered<'a> {
-    pub label: &'a str,
-    pub display: &'a str,
+    label: &'a str,
+    display: &'a str,
 }
 
-impl Answered<'_> {
+impl<'a> Answered<'a> {
+    pub const fn new(label: &'a str, display: &'a str) -> Self {
+        Self { label, display }
+    }
+
     pub const fn height(&self) -> u16 {
         1
     }
@@ -81,11 +107,15 @@ impl Widget for &Answered<'_> {
 }
 
 pub struct Canceled<'a> {
-    pub label: &'a str,
-    pub display: &'a str,
+    label: &'a str,
+    display: &'a str,
 }
 
-impl Canceled<'_> {
+impl<'a> Canceled<'a> {
+    pub const fn new(label: &'a str, display: &'a str) -> Self {
+        Self { label, display }
+    }
+
     pub const fn height(&self) -> u16 {
         1
     }

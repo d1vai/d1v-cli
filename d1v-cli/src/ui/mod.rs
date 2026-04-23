@@ -98,13 +98,13 @@ impl Terminal {
         error: Option<&str>,
         help: Option<&str>,
     ) -> io::Result<()> {
-        let prompt = Prompt {
-            label: label.as_ref(),
-            input: input_text.as_ref(),
-            cursor_col,
-            error,
-            help,
-        };
+        let mut prompt = Prompt::new(label.as_ref(), input_text.as_ref(), cursor_col);
+        if let Some(msg) = error {
+            prompt = prompt.error(msg);
+        }
+        if let Some(msg) = help {
+            prompt = prompt.help(msg);
+        }
 
         self.inner.draw(|frame| {
             let area = frame.area();
@@ -148,10 +148,7 @@ impl Terminal {
 
     /// Renders the answered state above the inline viewport and terminates it.
     fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let view = Answered {
-            label: label.as_ref(),
-            display: display.as_ref(),
-        };
+        let view = Answered::new(label.as_ref(), display.as_ref());
 
         let _ = self
             .insert_widget_before(view.height(), &view)
@@ -160,10 +157,7 @@ impl Terminal {
 
     /// Renders the canceled prompt state with the label and partial input.
     fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let view = Canceled {
-            label: label.as_ref(),
-            display: display.as_ref(),
-        };
+        let view = Canceled::new(label.as_ref(), display.as_ref());
 
         let _ = self
             .insert_widget_before(view.height(), &view)
