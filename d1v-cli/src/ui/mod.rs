@@ -12,7 +12,7 @@ pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-pub use widgets::{Answered, Canceled};
+pub use widgets::{Answered, Canceled, Prompt};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -98,36 +98,18 @@ impl Terminal {
         error: Option<&str>,
         help: Option<&str>,
     ) -> io::Result<()> {
-        let label = label.as_ref();
-        let input_text = input_text.as_ref();
-        let label_width = as_u16(label.width());
+        let prompt = Prompt {
+            label: label.as_ref(),
+            input: input_text.as_ref(),
+            cursor_col,
+            error,
+            help,
+        };
 
         self.inner.draw(|frame| {
             let area = frame.area();
-            let mut lines = Vec::new();
-
-            if let Some(msg) = error {
-                lines.push(Line::from(Span::styled(msg, theme::tui::error())));
-            }
-
-            lines.push(Line::from(vec![
-                Span::styled(symbols::PROMPT_PREFIX, theme::tui::prompt()),
-                Span::styled(label, theme::tui::label()),
-                Span::raw(" "),
-                Span::raw(input_text),
-            ]));
-
-            if let Some(msg) = help {
-                lines.push(Line::from(Span::styled(msg, theme::tui::dim())));
-            }
-
-            frame.render_widget(Paragraph::new(lines), area);
-
-            let error_offset = u16::from(error.is_some());
-            frame.set_cursor_position((
-                PREFIX_WIDTH + label_width + 1 + as_u16(cursor_col),
-                area.y + error_offset,
-            ));
+            frame.render_widget(&prompt, area);
+            frame.set_cursor_position(prompt.cursor_position(area));
         })?;
 
         Ok(())
