@@ -1,6 +1,7 @@
 use crossterm::event::{self, KeyCode, KeyModifiers};
+use ratatui::text::Line;
 
-use super::widgets::{Answered, Canceled, SelectItem, SelectList};
+use super::widgets::{Answered, SelectItem, SelectList};
 use super::{as_u16, ctrl_c_hint_line, nav_hint_line, Terminal};
 use crate::error::Error;
 
@@ -186,6 +187,21 @@ impl<T> Select<T> {
         self
     }
 
+    fn build_widget<'a>(
+        &'a self,
+        items: &'a [SelectItem<'a>],
+        selected: usize,
+        hint: Line<'a>,
+    ) -> SelectList<'a> {
+        let mut widget = SelectList::new(&self.label, items)
+            .selected(selected)
+            .hint(hint);
+        if let Some(desc) = self.description.as_deref() {
+            widget = widget.description(desc);
+        }
+        widget
+    }
+
     /// Runs the interactive select loop and returns the chosen value.
     pub fn prompt(mut self) -> Result<T, Error> {
         let n = self.options.len();
@@ -218,13 +234,8 @@ impl<T> Select<T> {
                 })
                 .collect();
 
-            let mut widget = SelectList::new(&self.label, &items)
-                .selected(state.selected)
-                .hint(hint);
-            if let Some(desc) = self.description.as_deref() {
-                widget = widget.description(desc);
-            }
-            term.render(&widget)?;
+            let selected = state.selected;
+            term.render(&self.build_widget(&items, selected, hint))?;
 
             let Some(action) = SelectAction::read(n)? else {
                 continue;
@@ -232,15 +243,18 @@ impl<T> Select<T> {
 
             match state.handle(action, n) {
                 Some(Outcome::Submit) => {
-                    let option = self.options.remove(state.selected);
-                    term.commit(&Answered::new(&self.label, &display[state.selected].0));
+                    let option = self.options.remove(selected);
+                    term.commit(&Answered::new(&self.label, &display[selected].0));
                     return Ok(option.value);
                 }
                 Some(Outcome::Cancel) => {
-                    term.commit(&Canceled::new(&self.label, &display[state.selected].0));
+                    term.commit(&self.build_widget(&items, selected, nav_hint_line()));
                     return Err(Error::Canceled);
                 }
-                Some(Outcome::Interrupt) => return Err(Error::Interrupted),
+                Some(Outcome::Interrupt) => {
+                    term.commit(&self.build_widget(&items, selected, ctrl_c_hint_line()));
+                    return Err(Error::Interrupted);
+                }
                 None => {}
             }
         }
