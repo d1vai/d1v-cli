@@ -12,7 +12,7 @@ pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-pub use widgets::{Answered, Canceled, Prompt};
+pub use widgets::{Answered, Canceled, Inline, Prompt};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -109,7 +109,9 @@ impl Terminal {
         self.inner.draw(|frame| {
             let area = frame.area();
             frame.render_widget(&prompt, area);
-            frame.set_cursor_position(prompt.cursor_position(area));
+            if let Some(pos) = prompt.cursor_position(area) {
+                frame.set_cursor_position(pos);
+            }
         })?;
 
         Ok(())

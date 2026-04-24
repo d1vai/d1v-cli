@@ -10,6 +10,17 @@ use super::{as_u16, PREFIX_WIDTH};
 use crate::symbols;
 use crate::theme;
 
+/// A widget rendered into the inline viewport.
+pub trait Inline {
+    /// Number of rows this widget needs.
+    fn height(&self) -> u16;
+
+    /// Cursor position within `area`, or `None` to hide the cursor.
+    fn cursor_position(&self, _area: Rect) -> Option<(u16, u16)> {
+        None
+    }
+}
+
 pub struct Prompt<'a> {
     label: &'a str,
     input: &'a str,
@@ -40,19 +51,20 @@ impl<'a> Prompt<'a> {
         self.help = Some(msg);
         self
     }
+}
 
-    pub fn height(&self) -> u16 {
+impl Inline for Prompt<'_> {
+    fn height(&self) -> u16 {
         1 + u16::from(self.error.is_some()) + u16::from(self.help.is_some())
     }
 
-    /// Cursor position relative to the buffer origin, on the prompt line.
-    pub fn cursor_position(&self, area: Rect) -> (u16, u16) {
+    fn cursor_position(&self, area: Rect) -> Option<(u16, u16)> {
         let label_width = as_u16(self.label.width());
         let error_offset = u16::from(self.error.is_some());
-        (
+        Some((
             area.x + PREFIX_WIDTH + label_width + 1 + as_u16(self.cursor_col),
             area.y + error_offset,
-        )
+        ))
     }
 }
 
@@ -88,8 +100,10 @@ impl<'a> Answered<'a> {
     pub const fn new(label: &'a str, display: &'a str) -> Self {
         Self { label, display }
     }
+}
 
-    pub const fn height(&self) -> u16 {
+impl Inline for Answered<'_> {
+    fn height(&self) -> u16 {
         1
     }
 }
@@ -115,8 +129,10 @@ impl<'a> Canceled<'a> {
     pub const fn new(label: &'a str, display: &'a str) -> Self {
         Self { label, display }
     }
+}
 
-    pub const fn height(&self) -> u16 {
+impl Inline for Canceled<'_> {
+    fn height(&self) -> u16 {
         1
     }
 }
