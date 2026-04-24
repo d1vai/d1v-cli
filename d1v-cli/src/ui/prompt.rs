@@ -4,7 +4,7 @@ use crossterm::terminal;
 use rattles::presets::braille::Dots;
 use rattles::TickedRattler;
 
-use super::widgets::{Answered, Canceled};
+use super::widgets::{Answered, Canceled, Pending};
 use super::Terminal;
 use crate::error::Error;
 
@@ -77,8 +77,11 @@ impl PendingPrompt {
         let interval = rattler.interval();
 
         // Render the first frame immediately.
-        self.term
-            .show_pending(&self.label, &self.display, rattler.current_frame());
+        let _ = self.term.render(&Pending::new(
+            &self.label,
+            &self.display,
+            rattler.current_frame(),
+        ));
         rattler.tick();
 
         let mut timer = tokio::time::interval(interval);
@@ -91,11 +94,11 @@ impl PendingPrompt {
                 result = &mut task => break Ok(result),
                 _ = tokio::signal::ctrl_c() => break Err(()),
                 _ = timer.tick() => {
-                    self.term.show_pending(
+                    let _ = self.term.render(&Pending::new(
                         &self.label,
                         &self.display,
                         rattler.current_frame(),
-                    );
+                    ));
                     rattler.tick();
                 }
             }

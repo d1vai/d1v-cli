@@ -168,6 +168,40 @@ impl Widget for &Toggle<'_> {
     }
 }
 
+pub struct Pending<'a> {
+    label: &'a str,
+    display: &'a str,
+    spinner: &'a str,
+}
+
+impl<'a> Pending<'a> {
+    pub const fn new(label: &'a str, display: &'a str, spinner: &'a str) -> Self {
+        Self {
+            label,
+            display,
+            spinner,
+        }
+    }
+}
+
+impl Inline for Pending<'_> {
+    fn height(&self) -> u16 {
+        1
+    }
+}
+
+impl Widget for &Pending<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let line = Line::from(vec![
+            Span::styled(format!("{} ", self.spinner), theme::tui::prompt()),
+            Span::styled(self.label, theme::tui::label()),
+            Span::raw(" "),
+            Span::styled(self.display, theme::tui::value()),
+        ]);
+        Paragraph::new(line).render(area, buf);
+    }
+}
+
 pub struct Canceled<'a> {
     label: &'a str,
     display: &'a str,

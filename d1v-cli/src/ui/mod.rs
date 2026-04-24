@@ -12,7 +12,7 @@ pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-pub use widgets::{Answered, Canceled, Inline, Prompt, Toggle};
+pub use widgets::{Answered, Canceled, Inline, Pending, Prompt, Toggle};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -118,32 +118,6 @@ impl Terminal {
         if let Err(err) = self.insert_widget_before(widget.height(), widget) {
             debug!("failed to commit inline widget: {err}");
         }
-    }
-
-    /// Draws the spinner state on the viewport without committing.
-    fn show_pending(
-        &mut self,
-        label: impl AsRef<str>,
-        display: impl AsRef<str>,
-        spinner: impl AsRef<str>,
-    ) {
-        let label = label.as_ref();
-        let display = display.as_ref();
-        let spinner = spinner.as_ref();
-
-        let _ = self.inner.hide_cursor();
-        let _ = self
-            .inner
-            .draw(|frame| {
-                let line = Line::from(vec![
-                    Span::styled(format!("{spinner} "), theme::tui::prompt()),
-                    Span::styled(label, theme::tui::label()),
-                    Span::raw(" "),
-                    Span::styled(display, theme::tui::value()),
-                ]);
-                Paragraph::new(line).render(frame.area(), frame.buffer_mut());
-            })
-            .inspect_err(|err| debug!("failed to render pending state: {err}"));
     }
 
     pub fn draw_select(
