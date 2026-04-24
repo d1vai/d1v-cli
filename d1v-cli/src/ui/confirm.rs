@@ -1,4 +1,4 @@
-use super::widgets::{Answered, Canceled};
+use super::widgets::{Answered, Canceled, Toggle};
 use super::{Action, Terminal};
 use crate::error::Error;
 use crate::t;
@@ -34,7 +34,7 @@ impl Confirm {
 
         loop {
             let idx = usize::from(!selected);
-            term.draw_toggle(&self.label, [&options[0], &options[1]], idx)?;
+            term.render(&Toggle::new(&self.label, [&options[0], &options[1]]).selected(idx))?;
 
             match Action::read()? {
                 Some(Action::Submit) => {

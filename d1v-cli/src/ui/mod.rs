@@ -12,7 +12,7 @@ pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-pub use widgets::{Answered, Canceled, Inline, Prompt};
+pub use widgets::{Answered, Canceled, Inline, Prompt, Toggle};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -118,37 +118,6 @@ impl Terminal {
         if let Err(err) = self.insert_widget_before(widget.height(), widget) {
             debug!("failed to commit inline widget: {err}");
         }
-    }
-
-    /// Draws an inline toggle selector.
-    fn draw_toggle(
-        &mut self,
-        label: impl AsRef<str>,
-        options: [&str; 2],
-        selected: usize,
-    ) -> io::Result<()> {
-        let label = label.as_ref();
-
-        let styles = if selected == 0 {
-            [theme::tui::active(), theme::tui::dim()]
-        } else {
-            [theme::tui::dim(), theme::tui::active()]
-        };
-
-        self.inner.hide_cursor()?;
-        self.inner.draw(|frame| {
-            let line = Line::from(vec![
-                Span::styled(symbols::PROMPT_PREFIX, theme::tui::prompt()),
-                Span::styled(label, theme::tui::label()),
-                Span::raw("  "),
-                Span::styled(options[0], styles[0]),
-                Span::styled(" / ", theme::tui::dim()),
-                Span::styled(options[1], styles[1]),
-            ]);
-            frame.render_widget(Paragraph::new(line), frame.area());
-        })?;
-
-        Ok(())
     }
 
     /// Draws the spinner state on the viewport without committing.

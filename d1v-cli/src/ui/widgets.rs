@@ -120,6 +120,54 @@ impl Widget for &Answered<'_> {
     }
 }
 
+pub struct Toggle<'a> {
+    label: &'a str,
+    options: [&'a str; 2],
+    selected: usize,
+}
+
+impl<'a> Toggle<'a> {
+    pub const fn new(label: &'a str, options: [&'a str; 2]) -> Self {
+        Self {
+            label,
+            options,
+            selected: 0,
+        }
+    }
+
+    #[must_use]
+    pub const fn selected(mut self, selected: usize) -> Self {
+        self.selected = selected;
+        self
+    }
+}
+
+impl Inline for Toggle<'_> {
+    fn height(&self) -> u16 {
+        1
+    }
+}
+
+impl Widget for &Toggle<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let styles = if self.selected == 0 {
+            [theme::tui::active(), theme::tui::dim()]
+        } else {
+            [theme::tui::dim(), theme::tui::active()]
+        };
+
+        let line = Line::from(vec![
+            Span::styled(symbols::PROMPT_PREFIX, theme::tui::prompt()),
+            Span::styled(self.label, theme::tui::label()),
+            Span::raw("  "),
+            Span::styled(self.options[0], styles[0]),
+            Span::styled(" / ", theme::tui::dim()),
+            Span::styled(self.options[1], styles[1]),
+        ]);
+        Paragraph::new(line).render(area, buf);
+    }
+}
+
 pub struct Canceled<'a> {
     label: &'a str,
     display: &'a str,
