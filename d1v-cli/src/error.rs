@@ -1,6 +1,6 @@
 use crate::config::ConfigError;
 use crate::localize::Localize;
-use crate::output::Output;
+use crate::output::{Format, Output};
 use crate::t;
 use crate::token::TokenError;
 use std::process::ExitCode;
@@ -100,7 +100,9 @@ impl Error {
 
     pub fn handle(&self, output: &Output) -> ExitCode {
         if self.is_canceled() || self.is_interrupted() {
-            output.error(&self.localize());
+            if matches!(output.format, Format::Json) {
+                output.error(&self.localize());
+            }
             return self.exit_code();
         }
 
