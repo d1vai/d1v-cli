@@ -14,13 +14,15 @@ pub use select::{Select, SelectOption};
 pub use text::Text;
 pub use widgets::{Answered, Canceled, Inline, Pending, Prompt, SelectItem, SelectList, Toggle};
 
+use crossterm::cursor::MoveTo;
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::QueueableCommand;
 use ratatui::buffer::Buffer;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
-use std::io::{self, Stdout};
+use std::io::{self, Stdout, Write};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
@@ -117,6 +119,26 @@ impl Terminal {
         if let Err(err) = self.insert_widget_before(widget.height(), widget) {
             debug!("failed to commit inline widget: {err}");
         }
+    }
+
+    /// Renders a final `widget` and parks the cursor below the viewport.
+    ///
+    /// Unlike [`Self::commit`], this keeps the frame in the inline viewport.
+    pub fn finish<W>(&mut self, widget: &W) -> io::Result<()>
+    where
+        W: Inline,
+        for<'a> &'a W: Widget,
+    {
+        self.set_viewport_height(widget.height())?;
+        let area = self.inner.get_frame().area();
+        self.inner.draw(|frame| frame.render_widget(widget, area))?;
+
+        // Move to the last viewport row and emit `\n`.
+        let last_row = area.bottom().saturating_sub(1);
+        let mut out = io::stdout();
+        out.queue(MoveTo(0, last_row))?;
+        out.write_all(b"\n")?;
+        out.flush()
     }
 }
 

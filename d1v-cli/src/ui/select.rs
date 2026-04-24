@@ -248,11 +248,11 @@ impl<T> Select<T> {
                     return Ok(option.value);
                 }
                 Some(Outcome::Cancel) => {
-                    term.commit(&self.build_widget(&items, selected, nav_hint_line()));
+                    term.finish(&self.build_widget(&items, selected, nav_hint_line()))?;
                     return Err(Error::Canceled);
                 }
                 Some(Outcome::Interrupt) => {
-                    term.commit(&self.build_widget(&items, selected, ctrl_c_hint_line()));
+                    term.finish(&self.build_widget(&items, selected, ctrl_c_hint_line()))?;
                     return Err(Error::Interrupted);
                 }
                 None => {}
