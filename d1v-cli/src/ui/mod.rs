@@ -89,6 +89,35 @@ impl Terminal {
         })
     }
 
+    /// Renders an inline `widget`, sizing the viewport to its desired height.
+    pub fn render<W>(&mut self, widget: &W) -> io::Result<()>
+    where
+        W: Inline,
+        for<'a> &'a W: Widget,
+    {
+        self.set_viewport_height(widget.height())?;
+        self.inner.draw(|frame| {
+            let area = frame.area();
+            frame.render_widget(widget, area);
+
+            // ratatui's `Terminal::draw` hides the cursor when the closure does
+            // not call `Frame::set_cursor_position`, and shows it otherwise.
+            if let Some(pos) = widget.cursor_position(area) {
+                frame.set_cursor_position(pos);
+            }
+        })?;
+        Ok(())
+    }
+
+    /// Commits a final `widget` above the inline viewport.
+    pub fn commit<W>(&mut self, widget: &W) -> io::Result<()>
+    where
+        W: Inline,
+        for<'a> &'a W: Widget,
+    {
+        self.insert_widget_before(widget.height(), widget)
+    }
+
     /// Draws the prompt line with cursor, optional error above and help below.
     fn draw_prompt(
         &mut self,
@@ -105,16 +134,7 @@ impl Terminal {
         if let Some(msg) = help {
             prompt = prompt.help(msg);
         }
-
-        self.inner.draw(|frame| {
-            let area = frame.area();
-            frame.render_widget(&prompt, area);
-            if let Some(pos) = prompt.cursor_position(area) {
-                frame.set_cursor_position(pos);
-            }
-        })?;
-
-        Ok(())
+        self.render(&prompt)
     }
 
     /// Draws an inline toggle selector.
@@ -150,19 +170,15 @@ impl Terminal {
 
     /// Renders the answered state above the inline viewport and terminates it.
     fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let view = Answered::new(label.as_ref(), display.as_ref());
-
         let _ = self
-            .insert_widget_before(view.height(), &view)
+            .commit(&Answered::new(label.as_ref(), display.as_ref()))
             .inspect_err(|err| debug!("failed to render answered state: {err}"));
     }
 
     /// Renders the canceled prompt state with the label and partial input.
     fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let view = Canceled::new(label.as_ref(), display.as_ref());
-
         let _ = self
-            .insert_widget_before(view.height(), &view)
+            .commit(&Canceled::new(label.as_ref(), display.as_ref()))
             .inspect_err(|err| debug!("failed to render canceled state: {err}"));
     }
 
