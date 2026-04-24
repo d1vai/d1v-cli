@@ -1,7 +1,7 @@
 //! Custom prompt widgets.
 
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use unicode_width::UnicodeWidthStr;
@@ -173,57 +173,70 @@ pub struct SelectItem<'a> {
     pub description: Option<&'a str>,
 }
 
-impl<'a> SelectItem<'a> {
-    pub fn render(
-        &self,
+struct SelectRow<'a> {
+    item: &'a SelectItem<'a>,
+    index: usize,
+    num_width: usize,
+    max_label_w: usize,
+    active: bool,
+}
+
+impl<'a> SelectRow<'a> {
+    const fn new(
+        item: &'a SelectItem<'a>,
         index: usize,
-        active: bool,
         num_width: usize,
         max_label_w: usize,
-    ) -> Line<'a> {
-        let num = format!("{:>width$}", format!("{}.", index + 1), width = num_width);
-
-        if active {
-            self.render_active(num, max_label_w)
-        } else {
-            self.render_inactive(num, max_label_w)
+    ) -> Self {
+        Self {
+            item,
+            index,
+            num_width,
+            max_label_w,
+            active: false,
         }
     }
 
-    fn render_active(&self, num: String, max_label_w: usize) -> Line<'a> {
+    #[must_use]
+    const fn active(mut self, active: bool) -> Self {
+        self.active = active;
+        self
+    }
+}
+
+impl Widget for &SelectRow<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let num = format!(
+            "{:>width$}",
+            format!("{}.", self.index + 1),
+            width = self.num_width
+        );
+
         let mut spans = vec![
-            Span::raw(" "),
-            Span::styled(symbols::SELECT_ARROW, theme::tui::prompt()),
-            Span::raw(" "),
+            if self.active {
+                Span::styled(format!(" {} ", symbols::SELECT_ARROW), theme::tui::prompt())
+            } else {
+                Span::raw("   ")
+            },
             Span::styled(num, theme::tui::dim()),
             Span::raw(" "),
-            Span::styled(self.label, theme::tui::value()),
+            Span::styled(
+                self.item.label,
+                if self.active {
+                    theme::tui::value()
+                } else {
+                    theme::tui::inactive()
+                },
+            ),
         ];
 
-        if let Some(desc) = self.description {
-            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
+        if let Some(desc) = self.item.description {
+            let pad = " ".repeat(self.max_label_w.saturating_sub(self.item.label.width()) + 3);
             spans.push(Span::raw(pad));
             spans.push(Span::styled(desc, theme::tui::dim()));
         }
 
-        Line::from(spans)
-    }
-
-    fn render_inactive(&self, num: String, max_label_w: usize) -> Line<'a> {
-        let mut spans = vec![
-            Span::raw("   "),
-            Span::styled(num, theme::tui::dim()),
-            Span::raw(" "),
-            Span::styled(self.label, theme::tui::inactive()),
-        ];
-
-        if let Some(desc) = self.description {
-            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
-            spans.push(Span::raw(pad));
-            spans.push(Span::styled(desc, theme::tui::dim()));
-        }
-
-        Line::from(spans)
+        Line::from(spans).render(area, buf);
     }
 }
 
@@ -282,31 +295,42 @@ impl Widget for &SelectList<'_> {
             .max()
             .unwrap_or(0);
 
-        let mut lines: Vec<Line> = Vec::with_capacity(self.height() as usize);
+        let desc_rows: u16 = if self.description.is_some() { 2 } else { 0 };
+        let chunks = Layout::vertical([
+            Constraint::Length(1),         // blank
+            Constraint::Length(1),         // header
+            Constraint::Length(desc_rows), // optional [blank, description]
+            Constraint::Length(1),         // blank
+            Constraint::Length(as_u16(n)), // items
+            Constraint::Length(1),         // blank
+            Constraint::Length(1),         // hint
+            Constraint::Length(1),         // blank
+        ])
+        .split(area);
 
-        lines.push(Line::raw(""));
-        lines.push(Line::from(vec![
+        Line::from(vec![
             Span::styled(symbols::SELECT_PREFIX, theme::tui::prompt()),
             Span::styled(self.label, theme::tui::label()),
-        ]));
+        ])
+        .render(chunks[1], buf);
 
         if let Some(desc) = self.description {
-            lines.push(Line::raw(""));
-            lines.push(Line::from(Span::styled(
+            let desc_chunks =
+                Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(chunks[2]);
+            Line::from(Span::styled(
                 format!("   {desc}"),
                 theme::tui::description(),
-            )));
+            ))
+            .render(desc_chunks[1], buf);
         }
 
-        lines.push(Line::raw(""));
-        for (i, item) in self.items.iter().enumerate() {
-            lines.push(item.render(i, i == self.selected, num_width, max_label_w));
+        for (i, (item, row)) in self.items.iter().zip(chunks[4].rows()).enumerate() {
+            SelectRow::new(item, i, num_width, max_label_w)
+                .active(i == self.selected)
+                .render(row, buf);
         }
-        lines.push(Line::raw(""));
-        lines.push(self.hint.clone());
-        lines.push(Line::raw(""));
 
-        Paragraph::new(lines).render(area, buf);
+        self.hint.clone().render(chunks[6], buf);
     }
 }
 
