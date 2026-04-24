@@ -168,6 +168,148 @@ impl Widget for &Toggle<'_> {
     }
 }
 
+pub struct SelectItem<'a> {
+    pub label: &'a str,
+    pub description: Option<&'a str>,
+}
+
+impl<'a> SelectItem<'a> {
+    pub fn render(
+        &self,
+        index: usize,
+        active: bool,
+        num_width: usize,
+        max_label_w: usize,
+    ) -> Line<'a> {
+        let num = format!("{:>width$}", format!("{}.", index + 1), width = num_width);
+
+        if active {
+            self.render_active(num, max_label_w)
+        } else {
+            self.render_inactive(num, max_label_w)
+        }
+    }
+
+    fn render_active(&self, num: String, max_label_w: usize) -> Line<'a> {
+        let mut spans = vec![
+            Span::raw(" "),
+            Span::styled(symbols::SELECT_ARROW, theme::tui::prompt()),
+            Span::raw(" "),
+            Span::styled(num, theme::tui::dim()),
+            Span::raw(" "),
+            Span::styled(self.label, theme::tui::value()),
+        ];
+
+        if let Some(desc) = self.description {
+            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
+            spans.push(Span::raw(pad));
+            spans.push(Span::styled(desc, theme::tui::dim()));
+        }
+
+        Line::from(spans)
+    }
+
+    fn render_inactive(&self, num: String, max_label_w: usize) -> Line<'a> {
+        let mut spans = vec![
+            Span::raw("   "),
+            Span::styled(num, theme::tui::dim()),
+            Span::raw(" "),
+            Span::styled(self.label, theme::tui::inactive()),
+        ];
+
+        if let Some(desc) = self.description {
+            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
+            spans.push(Span::raw(pad));
+            spans.push(Span::styled(desc, theme::tui::dim()));
+        }
+
+        Line::from(spans)
+    }
+}
+
+pub struct SelectList<'a> {
+    label: &'a str,
+    description: Option<&'a str>,
+    items: &'a [SelectItem<'a>],
+    selected: usize,
+    hint: Line<'a>,
+}
+
+impl<'a> SelectList<'a> {
+    pub fn new(label: &'a str, items: &'a [SelectItem<'a>]) -> Self {
+        Self {
+            label,
+            description: None,
+            items,
+            selected: 0,
+            hint: Line::default(),
+        }
+    }
+
+    #[must_use]
+    pub const fn description(mut self, desc: &'a str) -> Self {
+        self.description = Some(desc);
+        self
+    }
+
+    #[must_use]
+    pub const fn selected(mut self, selected: usize) -> Self {
+        self.selected = selected;
+        self
+    }
+
+    #[must_use]
+    pub fn hint(mut self, hint: Line<'a>) -> Self {
+        self.hint = hint;
+        self
+    }
+}
+
+impl Inline for SelectList<'_> {
+    fn height(&self) -> u16 {
+        as_u16(self.items.len()) + 6 + if self.description.is_some() { 2 } else { 0 }
+    }
+}
+
+impl Widget for &SelectList<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let n = self.items.len();
+        let num_width = format!("{n}.").len();
+        let max_label_w: usize = self
+            .items
+            .iter()
+            .map(|i| i.label.width())
+            .max()
+            .unwrap_or(0);
+
+        let mut lines: Vec<Line> = Vec::with_capacity(self.height() as usize);
+
+        lines.push(Line::raw(""));
+        lines.push(Line::from(vec![
+            Span::styled(symbols::SELECT_PREFIX, theme::tui::prompt()),
+            Span::styled(self.label, theme::tui::label()),
+        ]));
+
+        if let Some(desc) = self.description {
+            lines.push(Line::raw(""));
+            lines.push(Line::from(Span::styled(
+                format!("   {desc}"),
+                theme::tui::description(),
+            )));
+        }
+
+        lines.push(Line::raw(""));
+        for (i, item) in self.items.iter().enumerate() {
+            lines.push(item.render(i, i == self.selected, num_width, max_label_w));
+        }
+        lines.push(Line::raw(""));
+        lines.push(self.hint.clone());
+        lines.push(Line::raw(""));
+
+        Paragraph::new(lines).render(area, buf);
+    }
+}
+
 pub struct Pending<'a> {
     label: &'a str,
     display: &'a str,

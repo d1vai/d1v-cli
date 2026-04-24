@@ -12,19 +12,18 @@ pub use password::Password;
 pub use prompt::PendingPrompt;
 pub use select::{Select, SelectOption};
 pub use text::Text;
-pub use widgets::{Answered, Canceled, Inline, Pending, Prompt, Toggle};
+pub use widgets::{Answered, Canceled, Inline, Pending, Prompt, SelectItem, SelectList, Toggle};
 
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::buffer::Buffer;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Widget};
+use ratatui::widgets::Widget;
 use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
 use std::io::{self, Stdout};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
-use crate::symbols;
 use crate::t;
 use crate::theme;
 
@@ -119,60 +118,6 @@ impl Terminal {
             debug!("failed to commit inline widget: {err}");
         }
     }
-
-    pub fn draw_select(
-        &mut self,
-        label: impl AsRef<str>,
-        description: Option<&str>,
-        items: &[SelectItem<'_>],
-        selected: usize,
-        hint: Line<'_>,
-    ) -> io::Result<()> {
-        let label = label.as_ref();
-        let n = as_u16(items.len());
-        self.set_viewport_height(n + 6 + if description.is_some() { 2 } else { 0 })?;
-        self.inner.hide_cursor()?;
-
-        // Width of the widest index string, e.g. "10." for 10 items.
-        let num_width = format!("{n}.").len();
-        // Width of the longest option label for description column alignment.
-        let max_label_w: usize = items.iter().map(|i| i.label.width()).max().unwrap_or(0);
-
-        self.inner.draw(|frame| {
-            let mut lines = Vec::with_capacity((n + 6) as usize);
-
-            lines.push(Line::raw(""));
-
-            lines.push(Line::from(vec![
-                Span::styled(symbols::SELECT_PREFIX, theme::tui::prompt()),
-                Span::styled(label, theme::tui::label()),
-            ]));
-
-            if let Some(desc) = description {
-                lines.push(Line::raw(""));
-                lines.push(Line::from(Span::styled(
-                    format!("   {desc}"),
-                    theme::tui::description(),
-                )));
-            }
-
-            lines.push(Line::raw(""));
-
-            for (i, item) in items.iter().enumerate() {
-                lines.push(item.render(i, i == selected, num_width, max_label_w));
-            }
-
-            lines.push(Line::raw(""));
-
-            lines.push(hint);
-
-            lines.push(Line::raw(""));
-
-            frame.render_widget(Paragraph::new(lines), frame.area());
-        })?;
-
-        Ok(())
-    }
 }
 
 impl Drop for Terminal {
@@ -223,65 +168,6 @@ pub fn ctrl_c_hint_line() -> Line<'static> {
     }
 
     Line::from(spans)
-}
-
-pub struct SelectItem<'a> {
-    pub label: &'a str,
-    pub description: Option<&'a str>,
-}
-
-impl<'a> SelectItem<'a> {
-    pub fn render(
-        &self,
-        index: usize,
-        active: bool,
-        num_width: usize,
-        max_label_w: usize,
-    ) -> Line<'a> {
-        let num = format!("{:>width$}", format!("{}.", index + 1), width = num_width);
-
-        if active {
-            self.render_active(num, max_label_w)
-        } else {
-            self.render_inactive(num, max_label_w)
-        }
-    }
-
-    fn render_active(&self, num: String, max_label_w: usize) -> Line<'a> {
-        let mut spans = vec![
-            Span::raw(" "),
-            Span::styled(symbols::SELECT_ARROW, theme::tui::prompt()),
-            Span::raw(" "),
-            Span::styled(num, theme::tui::dim()),
-            Span::raw(" "),
-            Span::styled(self.label, theme::tui::value()),
-        ];
-
-        if let Some(desc) = self.description {
-            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
-            spans.push(Span::raw(pad));
-            spans.push(Span::styled(desc, theme::tui::dim()));
-        }
-
-        Line::from(spans)
-    }
-
-    fn render_inactive(&self, num: String, max_label_w: usize) -> Line<'a> {
-        let mut spans = vec![
-            Span::raw("   "),
-            Span::styled(num, theme::tui::dim()),
-            Span::raw(" "),
-            Span::styled(self.label, theme::tui::inactive()),
-        ];
-
-        if let Some(desc) = self.description {
-            let pad = " ".repeat(max_label_w.saturating_sub(self.label.width()) + 3);
-            spans.push(Span::raw(pad));
-            spans.push(Span::styled(desc, theme::tui::dim()));
-        }
-
-        Line::from(spans)
-    }
 }
 
 /// Key press classified as a prompt action.

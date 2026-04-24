@@ -1,7 +1,7 @@
 use crossterm::event::{self, KeyCode, KeyModifiers};
 
-use super::widgets::{Answered, Canceled};
-use super::{as_u16, ctrl_c_hint_line, nav_hint_line, SelectItem, Terminal};
+use super::widgets::{Answered, Canceled, SelectItem, SelectList};
+use super::{as_u16, ctrl_c_hint_line, nav_hint_line, Terminal};
 use crate::error::Error;
 
 /// A single choice in a [`Select`] prompt.
@@ -218,13 +218,13 @@ impl<T> Select<T> {
                 })
                 .collect();
 
-            term.draw_select(
-                &self.label,
-                self.description.as_deref(),
-                &items,
-                state.selected,
-                hint,
-            )?;
+            let mut widget = SelectList::new(&self.label, &items)
+                .selected(state.selected)
+                .hint(hint);
+            if let Some(desc) = self.description.as_deref() {
+                widget = widget.description(desc);
+            }
+            term.render(&widget)?;
 
             let Some(action) = SelectAction::read(n)? else {
                 continue;
