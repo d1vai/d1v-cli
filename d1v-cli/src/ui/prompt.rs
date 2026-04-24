@@ -4,6 +4,7 @@ use crossterm::terminal;
 use rattles::presets::braille::Dots;
 use rattles::TickedRattler;
 
+use super::widgets::{Answered, Canceled};
 use super::Terminal;
 use crate::error::Error;
 
@@ -35,13 +36,13 @@ impl PendingPrompt {
 
     /// Marks the prompt as answered and returns the collected value.
     pub fn commit(mut self) -> String {
-        self.term.show_answered(&self.label, &self.display);
+        self.term.commit(&Answered::new(&self.label, &self.display));
         self.value
     }
 
     /// Marks the prompt as canceled and discards the value.
     pub fn dismiss(mut self) {
-        self.term.show_canceled(&self.label, &self.display);
+        self.term.commit(&Canceled::new(&self.label, &self.display));
     }
 
     /// Like [`spin`](Self::spin), but commits on `Ok` and dismisses on `Err`.

@@ -1,5 +1,6 @@
 use super::input::InputState;
 use super::prompt::PendingPrompt;
+use super::widgets::{Canceled, Prompt};
 use super::{Action, Terminal, Validator};
 use crate::error::Error;
 
@@ -38,22 +39,17 @@ impl Text {
         let mut term = Terminal::new(1)?;
 
         loop {
-            let height = if error.is_some() { 2 } else { 1 };
-            term.set_viewport_height(height)?;
-
             loop {
-                term.draw_prompt(
-                    &self.label,
-                    input.text(),
-                    input.cursor_col(),
-                    error.as_deref(),
-                    None,
-                )?;
+                let mut prompt = Prompt::new(&self.label, input.text(), input.cursor_col());
+                if let Some(msg) = error.as_deref() {
+                    prompt = prompt.error(msg);
+                }
+                term.render(&prompt)?;
 
                 match Action::read()? {
                     Some(Action::Submit) => break,
                     Some(Action::Cancel) => {
-                        term.show_canceled(&self.label, input.text());
+                        term.commit(&Canceled::new(&self.label, input.text()));
                         return Err(Error::Canceled);
                     }
                     Some(Action::Input(key)) => input.handle_key(&key),

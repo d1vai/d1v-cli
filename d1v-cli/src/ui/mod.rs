@@ -110,31 +110,14 @@ impl Terminal {
     }
 
     /// Commits a final `widget` above the inline viewport.
-    pub fn commit<W>(&mut self, widget: &W) -> io::Result<()>
+    pub fn commit<W>(&mut self, widget: &W)
     where
         W: Inline,
         for<'a> &'a W: Widget,
     {
-        self.insert_widget_before(widget.height(), widget)
-    }
-
-    /// Draws the prompt line with cursor, optional error above and help below.
-    fn draw_prompt(
-        &mut self,
-        label: impl AsRef<str>,
-        input_text: impl AsRef<str>,
-        cursor_col: usize,
-        error: Option<&str>,
-        help: Option<&str>,
-    ) -> io::Result<()> {
-        let mut prompt = Prompt::new(label.as_ref(), input_text.as_ref(), cursor_col);
-        if let Some(msg) = error {
-            prompt = prompt.error(msg);
+        if let Err(err) = self.insert_widget_before(widget.height(), widget) {
+            debug!("failed to commit inline widget: {err}");
         }
-        if let Some(msg) = help {
-            prompt = prompt.help(msg);
-        }
-        self.render(&prompt)
     }
 
     /// Draws an inline toggle selector.
@@ -166,20 +149,6 @@ impl Terminal {
         })?;
 
         Ok(())
-    }
-
-    /// Renders the answered state above the inline viewport and terminates it.
-    fn show_answered(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let _ = self
-            .commit(&Answered::new(label.as_ref(), display.as_ref()))
-            .inspect_err(|err| debug!("failed to render answered state: {err}"));
-    }
-
-    /// Renders the canceled prompt state with the label and partial input.
-    fn show_canceled(&mut self, label: impl AsRef<str>, display: impl AsRef<str>) {
-        let _ = self
-            .commit(&Canceled::new(label.as_ref(), display.as_ref()))
-            .inspect_err(|err| debug!("failed to render canceled state: {err}"));
     }
 
     /// Draws the spinner state on the viewport without committing.

@@ -1,5 +1,6 @@
 use crossterm::event::{self, KeyCode, KeyModifiers};
 
+use super::widgets::{Answered, Canceled};
 use super::{as_u16, ctrl_c_hint_line, nav_hint_line, SelectItem, Terminal};
 use crate::error::Error;
 
@@ -232,11 +233,11 @@ impl<T> Select<T> {
             match state.handle(action, n) {
                 Some(Outcome::Submit) => {
                     let option = self.options.remove(state.selected);
-                    term.show_answered(&self.label, &display[state.selected].0);
+                    term.commit(&Answered::new(&self.label, &display[state.selected].0));
                     return Ok(option.value);
                 }
                 Some(Outcome::Cancel) => {
-                    term.show_canceled(&self.label, &display[state.selected].0);
+                    term.commit(&Canceled::new(&self.label, &display[state.selected].0));
                     return Err(Error::Canceled);
                 }
                 Some(Outcome::Interrupt) => return Err(Error::Interrupted),

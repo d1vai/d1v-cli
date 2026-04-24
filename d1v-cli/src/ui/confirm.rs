@@ -1,3 +1,4 @@
+use super::widgets::{Answered, Canceled};
 use super::{Action, Terminal};
 use crate::error::Error;
 use crate::t;
@@ -37,11 +38,11 @@ impl Confirm {
 
             match Action::read()? {
                 Some(Action::Submit) => {
-                    term.show_answered(&self.label, &options[idx]);
+                    term.commit(&Answered::new(&self.label, &options[idx]));
                     return Ok(selected);
                 }
                 Some(Action::Cancel) => {
-                    term.show_canceled(&self.label, &options[idx]);
+                    term.commit(&Canceled::new(&self.label, &options[idx]));
                     return Err(Error::Canceled);
                 }
                 Some(Action::Input(key)) => match key.code {

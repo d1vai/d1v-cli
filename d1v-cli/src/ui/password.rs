@@ -2,6 +2,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::iter;
 
 use super::input::InputState;
+use super::widgets::{Answered, Canceled, Prompt};
 use super::{Action, Terminal, Validator};
 use crate::error::Error;
 use crate::t;
@@ -66,19 +67,22 @@ fn read_password(
     let mut term = Terminal::new(if error.is_some() { 2 } else { 1 })?;
 
     loop {
-        let height = if error.is_some() { 2 } else { 1 };
-        term.set_viewport_height(height)?;
         let mut input = InputState::new();
 
         loop {
             let masked = input.masked(MASK);
             let col = input.masked_cursor_col(MASK);
-            term.draw_prompt(label, &masked, col, error.as_deref(), None)?;
+
+            let mut prompt = Prompt::new(label, &masked, col);
+            if let Some(msg) = error.as_deref() {
+                prompt = prompt.error(msg);
+            }
+            term.render(&prompt)?;
 
             match Action::read()? {
                 Some(Action::Submit) => break,
                 Some(Action::Cancel) => {
-                    term.show_canceled(label, masked);
+                    term.commit(&Canceled::new(label, &masked));
                     return Err(Error::Canceled);
                 }
                 Some(Action::Input(key)) => input.handle_key(&key),
@@ -95,7 +99,7 @@ fn read_password(
 
         let count = input.grapheme_count();
         let answered = iter::repeat_n(MASK, count).collect::<String>();
-        term.show_answered(label, &answered);
+        term.commit(&Answered::new(label, &answered));
 
         return Ok(SecretString::from(String::from(input)));
     }
