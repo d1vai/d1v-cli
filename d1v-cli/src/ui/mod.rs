@@ -121,7 +121,7 @@ impl Terminal {
         }
     }
 
-    /// Renders a final `widget` and parks the cursor below the viewport.
+    /// Renders a final `widget` and parks the cursor on its bottom row.
     ///
     /// Unlike [`Self::commit`], this keeps the frame in the inline viewport.
     pub fn finish<W>(&mut self, widget: &W) -> io::Result<()>
@@ -133,12 +133,9 @@ impl Terminal {
         let area = self.inner.get_frame().area();
         self.inner.draw(|frame| frame.render_widget(widget, area))?;
 
-        // Move to the last viewport row and emit `\n`.
-        let last_row = area.bottom().saturating_sub(1);
         let mut out = io::stdout();
-        out.queue(MoveTo(0, last_row))?;
-        out.write_all(b"\n")?;
-        out.flush()
+        out.queue(MoveTo(0, area.bottom().saturating_sub(1)))?
+            .flush()
     }
 }
 
