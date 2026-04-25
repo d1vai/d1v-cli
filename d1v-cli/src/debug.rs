@@ -1,6 +1,6 @@
+use crate::theme::ansi::{Stream, Stylize};
 use d1v_api::jwt::Claims;
 use d1v_api::UserAgent;
-use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter, Write};
@@ -45,8 +45,8 @@ impl Display for DebugInfo {
                 f,
                 "{}{}",
                 pad_label(t!(key), 13)
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-                value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
+                value.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
             )?;
         }
 
@@ -78,13 +78,13 @@ fn write_claims(mut status: impl Write, claims: &Claims) -> fmt::Result {
 fn token_status(ctx: &Context) -> String {
     let Some(source) = ctx.tokens.source() else {
         return symbols::ERROR
-            .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error()))
+            .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error()))
             .to_string();
     };
 
     let mut status = format!(
         "{} ({})",
-        symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::success())),
+        symbols::SUCCESS.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::success())),
         t!("debug-token-found", source = source)
     );
 

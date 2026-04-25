@@ -1,9 +1,9 @@
 use std::fmt::Write;
 use std::sync::LazyLock;
 
+use crate::theme::ansi::{Stream, Stylize};
 use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
 use itertools::Itertools;
-use owo_colors::{OwoColorize, Stream};
 
 static GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()

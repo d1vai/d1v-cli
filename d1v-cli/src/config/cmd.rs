@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
+use crate::theme::ansi::{Stream, Stylize};
 use clap::ValueEnum;
-use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use tracing::debug;
 
@@ -126,8 +126,8 @@ impl Display for ConfigInfo {
                 f,
                 "{}{}",
                 pad_label(key, LABEL_WIDTH)
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-                value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
+                value.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
             )?;
         }
 

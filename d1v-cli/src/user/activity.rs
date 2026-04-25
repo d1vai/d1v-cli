@@ -1,6 +1,6 @@
+use crate::theme::ansi::{Stream, Stylize};
 use colorgrad::{Gradient, GradientBuilder, LinearGradient};
 use d1v_api::PromptDailyActivity;
-use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -33,9 +33,9 @@ impl Display for ActivityDisplay<'_> {
             f,
             "{}{}",
             pad_label(t!("activity-label-period"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
             format!("{} ~ {}", activity.start_date, activity.end_date)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
         )?;
         write_row(f, "activity-label-days", &activity.days.to_string())?;
 
@@ -77,12 +77,12 @@ impl Display for ActivityDisplay<'_> {
                 "\n  {} {}{} {}",
                 entry
                     .date
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::dim())),
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::dim())),
                 filled_bar,
                 empty_bar,
                 entry
                     .count
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
             )?;
         }
 

@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 use std::io::{self, IsTerminal, Write};
 
+use anstyle::Style;
 use clap::ValueEnum;
-use owo_colors::{OwoColorize, Style};
 use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::json;
@@ -12,6 +12,7 @@ use crate::error::Result;
 use crate::symbols;
 use crate::t;
 use crate::theme;
+use crate::theme::ansi::Stylize;
 
 /// Output format.
 #[derive(Debug, Copy, Clone, Default, ValueEnum)]
@@ -107,7 +108,7 @@ impl Output {
 
     fn success_style(&self) -> Style {
         if self.color {
-            theme::owo::success()
+            theme::ansi::success()
         } else {
             Style::new()
         }
@@ -115,7 +116,7 @@ impl Output {
 
     fn error_style(&self) -> Style {
         if self.color {
-            theme::owo::error()
+            theme::ansi::error()
         } else {
             Style::new()
         }
@@ -123,7 +124,7 @@ impl Output {
 
     fn info_style(&self) -> Style {
         if self.color {
-            theme::owo::info()
+            theme::ansi::info()
         } else {
             Style::new()
         }
@@ -131,7 +132,7 @@ impl Output {
 
     fn hint_style(&self) -> Style {
         if self.color {
-            theme::owo::hint()
+            theme::ansi::hint()
         } else {
             Style::new()
         }

@@ -1,6 +1,6 @@
+use crate::theme::ansi::{Stream, Stylize};
 use colorgrad::{GradientBuilder, LinearGradient};
 use d1v_api::{UpdateUser, User};
-use owo_colors::{OwoColorize, Stream};
 use serde::Serialize;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -25,7 +25,7 @@ impl Display for UserListItem<'_> {
             "{}",
             self.0
                 .id
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::dim()))
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::dim()))
         )?;
 
         if !self.0.slug.is_empty() {
@@ -34,7 +34,7 @@ impl Display for UserListItem<'_> {
                 " {}",
                 self.0
                     .slug
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label()))
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label()))
             )?;
         }
 
@@ -45,7 +45,7 @@ impl Display for UserListItem<'_> {
                 f,
                 " {}",
                 format!("<{email}>")
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value()))
+                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value()))
             )?;
         }
 
@@ -81,13 +81,13 @@ fn format_roles(user: &User) -> String {
     let mut roles: Vec<String> = Vec::new();
 
     if user.is_super_admin {
-        roles.push(theme::owo::gradient("super-admin", &*SUPER_ADMIN_GRADIENT));
+        roles.push(theme::ansi::gradient("super-admin", &*SUPER_ADMIN_GRADIENT));
     }
 
     if user.is_admin {
         roles.push(
             "admin"
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::error()))
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error()))
                 .to_string(),
         );
     }
@@ -95,7 +95,7 @@ fn format_roles(user: &User) -> String {
     if user.is_agent {
         roles.push(
             "agent"
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::warning()))
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::warning()))
                 .to_string(),
         );
     }
@@ -115,9 +115,9 @@ impl Display for UserDetail<'_> {
             f,
             "{}{}",
             pad_label(t!("user-label-id"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
             user.id
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
         )?;
 
         if !user.slug.is_empty() {
@@ -134,7 +134,7 @@ impl Display for UserDetail<'_> {
             f,
             "\n{}{}",
             pad_label(t!("user-label-roles"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
+                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
             format_roles(user),
         )?;
 

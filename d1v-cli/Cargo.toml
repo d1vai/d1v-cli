@@ -13,6 +13,7 @@ mock = ["d1v-api/mock"]
 
 [dependencies]
 d1v-api = { path = "../d1v-api" }
+anstyle = "1.0"
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive", "env"] }
 colorgrad = { version = "0.8", features = ["preset", "named-colors"] }
@@ -38,7 +39,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 unic-langid = { version = "0.9", features = ["macros"] }
-owo-colors = { version = "4.3", features = ["supports-colors"] }
 open = "5.3"
 strum = { version = "0.28", features = ["derive"] }
 normpath = "1.5"

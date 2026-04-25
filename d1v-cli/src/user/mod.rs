@@ -7,8 +7,8 @@ mod password;
 use std::fmt::{self, Formatter};
 use std::io::{stdin, IsTerminal};
 
+use crate::theme::ansi::{Stream, Stylize};
 use clap::{Args, Subcommand};
-use owo_colors::{OwoColorize, Stream};
 use tracing::debug;
 
 use crate::error::Result;
@@ -23,8 +23,8 @@ fn write_row(f: &mut Formatter<'_>, label: &str, value: &str) -> fmt::Result {
         f,
         "\n{}{}",
         pad_label(t!(label), LABEL_WIDTH)
-            .if_supports_color(Stream::Stdout, |s| s.style(theme::owo::label())),
-        value.if_supports_color(Stream::Stdout, |s| s.style(theme::owo::value())),
+            .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
+        value.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
     )
 }
 
