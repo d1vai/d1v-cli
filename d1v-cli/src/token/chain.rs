@@ -1,212 +1,10 @@
-use std::sync::LazyLock;
-
-use secrecy::{ExposeSecret, SecretString};
-use thiserror::Error;
+use secrecy::SecretString;
 use tracing::{debug, warn};
 
-use crate::config::{Config, ConfigError};
-
-type Result<T = (), E = TokenError> = std::result::Result<T, E>;
-
-#[derive(Debug, Error)]
-pub enum TokenError {
-    #[error("keyring is not available")]
-    KeyringUnavailable,
-
-    #[error("failed to save to keyring")]
-    KeyringSave(#[source] keyring_core::Error),
-
-    #[error("no writable token store available")]
-    NoStore,
-
-    #[error(transparent)]
-    Config(#[from] ConfigError),
-}
-
-/// A source that provides authentication tokens.
-pub trait TokenLoader {
-    fn name(&self) -> &'static str;
-    fn load(&self) -> Result<Option<SecretString>>;
-}
-
-/// Persistent storage for authentication tokens.
-pub trait TokenStore {
-    fn name(&self) -> &'static str;
-    fn save(&self, token: &SecretString) -> Result;
-    fn delete(&self) -> Result;
-}
-
-/// Reads token from an environment variable.
-pub struct EnvProvider {
-    var_name: &'static str,
-}
-
-impl EnvProvider {
-    pub fn new(var_name: &'static str) -> Self {
-        Self { var_name }
-    }
-}
-
-impl TokenLoader for EnvProvider {
-    fn name(&self) -> &'static str {
-        self.var_name
-    }
-
-    fn load(&self) -> Result<Option<SecretString>> {
-        match std::env::var(self.var_name) {
-            Ok(v) if !v.is_empty() => Ok(Some(SecretString::from(v))),
-            _ => Ok(None),
-        }
-    }
-}
-
-/// Stores token in the OS keychain.
-pub struct KeyringProvider {
-    service: &'static str,
-    user: &'static str,
-}
-
-impl KeyringProvider {
-    pub fn new(service: &'static str, user: &'static str) -> Self {
-        Self { service, user }
-    }
-
-    fn entry(&self) -> Result<keyring_core::Entry> {
-        ensure_keyring_store()?;
-        keyring_core::Entry::new(self.service, self.user).map_err(|err| {
-            debug!(error = %err, "failed to create keyring entry");
-            TokenError::KeyringUnavailable
-        })
-    }
-}
-
-impl TokenLoader for KeyringProvider {
-    fn name(&self) -> &'static str {
-        "keyring"
-    }
-
-    fn load(&self) -> Result<Option<SecretString>> {
-        let Ok(entry) = self.entry() else {
-            return Ok(None);
-        };
-
-        match entry.get_password() {
-            Ok(password) => Ok(Some(SecretString::from(password))),
-            Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(err) => {
-                debug!(error = %err, "failed to load keyring credential");
-                Ok(None)
-            }
-        }
-    }
-}
-
-impl TokenStore for KeyringProvider {
-    fn name(&self) -> &'static str {
-        "keyring"
-    }
-
-    fn save(&self, token: &SecretString) -> Result {
-        let entry = self.entry()?;
-        entry
-            .set_password(token.expose_secret())
-            .map_err(TokenError::KeyringSave)
-    }
-
-    fn delete(&self) -> Result {
-        let Ok(entry) = self.entry() else {
-            return Ok(());
-        };
-
-        match entry.delete_credential() {
-            Ok(()) => {}
-            Err(keyring_core::Error::NoEntry) => {
-                debug!("no keyring credential to delete");
-            }
-            Err(err) => {
-                warn!(error = %err, "failed to delete keyring credential");
-            }
-        }
-
-        Ok(())
-    }
-}
-
-static KEYRING_STORE_AVAILABLE: LazyLock<bool> = LazyLock::new(|| {
-    install_keyring_store()
-        .inspect_err(|err| debug!(error = %err, "keyring store is not available"))
-        .is_ok()
-});
-
-fn ensure_keyring_store() -> Result {
-    (*KEYRING_STORE_AVAILABLE)
-        .then_some(())
-        .ok_or(TokenError::KeyringUnavailable)
-}
-
-fn install_keyring_store() -> std::result::Result<(), keyring_core::Error> {
-    #[cfg(target_os = "linux")]
-    {
-        keyring_core::set_default_store(zbus_secret_service_keyring_store::Store::new()?);
-        Ok(())
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        keyring_core::set_default_store(apple_native_keyring_store::keychain::Store::new()?);
-        Ok(())
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        keyring_core::set_default_store(windows_native_keyring_store::Store::new()?);
-        Ok(())
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        Err(keyring_core::Error::NotSupportedByStore(
-            "no keyring store configured for this platform".to_string(),
-        ))
-    }
-}
-
-/// Stores token in `~/.d1v/config.toml`.
-pub struct ConfigProvider;
-
-impl TokenLoader for ConfigProvider {
-    fn name(&self) -> &'static str {
-        "config"
-    }
-
-    fn load(&self) -> Result<Option<SecretString>> {
-        let config = Config::load()?;
-
-        Ok(config.token)
-    }
-}
-
-impl TokenStore for ConfigProvider {
-    fn name(&self) -> &'static str {
-        "config"
-    }
-
-    fn save(&self, token: &SecretString) -> Result {
-        let mut config = Config::load()?;
-        config.token = Some(token.clone());
-        config.save().map_err(TokenError::Config)
-    }
-
-    fn delete(&self) -> Result {
-        let mut config = Config::load()?;
-        if config.token.is_some() {
-            config.token = None;
-            config.save()?;
-        }
-
-        Ok(())
-    }
-}
+use super::config::ConfigProvider;
+use super::env::EnvProvider;
+use super::keyring::KeyringProvider;
+use super::{Result, TokenError, TokenLoader, TokenStore, KEYRING_SERVICE, KEYRING_USER};
 
 /// Chains multiple providers in priority order.
 ///
@@ -289,9 +87,6 @@ impl TokenStore for TokenChain {
     }
 }
 
-const KEYRING_SERVICE: &str = "d1v-cli";
-const KEYRING_USER: &str = "token";
-
 impl Default for TokenChain {
     fn default() -> Self {
         Self::new(
@@ -311,6 +106,7 @@ impl Default for TokenChain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use secrecy::ExposeSecret;
     use std::cell::RefCell;
     use std::rc::Rc;
 
