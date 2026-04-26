@@ -1,14 +1,12 @@
-use std::fmt;
-use std::fmt::{Display, Formatter};
 use std::io::{stdin, IsTerminal};
 
-use crate::theme::ansi::{Stream, Stylize};
 use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
 
 use crate::error::Result;
-use crate::output::{format_duration, pad_label};
+use crate::output::format_duration;
+use crate::text::{Field, Fields, Line, Render, RenderContext, Span, Text};
 use crate::token::{TokenLoader, TokenStore};
 use crate::ui::{Password, Select, SelectOption};
 use crate::{i18n, prompt, symbols, t, theme, Context};
@@ -161,66 +159,61 @@ struct AuthStatus {
     expired: Option<bool>,
 }
 
-impl Display for AuthStatus {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if !self.logged_in {
-            return write!(
-                f,
-                "{} {}",
-                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error())),
-                t!("auth-status-not-logged-in")
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error())),
-            );
-        }
+struct AuthStatusView<'a> {
+    status: &'a AuthStatus,
+}
 
-        if self.expired == Some(true) {
-            write!(
-                f,
-                "{} {}",
-                symbols::ERROR.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error())),
-                t!("auth-status-expired")
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error())),
-            )?;
+impl Render for AuthStatusView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        let auth_status = self.status;
+        let (symbol, title, style) = if !auth_status.logged_in {
+            (
+                symbols::ERROR,
+                t!("auth-status-not-logged-in"),
+                theme::ansi::error(),
+            )
+        } else if auth_status.expired == Some(true) {
+            (
+                symbols::ERROR,
+                t!("auth-status-expired"),
+                theme::ansi::error(),
+            )
         } else {
-            write!(
-                f,
-                "{} {}",
-                symbols::SUCCESS
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::success())),
-                t!("auth-status-logged-in")
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::success())),
-            )?;
+            (
+                symbols::SUCCESS,
+                t!("auth-status-logged-in"),
+                theme::ansi::success(),
+            )
+        };
+
+        let line = Line::styled(symbol, style)
+            .push_plain(" ")
+            .push_styled(title, style);
+
+        let line = if let Some(source) = &auth_status.source {
+            line.push_plain(" ")
+                .push_styled(format!("({source})"), theme::ansi::dim())
+        } else {
+            line
+        };
+
+        let mut fields = Vec::new();
+        if let Some(subject) = &auth_status.subject {
+            fields.push(Field::new(
+                Span::styled(t!("auth-status-label-user"), theme::ansi::label()),
+                Span::styled(subject.clone(), theme::ansi::value()),
+            ));
         }
 
-        if let Some(source) = &self.source {
-            let s = format!("({source})");
-            write!(
-                f,
-                " {}",
-                s.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::dim()))
-            )?;
+        if let Some(secs) = auth_status.expires_in {
+            fields.push(Field::new(
+                Span::styled(t!("auth-status-label-expires"), theme::ansi::label()),
+                Span::styled(format_duration(secs), theme::ansi::value()),
+            ));
         }
 
-        if let Some(subject) = &self.subject {
-            write!(
-                f,
-                "\n  {}{}",
-                pad_label(t!("auth-status-label-user"), 12),
-                subject.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
-            )?;
-        }
-
-        if let Some(secs) = self.expires_in {
-            write!(
-                f,
-                "\n  {}{}",
-                pad_label(t!("auth-status-label-expires"), 12),
-                format_duration(secs)
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
-            )?;
-        }
-
-        Ok(())
+        Text::new().line(line).render(ctx)?;
+        Fields::new(fields).indent(2).render(ctx)
     }
 }
 
@@ -236,21 +229,30 @@ pub fn status(ctx: &Context) -> Result<()> {
         (None, None, None)
     };
 
-    ctx.print(&AuthStatus {
+    let status = AuthStatus {
         logged_in,
         source,
         subject,
         expires_in,
         expired,
-    })
+    };
+
+    ctx.present(AuthStatusView { status: &status }, &status)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn render(status: &AuthStatus) -> String {
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf, false);
+        AuthStatusView { status }.render(&mut ctx).unwrap();
+        String::from_utf8(buf).unwrap()
+    }
+
     #[test]
-    fn status_display_logged_in() {
+    fn status_text_logged_in() {
         let status = AuthStatus {
             logged_in: true,
             source: Some("keyring".into()),
@@ -260,17 +262,17 @@ mod tests {
         };
 
         assert_eq!(
-            status.to_string(),
+            render(&status),
             concat!(
                 "✓ Logged in (keyring)\n",
-                "  user:       user@example.com\n",
-                "  expires in: 2h 30m",
+                "  user        user@example.com\n",
+                "  expires in  2h 30m\n",
             )
         );
     }
 
     #[test]
-    fn status_display_expired() {
+    fn status_text_expired() {
         let status = AuthStatus {
             logged_in: true,
             source: Some("config".into()),
@@ -280,13 +282,13 @@ mod tests {
         };
 
         assert_eq!(
-            status.to_string(),
-            concat!("✗ Token expired (config)\n", "  user:       admin",)
+            render(&status),
+            concat!("✗ Token expired (config)\n", "  user  admin\n",)
         );
     }
 
     #[test]
-    fn status_display_not_logged_in() {
+    fn status_text_not_logged_in() {
         let status = AuthStatus {
             logged_in: false,
             source: None,
@@ -295,7 +297,7 @@ mod tests {
             expired: Some(false),
         };
 
-        assert_eq!(status.to_string(), "✗ Not logged in");
+        assert_eq!(render(&status), "✗ Not logged in\n");
     }
 
     #[test]
