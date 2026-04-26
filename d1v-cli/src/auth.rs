@@ -1,5 +1,6 @@
 use std::io::{stdin, IsTerminal};
 
+use anstyle::Style;
 use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
@@ -147,50 +148,85 @@ pub async fn prompt_relogin(ctx: &Context) -> Result<bool> {
 }
 
 #[derive(Debug, Serialize)]
-struct AuthStatus {
-    logged_in: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    subject: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    expires_in: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    expired: Option<bool>,
+#[serde(tag = "status", rename_all = "snake_case")]
+enum AuthStatus {
+    NotLoggedIn,
+    LoggedIn {
+        source: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subject: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        expires_in: Option<i64>,
+    },
+    Expired {
+        source: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        subject: Option<String>,
+    },
 }
 
 struct AuthStatusView<'a> {
     status: &'a AuthStatus,
 }
 
+impl AuthStatusView<'_> {
+    fn symbol(&self) -> &'static str {
+        match self.status {
+            AuthStatus::LoggedIn { .. } => symbols::SUCCESS,
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => symbols::ERROR,
+        }
+    }
+
+    fn title(&self) -> String {
+        match self.status {
+            AuthStatus::NotLoggedIn => t!("auth-status-not-logged-in"),
+            AuthStatus::Expired { .. } => t!("auth-status-expired"),
+            AuthStatus::LoggedIn { .. } => t!("auth-status-logged-in"),
+        }
+    }
+
+    fn style(&self) -> Style {
+        match self.status {
+            AuthStatus::LoggedIn { .. } => theme::ansi::success(),
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => theme::ansi::error(),
+        }
+    }
+
+    fn source(&self) -> Option<&str> {
+        match self.status {
+            AuthStatus::NotLoggedIn => None,
+            AuthStatus::LoggedIn { source, .. } | AuthStatus::Expired { source, .. } => {
+                Some(source)
+            }
+        }
+    }
+
+    fn subject(&self) -> Option<&str> {
+        match self.status {
+            AuthStatus::NotLoggedIn => None,
+            AuthStatus::LoggedIn { subject, .. } | AuthStatus::Expired { subject, .. } => {
+                subject.as_deref()
+            }
+        }
+    }
+
+    fn expires_in(&self) -> Option<i64> {
+        match self.status {
+            AuthStatus::LoggedIn { expires_in, .. } => *expires_in,
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => None,
+        }
+    }
+}
+
 impl Render for AuthStatusView<'_> {
     fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
-        let auth_status = self.status;
-        let (symbol, title, style) = if !auth_status.logged_in {
-            (
-                symbols::ERROR,
-                t!("auth-status-not-logged-in"),
-                theme::ansi::error(),
-            )
-        } else if auth_status.expired == Some(true) {
-            (
-                symbols::ERROR,
-                t!("auth-status-expired"),
-                theme::ansi::error(),
-            )
-        } else {
-            (
-                symbols::SUCCESS,
-                t!("auth-status-logged-in"),
-                theme::ansi::success(),
-            )
-        };
+        let style = self.style();
 
-        let line = Line::styled(symbol, style)
+        let line = Line::styled(self.symbol(), style)
             .push_plain(" ")
-            .push_styled(title, style);
+            .push_styled(self.title(), style);
 
-        let line = if let Some(source) = &auth_status.source {
+        let line = if let Some(source) = self.source() {
             line.push_plain(" ")
                 .push_styled(format!("({source})"), theme::ansi::dim())
         } else {
@@ -198,14 +234,14 @@ impl Render for AuthStatusView<'_> {
         };
 
         let mut fields = Vec::new();
-        if let Some(subject) = &auth_status.subject {
+        if let Some(subject) = self.subject() {
             fields.push(Field::new(
                 Span::styled(t!("auth-status-label-user"), theme::ansi::label()),
-                Span::styled(subject.clone(), theme::ansi::value()),
+                Span::styled(subject.to_owned(), theme::ansi::value()),
             ));
         }
 
-        if let Some(secs) = auth_status.expires_in {
+        if let Some(secs) = self.expires_in() {
             fields.push(Field::new(
                 Span::styled(t!("auth-status-label-expires"), theme::ansi::label()),
                 Span::styled(format_duration(secs), theme::ansi::value()),
@@ -218,23 +254,28 @@ impl Render for AuthStatusView<'_> {
 }
 
 pub fn status(ctx: &Context) -> Result<()> {
-    let source = ctx.tokens.source().map(String::from);
-    let logged_in = source.is_some();
+    let status = match ctx.tokens.source().map(String::from) {
+        None => AuthStatus::NotLoggedIn,
+        Some(source) if let Some(claims) = ctx.client.claims() => {
+            let expired = claims.is_expired();
+            let expires_in = claims.expires_in().map(|d| d.as_secs());
+            let subject = claims.subject;
 
-    let (subject, expires_in, expired) = if logged_in && let Some(claims) = ctx.client.claims() {
-        let expires_in = claims.expires_in().map(|d| d.as_secs());
-        let expired = claims.is_expired();
-        (claims.subject, expires_in, Some(expired))
-    } else {
-        (None, None, None)
-    };
-
-    let status = AuthStatus {
-        logged_in,
-        source,
-        subject,
-        expires_in,
-        expired,
+            if expired {
+                AuthStatus::Expired { source, subject }
+            } else {
+                AuthStatus::LoggedIn {
+                    source,
+                    subject,
+                    expires_in,
+                }
+            }
+        }
+        Some(source) => AuthStatus::LoggedIn {
+            source,
+            subject: None,
+            expires_in: None,
+        },
     };
 
     ctx.present(AuthStatusView { status: &status }, &status)
@@ -253,12 +294,10 @@ mod tests {
 
     #[test]
     fn status_text_logged_in() {
-        let status = AuthStatus {
-            logged_in: true,
-            source: Some("keyring".into()),
+        let status = AuthStatus::LoggedIn {
+            source: "keyring".into(),
             subject: Some("user@example.com".into()),
             expires_in: Some(9000),
-            expired: Some(false),
         };
 
         assert_eq!(
@@ -273,12 +312,9 @@ mod tests {
 
     #[test]
     fn status_text_expired() {
-        let status = AuthStatus {
-            logged_in: true,
-            source: Some("config".into()),
+        let status = AuthStatus::Expired {
+            source: "config".into(),
             subject: Some("admin".into()),
-            expires_in: None,
-            expired: Some(true),
         };
 
         assert_eq!(
@@ -289,50 +325,48 @@ mod tests {
 
     #[test]
     fn status_text_not_logged_in() {
-        let status = AuthStatus {
-            logged_in: false,
-            source: None,
-            subject: None,
-            expires_in: None,
-            expired: Some(false),
-        };
+        let status = AuthStatus::NotLoggedIn;
 
         assert_eq!(render(&status), "✗ Not logged in\n");
     }
 
     #[test]
     fn status_json_logged_in() {
-        let status = AuthStatus {
-            logged_in: true,
-            source: Some("keyring".into()),
+        let status = AuthStatus::LoggedIn {
+            source: "keyring".into(),
             subject: Some("user@example.com".into()),
             expires_in: Some(9000),
-            expired: Some(false),
         };
 
         let json: serde_json::Value = serde_json::to_value(&status).unwrap();
-        assert_eq!(json["logged_in"], true);
+        assert_eq!(json["status"], "logged_in");
         assert_eq!(json["source"], "keyring");
         assert_eq!(json["subject"], "user@example.com");
         assert_eq!(json["expires_in"], 9000);
-        assert_eq!(json["expired"], false);
+    }
+
+    #[test]
+    fn status_json_expired() {
+        let status = AuthStatus::Expired {
+            source: "config".into(),
+            subject: Some("admin".into()),
+        };
+
+        let json: serde_json::Value = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["status"], "expired");
+        assert_eq!(json["source"], "config");
+        assert_eq!(json["subject"], "admin");
+        assert!(json.get("expires_in").is_none());
     }
 
     #[test]
     fn status_json_not_logged_in() {
-        let status = AuthStatus {
-            logged_in: false,
-            source: None,
-            subject: None,
-            expires_in: None,
-            expired: None,
-        };
+        let status = AuthStatus::NotLoggedIn;
 
         let json: serde_json::Value = serde_json::to_value(&status).unwrap();
-        assert_eq!(json["logged_in"], false);
+        assert_eq!(json["status"], "not_logged_in");
         assert!(json.get("source").is_none());
         assert!(json.get("subject").is_none());
         assert!(json.get("expires_in").is_none());
-        assert!(json.get("expired").is_none());
     }
 }
