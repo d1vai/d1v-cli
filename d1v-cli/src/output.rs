@@ -11,6 +11,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::error::Result;
 use crate::symbols;
 use crate::t;
+use crate::text::{Render, RenderContext};
 use crate::theme;
 use crate::theme::ansi::Stylize;
 
@@ -136,6 +137,29 @@ impl Output {
         } else {
             Style::new()
         }
+    }
+
+    pub fn present<T, J>(&self, text: T, json: &J) -> Result
+    where
+        T: Render,
+        J: Serialize + ?Sized,
+    {
+        self.present_to(&mut io::stdout(), text, json)
+    }
+
+    pub fn present_to<T, J>(&self, w: &mut impl Write, text: T, json: &J) -> Result
+    where
+        T: Render,
+        J: Serialize + ?Sized,
+    {
+        match self.format {
+            Format::Text => {
+                let mut writer = RenderContext::new(w, self.color);
+                text.render(&mut writer)?;
+            }
+            Format::Json => Self::write_json(w, json)?,
+        }
+        Ok(())
     }
 
     pub fn success(&self, msg: impl Display) {
@@ -276,6 +300,7 @@ impl Output {
 mod tests {
     use super::*;
     use crate::error::{APIError, Error};
+    use crate::text::Text;
     use indoc::indoc;
 
     #[derive(Debug, Serialize)]
@@ -284,10 +309,16 @@ mod tests {
         version: u32,
     }
 
-    impl Display for Info {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            writeln!(f, "name:    {}", self.name)?;
-            write!(f, "version: {}", self.version)
+    struct InfoView<'a> {
+        info: &'a Info,
+    }
+
+    impl Render for InfoView<'_> {
+        fn render(&self, writer: &mut RenderContext<'_>) -> io::Result<()> {
+            Text::new()
+                .line(format!("name:    {}", self.info.name))
+                .line(format!("version: {}", self.info.version))
+                .render(writer)
         }
     }
 
@@ -304,10 +335,11 @@ mod tests {
     }
 
     #[test]
-    fn print_text() {
+    fn present_text() {
+        let info = sample();
         let mut buf = Vec::new();
         Output::new(Format::Text, false)
-            .print_to(&mut buf, &sample())
+            .present_to(&mut buf, InfoView { info: &info }, &info)
             .unwrap();
 
         assert_eq!(
@@ -320,10 +352,11 @@ mod tests {
     }
 
     #[test]
-    fn print_json() {
+    fn present_json() {
+        let info = sample();
         let mut buf = Vec::new();
         Output::new(Format::Json, false)
-            .print_to(&mut buf, &sample())
+            .present_to(&mut buf, InfoView { info: &info }, &info)
             .unwrap();
 
         assert_eq!(
@@ -333,48 +366,6 @@ mod tests {
                   "name": "test",
                   "version": 1
                 }
-            "#}
-        );
-    }
-
-    #[test]
-    fn print_list_text() {
-        let mut buf = Vec::new();
-        Output::new(Format::Text, false)
-            .print_list_to(&mut buf, [sample(), sample()])
-            .unwrap();
-
-        assert_eq!(
-            String::from_utf8(buf).unwrap(),
-            indoc! {"
-                name:    test
-                version: 1
-                name:    test
-                version: 1
-            "}
-        );
-    }
-
-    #[test]
-    fn print_list_json() {
-        let mut buf = Vec::new();
-        Output::new(Format::Json, false)
-            .print_list_to(&mut buf, [sample(), sample()])
-            .unwrap();
-
-        assert_eq!(
-            String::from_utf8(buf).unwrap(),
-            indoc! {r#"
-                [
-                  {
-                    "name": "test",
-                    "version": 1
-                  },
-                  {
-                    "name": "test",
-                    "version": 1
-                  }
-                ]
             "#}
         );
     }

@@ -11,6 +11,7 @@ pub mod prompt;
 #[cfg(feature = "record")]
 pub mod recorder;
 pub mod symbols;
+pub mod text;
 pub mod theme;
 pub mod token;
 pub mod ui;
@@ -26,6 +27,7 @@ use crate::config::Config;
 use crate::error::Result;
 use crate::output::{Color, Format, Output};
 use crate::token::{TokenChain, TokenLoader};
+use text::Render;
 
 pub struct Context {
     pub client: Client,
@@ -73,6 +75,14 @@ impl Context {
     /// Writes structured data via the output formatter.
     pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
         self.output.print(value)
+    }
+
+    pub fn present<T, J>(&self, text: T, json: &J) -> Result
+    where
+        T: Render,
+        J: Serialize + ?Sized,
+    {
+        self.output.present(text, json)
     }
 
     /// Writes a list of structured data via the output formatter.
