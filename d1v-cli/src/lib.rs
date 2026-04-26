@@ -26,7 +26,7 @@ use serde::Serialize;
 use crate::config::Config;
 use crate::error::Result;
 use crate::output::{Color, Format, Output};
-use crate::token::{TokenChain, TokenLoader};
+use crate::token::{TokenChain, TokenSource};
 use text::Render;
 
 pub struct Context {
@@ -46,7 +46,7 @@ impl Context {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
 
-        if let Ok(Some(token)) = tokens.load() {
+        if let Ok(Some(token)) = tokens.lookup() {
             builder = builder.token(token);
         }
 

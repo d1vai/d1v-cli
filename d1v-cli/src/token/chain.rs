@@ -3,54 +3,56 @@ use tracing::{debug, warn};
 
 use super::config::ConfigProvider;
 use super::env::EnvProvider;
-use super::keyring::KeyringProvider;
-use super::{Result, TokenError, TokenLoader, TokenStore, KEYRING_SERVICE, KEYRING_USER};
+use super::keyring::{self, KeyringProvider};
+use super::{Result, TokenError, TokenSource, TokenStore};
 
 /// Chains multiple providers in priority order.
 ///
-/// `load` returns the first token found;
+/// `lookup` returns the first token found;
 /// `save` writes to the first store that succeeds;
 /// `delete` removes from all stores.
 pub struct TokenChain {
-    loaders: Vec<Box<dyn TokenLoader>>,
+    sources: Vec<Box<dyn TokenSource>>,
     stores: Vec<Box<dyn TokenStore>>,
 }
 
 impl TokenChain {
-    pub fn new(loaders: Vec<Box<dyn TokenLoader>>, stores: Vec<Box<dyn TokenStore>>) -> Self {
-        Self { loaders, stores }
+    pub fn new(sources: Vec<Box<dyn TokenSource>>, stores: Vec<Box<dyn TokenStore>>) -> Self {
+        Self { sources, stores }
     }
 
-    /// Returns the name of the first loader that provides a token.
+    /// Returns the name of the first source that provides a token.
     pub fn source(&self) -> Option<&str> {
-        self.loaders
-            .iter()
-            .find_map(|l| matches!(l.load(), Ok(Some(_))).then(|| l.name()))
-    }
-}
-
-impl TokenLoader for TokenChain {
-    fn name(&self) -> &'static str {
-        "chain"
+        self.lookup_with_source().map(|(source, _)| source)
     }
 
-    fn load(&self) -> Result<Option<SecretString>> {
-        for loader in &self.loaders {
-            match loader.load() {
+    fn lookup_with_source(&self) -> Option<(&str, SecretString)> {
+        for source in &self.sources {
+            match source.lookup() {
                 Ok(Some(token)) => {
-                    debug!(provider = loader.name(), "token loaded");
-                    return Ok(Some(token));
+                    debug!(provider = source.name(), "token loaded");
+                    return Some((source.name(), token));
                 }
                 Ok(None) => {
-                    debug!(provider = loader.name(), "no token found");
+                    debug!(provider = source.name(), "no token found");
                 }
                 Err(err) => {
-                    warn!(provider = loader.name(), error = %err, "failed to load token, skipping");
+                    debug!(provider = source.name(), error = %err, "failed to load token, skipping");
                 }
             }
         }
 
-        Ok(None)
+        None
+    }
+}
+
+impl TokenSource for TokenChain {
+    fn name(&self) -> &'static str {
+        "chain"
+    }
+
+    fn lookup(&self) -> Result<Option<SecretString>> {
+        Ok(self.lookup_with_source().map(|(_, token)| token))
     }
 }
 
@@ -92,11 +94,11 @@ impl Default for TokenChain {
         Self::new(
             vec![
                 Box::new(EnvProvider::new("D1V_AUTH_TOKEN")),
-                Box::new(KeyringProvider::new(KEYRING_SERVICE, KEYRING_USER)),
+                Box::new(KeyringProvider::new(keyring::SERVICE, keyring::USER)),
                 Box::new(ConfigProvider),
             ],
             vec![
-                Box::new(KeyringProvider::new(KEYRING_SERVICE, KEYRING_USER)),
+                Box::new(KeyringProvider::new(keyring::SERVICE, keyring::USER)),
                 Box::new(ConfigProvider),
             ],
         )
@@ -142,12 +144,12 @@ mod tests {
         }
     }
 
-    impl TokenLoader for InMemoryProvider {
+    impl TokenSource for InMemoryProvider {
         fn name(&self) -> &'static str {
             self.name
         }
 
-        fn load(&self) -> Result<Option<SecretString>> {
+        fn lookup(&self) -> Result<Option<SecretString>> {
             Ok(self.token.borrow().clone())
         }
     }
@@ -170,12 +172,12 @@ mod tests {
 
     struct FailingLoader;
 
-    impl TokenLoader for FailingLoader {
+    impl TokenSource for FailingLoader {
         fn name(&self) -> &'static str {
             "failing"
         }
 
-        fn load(&self) -> Result<Option<SecretString>> {
+        fn lookup(&self) -> Result<Option<SecretString>> {
             Err(TokenError::KeyringUnavailable)
         }
     }
@@ -197,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn load_first_found() {
+    fn lookup_first_found() {
         let chain = TokenChain::new(
             vec![
                 Box::new(InMemoryProvider::new("empty")),
@@ -206,18 +208,18 @@ mod tests {
             ],
             vec![],
         );
-        let token = chain.load().unwrap().unwrap();
+        let token = chain.lookup().unwrap().unwrap();
         assert_eq!(token.expose_secret(), "secret-1");
     }
 
     #[test]
-    fn load_empty_chain() {
+    fn lookup_empty_chain() {
         let chain = TokenChain::new(vec![], vec![]);
-        assert!(chain.load().unwrap().is_none());
+        assert!(chain.lookup().unwrap().is_none());
     }
 
     #[test]
-    fn load_skips_errors() {
+    fn lookup_skips_errors() {
         let chain = TokenChain::new(
             vec![
                 Box::new(FailingLoader),
@@ -225,36 +227,36 @@ mod tests {
             ],
             vec![],
         );
-        let token = chain.load().unwrap().unwrap();
+        let token = chain.lookup().unwrap().unwrap();
         assert_eq!(token.expose_secret(), "secret");
     }
 
     #[test]
     fn round_trip() {
-        let (loader, store) = InMemoryProvider::pair("mem");
-        let chain = TokenChain::new(vec![Box::new(loader)], vec![Box::new(store)]);
+        let (source, store) = InMemoryProvider::pair("mem");
+        let chain = TokenChain::new(vec![Box::new(source)], vec![Box::new(store)]);
 
-        assert!(chain.load().unwrap().is_none());
+        assert!(chain.lookup().unwrap().is_none());
 
         let token = SecretString::from("round-trip-token");
         chain.save(&token).unwrap();
 
-        let loaded = chain.load().unwrap().unwrap();
+        let loaded = chain.lookup().unwrap().unwrap();
         assert_eq!(loaded.expose_secret(), "round-trip-token");
     }
 
     #[test]
     fn save_skips_errors() {
-        let (loader, store) = InMemoryProvider::pair("fallback");
+        let (source, store) = InMemoryProvider::pair("fallback");
         let chain = TokenChain::new(
-            vec![Box::new(loader)],
+            vec![Box::new(source)],
             vec![Box::new(FailingStore), Box::new(store)],
         );
 
         let token = SecretString::from("test-token");
         chain.save(&token).unwrap();
 
-        let loaded = chain.load().unwrap().unwrap();
+        let loaded = chain.lookup().unwrap().unwrap();
         assert_eq!(loaded.expose_secret(), "test-token");
     }
 
@@ -267,17 +269,17 @@ mod tests {
 
     #[test]
     fn delete_all_stores() {
-        let (loader1, store1) = InMemoryProvider::pair("s1");
-        let (loader2, store2) = InMemoryProvider::pair("s2");
+        let (source1, store1) = InMemoryProvider::pair("s1");
+        let (source2, store2) = InMemoryProvider::pair("s2");
 
         let chain = TokenChain::new(
-            vec![Box::new(loader1), Box::new(loader2)],
+            vec![Box::new(source1), Box::new(source2)],
             vec![Box::new(store1), Box::new(store2)],
         );
 
         chain.save(&SecretString::from("t1")).unwrap();
         chain.delete().unwrap();
 
-        assert!(chain.load().unwrap().is_none());
+        assert!(chain.lookup().unwrap().is_none());
     }
 }

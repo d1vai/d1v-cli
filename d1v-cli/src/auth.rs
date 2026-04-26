@@ -8,7 +8,7 @@ use tracing::debug;
 use crate::error::Result;
 use crate::output::format_duration;
 use crate::text::{Field, Fields, Line, Render, RenderContext, Span, Text};
-use crate::token::{TokenLoader, TokenStore};
+use crate::token::{TokenSource, TokenStore};
 use crate::ui::{Password, Select, SelectOption};
 use crate::{i18n, prompt, symbols, t, theme, Context};
 
@@ -113,7 +113,7 @@ async fn authenticate_password(ctx: &Context, email: &str) -> Result<SecretStrin
 }
 
 pub fn logout(ctx: &Context) -> Result<()> {
-    if ctx.tokens.load()?.is_none() {
+    if ctx.tokens.lookup()?.is_none() {
         ctx.message(t!("auth-not-logged-in"));
         return Ok(());
     }

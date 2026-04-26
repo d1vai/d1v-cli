@@ -17,6 +17,9 @@ pub enum TokenError {
     #[error("keyring is not available")]
     KeyringUnavailable,
 
+    #[error("failed to load from keyring")]
+    KeyringLoad(#[source] keyring_core::Error),
+
     #[error("failed to save to keyring")]
     KeyringSave(#[source] keyring_core::Error),
 
@@ -27,10 +30,12 @@ pub enum TokenError {
     Config(#[from] ConfigError),
 }
 
-/// A source that provides authentication tokens.
-pub trait TokenLoader {
+/// A source that can look up authentication tokens.
+pub trait TokenSource {
     fn name(&self) -> &'static str;
-    fn load(&self) -> Result<Option<SecretString>>;
+
+    /// Looks up a token from this provider.
+    fn lookup(&self) -> Result<Option<SecretString>>;
 }
 
 /// Persistent storage for authentication tokens.
@@ -39,6 +44,3 @@ pub trait TokenStore {
     fn save(&self, token: &SecretString) -> Result;
     fn delete(&self) -> Result;
 }
-
-const KEYRING_SERVICE: &str = "d1v-cli";
-const KEYRING_USER: &str = "token";

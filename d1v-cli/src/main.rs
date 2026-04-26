@@ -10,7 +10,7 @@ use d1v_cli::config::cmd::ConfigKey;
 use d1v_cli::config::Config;
 use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{format_duration, Color, Format, Output};
-use d1v_cli::token::TokenLoader;
+use d1v_cli::token::TokenSource;
 use d1v_cli::{auth, config, debug, i18n, logging, t, user, Context};
 
 #[derive(Parser)]
@@ -156,7 +156,7 @@ async fn run(cli: Cli) -> Result<()> {
     let ctx = Context::new(cli.format, cli.color, cli.base_url)?;
 
     if cli.command.requires_auth() {
-        if ctx.tokens.load()?.is_none() {
+        if ctx.tokens.lookup()?.is_none() {
             return Err(Error::NotLoggedIn);
         }
 

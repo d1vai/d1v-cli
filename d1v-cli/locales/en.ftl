@@ -69,6 +69,7 @@ interrupted = Interrupted.
 ## Token
 error-no-token-store = no writable token store available
 error-keyring-unavailable = keyring is not available
+error-keyring-load = failed to load from keyring
 error-keyring-save = failed to save to keyring
 
 ## Config

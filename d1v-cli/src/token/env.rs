@@ -1,6 +1,6 @@
 use secrecy::SecretString;
 
-use super::{Result, TokenLoader};
+use super::{Result, TokenSource};
 
 /// Reads token from an environment variable.
 pub struct EnvProvider {
@@ -13,12 +13,12 @@ impl EnvProvider {
     }
 }
 
-impl TokenLoader for EnvProvider {
+impl TokenSource for EnvProvider {
     fn name(&self) -> &'static str {
         self.var_name
     }
 
-    fn load(&self) -> Result<Option<SecretString>> {
+    fn lookup(&self) -> Result<Option<SecretString>> {
         match std::env::var(self.var_name) {
             Ok(v) if !v.is_empty() => Ok(Some(SecretString::from(v))),
             _ => Ok(None),

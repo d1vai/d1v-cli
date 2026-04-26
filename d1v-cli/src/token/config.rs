@@ -1,20 +1,18 @@
 use secrecy::SecretString;
 
-use super::{Result, TokenError, TokenLoader, TokenStore};
+use super::{Result, TokenError, TokenSource, TokenStore};
 use crate::config::Config;
 
 /// Stores token in `~/.d1v/config.toml`.
 pub struct ConfigProvider;
 
-impl TokenLoader for ConfigProvider {
+impl TokenSource for ConfigProvider {
     fn name(&self) -> &'static str {
         "config"
     }
 
-    fn load(&self) -> Result<Option<SecretString>> {
-        let config = Config::load()?;
-
-        Ok(config.token)
+    fn lookup(&self) -> Result<Option<SecretString>> {
+        Ok(Config::load()?.token)
     }
 }
 

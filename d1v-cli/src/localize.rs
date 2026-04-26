@@ -112,6 +112,7 @@ impl Localize for TokenError {
     fn localize(&self) -> String {
         match self {
             Self::KeyringUnavailable => t!("error-keyring-unavailable"),
+            Self::KeyringLoad(_) => t!("error-keyring-load"),
             Self::KeyringSave(_) => t!("error-keyring-save"),
             Self::NoStore => t!("error-no-token-store"),
             Self::Config(err) => err.localize(),
@@ -195,6 +196,10 @@ mod tests {
         assert_eq!(
             TokenError::KeyringUnavailable.localize(),
             "keyring is not available"
+        );
+        assert_eq!(
+            TokenError::KeyringLoad(keyring_core::Error::NoEntry).localize(),
+            "failed to load from keyring"
         );
         assert_eq!(
             TokenError::KeyringSave(keyring_core::Error::NoEntry).localize(),
