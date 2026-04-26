@@ -197,6 +197,10 @@ mod tests {
             "keyring is not available"
         );
         assert_eq!(
+            TokenError::KeyringSave(keyring_core::Error::NoEntry).localize(),
+            "failed to save to keyring"
+        );
+        assert_eq!(
             TokenError::NoStore.localize(),
             "no writable token store available"
         );

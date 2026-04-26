@@ -26,7 +26,7 @@ ratatui = "0.30"
 unicode-segmentation = "1.13"
 unicode-width = "0.2"
 dirs = "6.0"
-keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native"] }
+keyring-core = "1.0"
 parking_lot = "0.12"
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -47,3 +47,12 @@ itertools = "0.14"
 
 [dev-dependencies]
 indoc = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "1.0", features = ["crypto-rust"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1.0", features = ["keychain"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1.0"

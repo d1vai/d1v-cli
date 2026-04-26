@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 use tracing::{debug, warn};
@@ -12,7 +14,7 @@ pub enum TokenError {
     KeyringUnavailable,
 
     #[error("failed to save to keyring")]
-    KeyringSave(#[from] keyring::Error),
+    KeyringSave(#[source] keyring_core::Error),
 
     #[error("no writable token store available")]
     NoStore,
@@ -69,8 +71,12 @@ impl KeyringProvider {
         Self { service, user }
     }
 
-    fn entry(&self) -> Option<keyring::Entry> {
-        keyring::Entry::new(self.service, self.user).ok()
+    fn entry(&self) -> Result<keyring_core::Entry> {
+        ensure_keyring_store()?;
+        keyring_core::Entry::new(self.service, self.user).map_err(|err| {
+            debug!(error = %err, "failed to create keyring entry");
+            TokenError::KeyringUnavailable
+        })
     }
 }
 
@@ -80,13 +86,18 @@ impl TokenLoader for KeyringProvider {
     }
 
     fn load(&self) -> Result<Option<SecretString>> {
-        if let Some(entry) = self.entry()
-            && let Ok(password) = entry.get_password()
-        {
-            return Ok(Some(SecretString::from(password)));
-        }
+        let Ok(entry) = self.entry() else {
+            return Ok(None);
+        };
 
-        Ok(None)
+        match entry.get_password() {
+            Ok(password) => Ok(Some(SecretString::from(password))),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(err) => {
+                debug!(error = %err, "failed to load keyring credential");
+                Ok(None)
+            }
+        }
     }
 }
 
@@ -96,20 +107,20 @@ impl TokenStore for KeyringProvider {
     }
 
     fn save(&self, token: &SecretString) -> Result {
-        let entry = self.entry().ok_or(TokenError::KeyringUnavailable)?;
+        let entry = self.entry()?;
         entry
             .set_password(token.expose_secret())
             .map_err(TokenError::KeyringSave)
     }
 
     fn delete(&self) -> Result {
-        let Some(entry) = self.entry() else {
+        let Ok(entry) = self.entry() else {
             return Ok(());
         };
 
         match entry.delete_credential() {
             Ok(()) => {}
-            Err(keyring::Error::NoEntry) => {
+            Err(keyring_core::Error::NoEntry) => {
                 debug!("no keyring credential to delete");
             }
             Err(err) => {
@@ -118,6 +129,45 @@ impl TokenStore for KeyringProvider {
         }
 
         Ok(())
+    }
+}
+
+static KEYRING_STORE_AVAILABLE: LazyLock<bool> = LazyLock::new(|| {
+    install_keyring_store()
+        .inspect_err(|err| debug!(error = %err, "keyring store is not available"))
+        .is_ok()
+});
+
+fn ensure_keyring_store() -> Result {
+    (*KEYRING_STORE_AVAILABLE)
+        .then_some(())
+        .ok_or(TokenError::KeyringUnavailable)
+}
+
+fn install_keyring_store() -> std::result::Result<(), keyring_core::Error> {
+    #[cfg(target_os = "linux")]
+    {
+        keyring_core::set_default_store(zbus_secret_service_keyring_store::Store::new()?);
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        keyring_core::set_default_store(apple_native_keyring_store::keychain::Store::new()?);
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        keyring_core::set_default_store(windows_native_keyring_store::Store::new()?);
+        Ok(())
+    }
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        Err(keyring_core::Error::NotSupportedByStore(
+            "no keyring store configured for this platform".to_string(),
+        ))
     }
 }
 
