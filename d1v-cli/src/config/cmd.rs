@@ -1,12 +1,10 @@
-use std::fmt::{self, Display, Formatter};
-
 use clap::ValueEnum;
 use serde::Serialize;
 use tracing::debug;
 
 use crate::config::{Config, ConfigError};
 use crate::error::Result;
-use crate::text::{Field, Fields, Render, RenderContext, Span};
+use crate::text::{Field, Fields, Render, RenderContext, Span, Text};
 use crate::{t, theme, Context};
 
 #[derive(Debug, Clone, Copy, ValueEnum, strum::Display)]
@@ -155,24 +153,26 @@ struct ConfigValue {
     value: Option<String>,
 }
 
-impl Display for ConfigValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if let Some(ref v) = self.value {
-            write!(f, "{v}")
-        } else {
-            Ok(())
-        }
+struct ConfigValueView<'a> {
+    value: &'a ConfigValue,
+}
+
+impl Render for ConfigValueView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        Text::new()
+            .line(self.value.value.clone().unwrap_or_default())
+            .render(ctx)
     }
 }
 
 pub fn get(ctx: &Context, key: ConfigKey) -> Result<()> {
     let config = Config::load()?;
-    let value = config.get(key);
-
-    ctx.print(&ConfigValue {
+    let value = ConfigValue {
         key: key.to_string(),
-        value,
-    })
+        value: config.get(key),
+    };
+
+    ctx.present(ConfigValueView { value: &value }, &value)
 }
 
 pub fn set(ctx: &Context, key: ConfigKey, value: &str) -> Result<()> {
@@ -199,18 +199,23 @@ struct ConfigPath {
     path: String,
 }
 
-impl Display for ConfigPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.path)
+struct ConfigPathView<'a> {
+    path: &'a ConfigPath,
+}
+
+impl Render for ConfigPathView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        Text::new().line(self.path.path.clone()).render(ctx)
     }
 }
 
 pub fn path(ctx: &Context) -> Result<()> {
     let path = Config::path()?;
-
-    ctx.print(&ConfigPath {
+    let path = ConfigPath {
         path: path.display().to_string(),
-    })
+    };
+
+    ctx.present(ConfigPathView { path: &path }, &path)
 }
 
 pub fn reset(ctx: &Context) -> Result<()> {
@@ -323,25 +328,39 @@ mod tests {
     }
 
     #[test]
-    fn value_display() {
+    fn value_text() {
         let with = ConfigValue {
             key: "base_url".into(),
             value: Some("https://api.d1v.ai".into()),
         };
-        assert_eq!(with.to_string(), "https://api.d1v.ai");
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf, false);
+        ConfigValueView { value: &with }.render(&mut ctx).unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "https://api.d1v.ai\n");
 
         let without = ConfigValue {
             key: "language".into(),
             value: None,
         };
-        assert_eq!(without.to_string(), "");
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf, false);
+        ConfigValueView { value: &without }
+            .render(&mut ctx)
+            .unwrap();
+        assert_eq!(String::from_utf8(buf).unwrap(), "\n");
     }
 
     #[test]
-    fn path_display() {
+    fn path_text() {
         let p = ConfigPath {
             path: "/home/user/.d1v/config.toml".into(),
         };
-        assert_eq!(p.to_string(), "/home/user/.d1v/config.toml");
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf, false);
+        ConfigPathView { path: &p }.render(&mut ctx).unwrap();
+        assert_eq!(
+            String::from_utf8(buf).unwrap(),
+            "/home/user/.d1v/config.toml\n"
+        );
     }
 }
