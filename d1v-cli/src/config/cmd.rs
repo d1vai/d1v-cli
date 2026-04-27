@@ -243,6 +243,7 @@ pub fn edit() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text::RenderExt;
 
     #[test]
     fn key_display() {
@@ -301,10 +302,7 @@ mod tests {
         };
 
         let info = ConfigInfo::from(&config);
-        let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, false);
-        ConfigInfoView { info: &info }.render(&mut ctx).unwrap();
-        let text = String::from_utf8(buf).unwrap();
+        let text = ConfigInfoView { info: &info }.display().to_string();
 
         assert!(text.contains("base_url"));
         assert!(text.contains("https://api.d1v.ai"));
@@ -333,21 +331,19 @@ mod tests {
             key: "base_url".into(),
             value: Some("https://api.d1v.ai".into()),
         };
-        let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, false);
-        ConfigValueView { value: &with }.render(&mut ctx).unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "https://api.d1v.ai\n");
+        assert_eq!(
+            ConfigValueView { value: &with }.display().to_string(),
+            "https://api.d1v.ai\n"
+        );
 
         let without = ConfigValue {
             key: "language".into(),
             value: None,
         };
-        let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, false);
-        ConfigValueView { value: &without }
-            .render(&mut ctx)
-            .unwrap();
-        assert_eq!(String::from_utf8(buf).unwrap(), "\n");
+        assert_eq!(
+            ConfigValueView { value: &without }.display().to_string(),
+            "\n"
+        );
     }
 
     #[test]
@@ -355,11 +351,8 @@ mod tests {
         let p = ConfigPath {
             path: "/home/user/.d1v/config.toml".into(),
         };
-        let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, false);
-        ConfigPathView { path: &p }.render(&mut ctx).unwrap();
         assert_eq!(
-            String::from_utf8(buf).unwrap(),
+            ConfigPathView { path: &p }.display().to_string(),
             "/home/user/.d1v/config.toml\n"
         );
     }

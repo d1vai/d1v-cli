@@ -284,12 +284,10 @@ pub fn status(ctx: &Context) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text::RenderExt;
 
     fn render(status: &AuthStatus) -> String {
-        let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, false);
-        AuthStatusView { status }.render(&mut ctx).unwrap();
-        String::from_utf8(buf).unwrap()
+        AuthStatusView { status }.display().to_string()
     }
 
     #[test]
