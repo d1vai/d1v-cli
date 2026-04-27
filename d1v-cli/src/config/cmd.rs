@@ -191,7 +191,17 @@ pub fn list(ctx: &Context) -> Result<()> {
         .map(ToString::to_string)
         .collect();
 
-    ctx.print_list(keys)
+    ctx.present(ConfigKeysView { keys: &keys }, &keys)
+}
+
+struct ConfigKeysView<'a> {
+    keys: &'a [String],
+}
+
+impl Render for ConfigKeysView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        Text::from_iter(self.keys.iter().cloned()).render(ctx)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -354,6 +364,30 @@ mod tests {
         assert_eq!(
             ConfigPathView { path: &p }.display().to_string(),
             "/home/user/.d1v/config.toml\n"
+        );
+    }
+
+    #[test]
+    fn keys_text() {
+        let keys: Vec<String> = ConfigKey::value_variants()
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+
+        let expected = [
+            "base_url",
+            "language",
+            #[cfg(feature = "record")]
+            "record.enabled",
+            #[cfg(feature = "record")]
+            "record.dir",
+        ]
+        .join("\n")
+            + "\n";
+
+        assert_eq!(
+            ConfigKeysView { keys: &keys }.display().to_string(),
+            expected
         );
     }
 }
