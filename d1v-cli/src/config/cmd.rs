@@ -1,13 +1,12 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::theme::ansi::{Stream, Stylize};
 use clap::ValueEnum;
 use serde::Serialize;
 use tracing::debug;
 
 use crate::config::{Config, ConfigError};
 use crate::error::Result;
-use crate::output::pad_label;
+use crate::text::{Field, Fields, Render, RenderContext, Span};
 use crate::{t, theme, Context};
 
 #[derive(Debug, Clone, Copy, ValueEnum, strum::Display)]
@@ -105,39 +104,48 @@ impl From<&Config> for ConfigInfo {
     }
 }
 
-impl Display for ConfigInfo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        const LABEL_WIDTH: usize = 16;
+struct ConfigInfoView<'a> {
+    info: &'a ConfigInfo,
+}
 
-        let rows: Vec<(&str, String)> = vec![
-            ("base_url", self.base_url.clone()),
-            ("language", self.language.clone().unwrap_or_default()),
+impl Render for ConfigInfoView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        let fields = vec![
+            Field::new(
+                Span::styled("base_url", theme::ansi::label()),
+                Span::styled(self.info.base_url.clone(), theme::ansi::value()),
+            ),
+            Field::new(
+                Span::styled("language", theme::ansi::label()),
+                Span::styled(
+                    self.info.language.clone().unwrap_or_default(),
+                    theme::ansi::value(),
+                ),
+            ),
             #[cfg(feature = "record")]
-            ("record.enabled", self.record_enabled.to_string()),
+            Field::new(
+                Span::styled("record.enabled", theme::ansi::label()),
+                Span::styled(self.info.record_enabled.to_string(), theme::ansi::value()),
+            ),
             #[cfg(feature = "record")]
-            ("record.dir", self.record_dir.clone().unwrap_or_default()),
+            Field::new(
+                Span::styled("record.dir", theme::ansi::label()),
+                Span::styled(
+                    self.info.record_dir.clone().unwrap_or_default(),
+                    theme::ansi::value(),
+                ),
+            ),
         ];
 
-        for (i, (key, value)) in rows.iter().enumerate() {
-            if i > 0 {
-                writeln!(f)?;
-            }
-            write!(
-                f,
-                "{}{}",
-                pad_label(key, LABEL_WIDTH)
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
-                value.if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
-            )?;
-        }
-
-        Ok(())
+        Fields::new(fields).render(ctx)
     }
 }
 
 pub fn show(ctx: &Context) -> Result<()> {
     let config = Config::load()?;
-    ctx.print(&ConfigInfo::from(&config))
+    let info = ConfigInfo::from(&config);
+
+    ctx.present(ConfigInfoView { info: &info }, &info)
 }
 
 #[derive(Debug, Serialize)]
@@ -280,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn info_display() {
+    fn info_text() {
         let config = Config {
             base_url: "https://api.d1v.ai".into(),
             language: Some("en".into()),
@@ -288,7 +296,10 @@ mod tests {
         };
 
         let info = ConfigInfo::from(&config);
-        let text = info.to_string();
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf, false);
+        ConfigInfoView { info: &info }.render(&mut ctx).unwrap();
+        let text = String::from_utf8(buf).unwrap();
 
         assert!(text.contains("base_url"));
         assert!(text.contains("https://api.d1v.ai"));
