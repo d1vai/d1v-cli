@@ -23,6 +23,9 @@ pub enum TokenError {
     #[error("failed to save to keyring")]
     KeyringSave(#[source] keyring_core::Error),
 
+    #[error("failed to delete from keyring")]
+    KeyringDelete(#[source] keyring_core::Error),
+
     #[error("no writable token store available")]
     NoStore,
 

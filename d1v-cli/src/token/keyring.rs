@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use secrecy::{ExposeSecret, SecretString};
-use tracing::{debug, warn};
+use tracing::debug;
 
 use super::{Result, TokenError, TokenSource, TokenStore};
 
@@ -73,17 +73,18 @@ impl TokenStore for KeyringProvider {
             return Ok(());
         }
 
-        let Ok(entry) = self.entry() else {
-            return Ok(());
-        };
-
-        match entry.delete_credential() {
+        match self
+            .entry()
+            .map_err(TokenError::KeyringDelete)?
+            .delete_credential()
+        {
             Ok(()) => {}
             Err(keyring_core::Error::NoEntry) => {
                 debug!("no keyring credential to delete");
             }
             Err(err) => {
-                warn!(error = %err, "failed to delete keyring credential");
+                debug!(error = %err, "failed to delete keyring credential");
+                return Err(TokenError::KeyringDelete(err));
             }
         }
 

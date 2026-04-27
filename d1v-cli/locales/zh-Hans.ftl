@@ -71,6 +71,7 @@ error-no-token-store = 没有可用的令牌存储
 error-keyring-unavailable = 钥匙串不可用
 error-keyring-load = 从钥匙串读取失败
 error-keyring-save = 保存至钥匙串失败
+error-keyring-delete = 从钥匙串删除失败
 
 ## 配置
 error-no-home-dir = 无法确定主目录

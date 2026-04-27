@@ -114,6 +114,7 @@ impl Localize for TokenError {
             Self::KeyringUnavailable => t!("error-keyring-unavailable"),
             Self::KeyringLoad(_) => t!("error-keyring-load"),
             Self::KeyringSave(_) => t!("error-keyring-save"),
+            Self::KeyringDelete(_) => t!("error-keyring-delete"),
             Self::NoStore => t!("error-no-token-store"),
             Self::Config(err) => err.localize(),
         }
@@ -204,6 +205,10 @@ mod tests {
         assert_eq!(
             TokenError::KeyringSave(keyring_core::Error::NoEntry).localize(),
             "failed to save to keyring"
+        );
+        assert_eq!(
+            TokenError::KeyringDelete(keyring_core::Error::NoEntry).localize(),
+            "failed to delete from keyring"
         );
         assert_eq!(
             TokenError::NoStore.localize(),
