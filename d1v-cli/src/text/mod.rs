@@ -2,12 +2,14 @@ mod fields;
 mod line;
 mod span;
 mod stack;
+mod table;
 mod text;
 
 pub use fields::{Field, Fields};
 pub use line::Line;
 pub use span::Span;
 pub use stack::Stack;
+pub use table::{Table, TableRow};
 pub use text::Text;
 
 use std::fmt::{self, Display, Formatter};
