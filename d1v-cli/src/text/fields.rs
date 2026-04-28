@@ -1,14 +1,14 @@
 use std::io;
 
-use super::{Render, RenderContext, Span};
+use super::{Line, Render, RenderContext, Span};
 
 pub struct Field {
     pub label: Span,
-    pub value: Span,
+    pub value: Line,
 }
 
 impl Field {
-    pub fn new(label: impl Into<Span>, value: impl Into<Span>) -> Self {
+    pub fn new(label: impl Into<Span>, value: impl Into<Line>) -> Self {
         Self {
             label: label.into(),
             value: value.into(),
