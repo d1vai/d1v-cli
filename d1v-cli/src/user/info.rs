@@ -10,46 +10,67 @@ use tracing::debug;
 use super::{write_row, GetArgs, UpdateArgs, LABEL_WIDTH};
 use crate::error::Result;
 use crate::output::pad_label;
+use crate::text::{Line, Render, RenderContext, Table, TableRow, Text as TextBlock};
 use crate::ui::{Select, SelectOption, Text};
 use crate::Context;
 use crate::{t, theme};
 
-#[derive(Serialize)]
-#[serde(transparent)]
-pub struct UserListItem<'a>(pub &'a User);
+pub struct UserListItemView<'a>(pub &'a User);
 
-impl Display for UserListItem<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.0
-                .id
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::dim()))
-        )?;
+impl Render for UserListItemView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        TextBlock::from(self.line()).render(ctx)
+    }
+}
+
+impl UserListItemView<'_> {
+    fn line(&self) -> Line {
+        let mut line = Line::styled(self.0.id.to_string(), theme::ansi::dim());
 
         if !self.0.slug.is_empty() {
-            write!(
-                f,
-                " {}",
-                self.0
-                    .slug
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label()))
-            )?;
+            line = line
+                .push_plain(" ")
+                .push_styled(self.0.slug.clone(), theme::ansi::plain());
         }
 
         if let Some(email) = &self.0.email
             && !email.is_empty()
         {
-            write!(
-                f,
-                " {}",
-                format!("<{email}>")
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value()))
-            )?;
+            line = line
+                .push_plain(" ")
+                .push_styled(format!("<{email}>"), theme::ansi::plain());
         }
 
-        Ok(())
+        line
+    }
+}
+
+pub struct UserListView<'a>(pub &'a [User]);
+
+impl Render for UserListView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
+        Table::new(self.0.iter().map(Self::row))
+            .header(Self::header())
+            .border_style(theme::ansi::border())
+            .render(ctx)
+    }
+}
+
+impl UserListView<'_> {
+    fn header() -> TableRow {
+        TableRow::new([
+            Line::styled("id", theme::ansi::label()),
+            Line::styled("slug", theme::ansi::label()),
+            Line::styled("email", theme::ansi::label()),
+        ])
+    }
+
+    fn row(user: &User) -> TableRow {
+        TableRow::new([
+            Line::styled(user.id.to_string(), theme::ansi::dim()),
+            Line::styled(user.slug.clone(), theme::ansi::plain()),
+            Line::styled(user.email.clone().unwrap_or_default(), theme::ansi::plain()),
+        ])
     }
 }
 
@@ -234,10 +255,10 @@ pub async fn get(ctx: &Context, target: GetArgs) -> Result<()> {
         GetArgs::Slug { slug } => ctx.client.user().public_user_by_slug(&slug).await?,
     };
 
-    ctx.print(&UserListItem(&user))
+    ctx.present(UserListItemView(&user), &user)
 }
 
 pub async fn list(ctx: &Context) -> Result<()> {
     let users = ctx.client.user().all_users().await?;
-    ctx.print_list(users.iter().map(UserListItem))
+    ctx.present(UserListView(&users), &users)
 }

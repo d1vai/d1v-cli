@@ -1,7 +1,7 @@
 use crate::error::Result;
 use tracing::debug;
 
-use super::info::UserListItem;
+use super::info::UserListView;
 use crate::{t, Context};
 
 pub async fn accept(ctx: &Context, invite_code: &str) -> Result<()> {
@@ -15,5 +15,5 @@ pub async fn accept(ctx: &Context, invite_code: &str) -> Result<()> {
 
 pub async fn list(ctx: &Context) -> Result<()> {
     let invitees = ctx.client.user().list_invitees().await?;
-    ctx.print_list(invitees.iter().map(UserListItem))
+    ctx.present(UserListView(&invitees), &invitees)
 }

@@ -44,6 +44,14 @@ pub mod ansi {
         rgb(109, 106, 128)
     }
 
+    pub const fn plain() -> Style {
+        rgb(232, 232, 238)
+    }
+
+    pub const fn border() -> Style {
+        rgb(62, 59, 74)
+    }
+
     #[derive(Debug, Copy, Clone)]
     pub enum Stream {
         Stdout,
