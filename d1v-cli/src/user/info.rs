@@ -1,16 +1,13 @@
-use crate::theme::ansi::{Stream, Stylize};
 use colorgrad::{GradientBuilder, LinearGradient};
 use d1v_api::{UpdateUser, User};
-use serde::Serialize;
-use std::fmt;
-use std::fmt::{Display, Formatter};
 use std::sync::LazyLock;
 use tracing::debug;
 
-use super::{write_row, GetArgs, UpdateArgs, LABEL_WIDTH};
+use super::{GetArgs, UpdateArgs};
 use crate::error::Result;
-use crate::output::pad_label;
-use crate::text::{Line, Render, RenderContext, Table, TableRow, Text as TextBlock};
+use crate::text::{
+    Field, Fields, Line, Render, RenderContext, Span, Table, TableRow, Text as TextBlock,
+};
 use crate::ui::{Select, SelectOption, Text};
 use crate::Context;
 use crate::{t, theme};
@@ -87,9 +84,7 @@ impl From<UpdateArgs> for UpdateUser {
     }
 }
 
-#[derive(Serialize)]
-#[serde(transparent)]
-struct UserDetail<'a>(&'a User);
+struct UserDetailView<'a>(&'a User);
 
 static SUPER_ADMIN_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()
@@ -98,102 +93,97 @@ static SUPER_ADMIN_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
         .expect("valid gradient colors")
 });
 
-fn format_roles(user: &User) -> String {
-    let mut roles: Vec<String> = Vec::new();
-
-    if user.is_super_admin {
-        roles.push(theme::ansi::gradient("super-admin", &*SUPER_ADMIN_GRADIENT));
+impl UserDetailView<'_> {
+    fn field(label: String, value: impl Into<Line>) -> Field {
+        Field::new(Span::styled(label, theme::ansi::label()), value)
     }
 
-    if user.is_admin {
-        roles.push(
-            "admin"
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::error()))
-                .to_string(),
-        );
+    fn roles(&self) -> Line {
+        let user = self.0;
+        let mut roles: Vec<Line> = Vec::new();
+
+        if user.is_super_admin {
+            roles.push(theme::ansi::gradient_line(
+                "super-admin",
+                &*SUPER_ADMIN_GRADIENT,
+            ));
+        }
+
+        if user.is_admin {
+            roles.push(Line::styled("admin", theme::ansi::error()));
+        }
+
+        if user.is_agent {
+            roles.push(Line::styled("agent", theme::ansi::warning()));
+        }
+
+        if roles.is_empty() {
+            return Line::raw("user");
+        }
+
+        let mut line = Line::new();
+        for (index, role) in roles.into_iter().enumerate() {
+            if index > 0 {
+                line = line.push_plain(", ");
+            }
+            line = line.extend(role);
+        }
+
+        line
     }
 
-    if user.is_agent {
-        roles.push(
-            "agent"
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::warning()))
-                .to_string(),
-        );
+    fn push_text_field(fields: &mut Vec<Field>, label: String, value: &str) {
+        if !value.is_empty() {
+            fields.push(Self::field(
+                label,
+                Span::styled(value.to_owned(), theme::ansi::value()),
+            ));
+        }
     }
-
-    if roles.is_empty() {
-        roles.push("user".to_string());
-    }
-
-    roles.join(", ")
 }
 
-impl Display for UserDetail<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl Render for UserDetailView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
         let user = self.0;
+        let mut fields = vec![Self::field(
+            t!("user-label-id"),
+            Span::styled(user.id.to_string(), theme::ansi::value()),
+        )];
 
-        write!(
-            f,
-            "{}{}",
-            pad_label(t!("user-label-id"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
-            user.id
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
-        )?;
+        Self::push_text_field(&mut fields, t!("user-label-slug"), &user.slug);
 
-        if !user.slug.is_empty() {
-            write_row(f, "user-label-slug", &user.slug)?;
+        if let Some(email) = &user.email {
+            Self::push_text_field(&mut fields, t!("user-label-email"), email);
         }
 
-        if let Some(email) = &user.email
-            && !email.is_empty()
-        {
-            write_row(f, "user-label-email", email)?;
-        }
-
-        write!(
-            f,
-            "\n{}{}",
-            pad_label(t!("user-label-roles"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
-            format_roles(user),
-        )?;
+        fields.push(Self::field(t!("user-label-roles"), self.roles()));
 
         if user.is_company {
-            if !user.company_name.is_empty() {
-                write_row(f, "user-label-company", &user.company_name)?;
-            }
-            if !user.company_website.is_empty() {
-                write_row(f, "user-label-website", &user.company_website)?;
-            }
+            Self::push_text_field(&mut fields, t!("user-label-company"), &user.company_name);
+            Self::push_text_field(&mut fields, t!("user-label-website"), &user.company_website);
         }
 
-        if !user.industry.is_empty() {
-            write_row(f, "user-label-industry", &user.industry)?;
-        }
+        Self::push_text_field(&mut fields, t!("user-label-industry"), &user.industry);
+        Self::push_text_field(&mut fields, t!("user-label-invite-code"), &user.invite_code);
 
-        if !user.invite_code.is_empty() {
-            write_row(f, "user-label-invite-code", &user.invite_code)?;
-        }
-
-        Ok(())
+        Fields::new(fields).render(ctx)
     }
 }
 
 pub async fn info(ctx: &Context) -> Result<()> {
     let user = ctx.client.user().info().await?;
-    ctx.print(&UserDetail(&user))
+    ctx.present(UserDetailView(&user), &user)
 }
 
 pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
     debug!("updating user info");
     let user = ctx.client.user().update_info(&args.into()).await?;
     ctx.success(t!("user-info-updated"));
-    ctx.print(&UserDetail(&user))
+    ctx.present(UserDetailView(&user), &user)
 }
 
 pub async fn update_interactive(ctx: &Context) -> Result<()> {
-    enum Field {
+    enum UpdateField {
         CompanyName,
         CompanyWebsite,
         Picture,
@@ -203,50 +193,50 @@ pub async fn update_interactive(ctx: &Context) -> Result<()> {
 
     let field = Select::new(t!("user-update-field-prompt"))
         .option(SelectOption::new(
-            Field::CompanyName,
+            UpdateField::CompanyName,
             t!("user-update-field-company-name"),
         ))
         .option(SelectOption::new(
-            Field::CompanyWebsite,
+            UpdateField::CompanyWebsite,
             t!("user-update-field-company-website"),
         ))
         .option(SelectOption::new(
-            Field::Picture,
+            UpdateField::Picture,
             t!("user-update-field-picture"),
         ))
         .option(SelectOption::new(
-            Field::Industry,
+            UpdateField::Industry,
             t!("user-update-field-industry"),
         ))
         .option(SelectOption::new(
-            Field::ReferralCode,
+            UpdateField::ReferralCode,
             t!("user-update-field-referral-code"),
         ))
         .prompt()?;
 
     let label = match field {
-        Field::CompanyName => t!("user-update-field-company-name"),
-        Field::CompanyWebsite => t!("user-update-field-company-website"),
-        Field::Picture => t!("user-update-field-picture"),
-        Field::Industry => t!("user-update-field-industry"),
-        Field::ReferralCode => t!("user-update-field-referral-code"),
+        UpdateField::CompanyName => t!("user-update-field-company-name"),
+        UpdateField::CompanyWebsite => t!("user-update-field-company-website"),
+        UpdateField::Picture => t!("user-update-field-picture"),
+        UpdateField::Industry => t!("user-update-field-industry"),
+        UpdateField::ReferralCode => t!("user-update-field-referral-code"),
     };
 
     let value = Text::new(format!("{label}:")).prompt()?;
 
     let mut update = UpdateUser::default();
     match field {
-        Field::CompanyName => update.company_name = Some(value),
-        Field::CompanyWebsite => update.company_website = Some(value),
-        Field::Picture => update.picture = Some(value),
-        Field::Industry => update.industry = Some(value),
-        Field::ReferralCode => update.referral_code = Some(value),
+        UpdateField::CompanyName => update.company_name = Some(value),
+        UpdateField::CompanyWebsite => update.company_website = Some(value),
+        UpdateField::Picture => update.picture = Some(value),
+        UpdateField::Industry => update.industry = Some(value),
+        UpdateField::ReferralCode => update.referral_code = Some(value),
     }
 
     debug!("updating user info (interactive)");
     let user = ctx.client.user().update_info(&update).await?;
     ctx.success(t!("user-info-updated"));
-    ctx.print(&UserDetail(&user))
+    ctx.present(UserDetailView(&user), &user)
 }
 
 pub async fn get(ctx: &Context, target: GetArgs) -> Result<()> {

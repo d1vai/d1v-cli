@@ -12,6 +12,10 @@ pub struct Line {
 }
 
 impl Line {
+    pub fn new() -> Self {
+        Line::default()
+    }
+
     pub fn raw(content: impl Into<Cow<'static, str>>) -> Self {
         Self {
             spans: vec![Span::raw(content)],
@@ -36,6 +40,11 @@ impl Line {
 
     pub fn width(&self) -> usize {
         self.spans.iter().map(Span::width).sum()
+    }
+
+    pub fn extend(mut self, other: Line) -> Self {
+        self.spans.extend(other.spans);
+        self
     }
 }
 

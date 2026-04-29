@@ -6,9 +6,11 @@ pub mod ansi {
     use anstyle::{Color, RgbColor};
     use colorgrad::Gradient;
 
+    use crate::text::Line;
+
     pub use anstyle::Style;
 
-    const fn rgb(r: u8, g: u8, b: u8) -> Style {
+    pub const fn rgb(r: u8, g: u8, b: u8) -> Style {
         Style::new().fg_color(Some(Color::Rgb(RgbColor(r, g, b))))
     }
 
@@ -166,19 +168,20 @@ pub mod ansi {
     }
 
     /// Applies a color gradient across each character of a string.
-    pub fn gradient(text: impl AsRef<str>, gradient: &impl Gradient) -> String {
+    pub fn gradient_line(text: impl AsRef<str>, gradient: &impl Gradient) -> Line {
         let text = text.as_ref();
+        let mut line = Line::default();
 
-        gradient
+        for (color, character) in gradient
             .colors(text.chars().count())
             .into_iter()
             .zip(text.chars())
-            .map(|(color, ch)| {
-                let [r, g, b, _] = color.to_rgba8();
-                ch.if_supports_color(Stream::Stdout, |s| s.style(rgb(r, g, b)))
-                    .to_string()
-            })
-            .collect()
+        {
+            let [r, g, b, _] = color.to_rgba8();
+            line = line.push_styled(character.to_string(), rgb(r, g, b));
+        }
+
+        line
     }
 }
 
