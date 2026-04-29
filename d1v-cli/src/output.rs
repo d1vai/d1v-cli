@@ -3,10 +3,8 @@ use std::io::{self, IsTerminal, Write};
 
 use anstyle::Style;
 use clap::ValueEnum;
-use serde::ser::SerializeSeq;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use serde_json::json;
-use unicode_width::UnicodeWidthStr;
 
 use crate::error::Result;
 use crate::symbols;
@@ -65,19 +63,6 @@ impl Display for Color {
             Color::Never => write!(f, "never"),
         }
     }
-}
-
-/// Pads `label` to `width` display columns using Unicode display width.
-pub fn pad_label(label: impl AsRef<str>, width: usize) -> String {
-    let label = label.as_ref();
-    let display_width = label.width();
-    let padding = if display_width >= width {
-        1
-    } else {
-        width - display_width
-    };
-
-    format!("{label}{}", " ".repeat(padding))
 }
 
 /// Formats seconds into a localized human-readable duration (e.g., `2d 3h`).
@@ -205,42 +190,6 @@ impl Output {
         .unwrap_or_else(|err| tracing::warn!(%err, "failed to write message"));
     }
 
-    /// Writes structured data to stdout ([`Display`] for text, [`Serialize`] for JSON).
-    pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
-        self.print_to(&mut io::stdout(), value)
-    }
-
-    /// Writes a list of structured data to stdout.
-    pub fn print_list(&self, values: impl IntoIterator<Item = impl Display + Serialize>) -> Result {
-        self.print_list_to(&mut io::stdout(), values)
-    }
-
-    /// Writes structured data to the given writer.
-    pub fn print_to(&self, w: &mut impl Write, value: &(impl Display + Serialize)) -> Result {
-        match self.format {
-            Format::Text => writeln!(w, "{value}")?,
-            Format::Json => Self::write_json(w, value)?,
-        }
-        Ok(())
-    }
-
-    /// Writes a list of structured data to the given writer.
-    pub fn print_list_to(
-        &self,
-        w: &mut impl Write,
-        values: impl IntoIterator<Item = impl Display + Serialize>,
-    ) -> Result {
-        match self.format {
-            Format::Text => {
-                for value in values {
-                    writeln!(w, "{value}")?;
-                }
-            }
-            Format::Json => Self::write_json_seq(w, values)?,
-        }
-        Ok(())
-    }
-
     /// Writes an error to stderr in the appropriate format.
     pub fn error(&self, err: &dyn Display) {
         if let Err(write_err) = self.error_to(&mut io::stderr(), err) {
@@ -277,21 +226,6 @@ impl Output {
 
     fn write_json(w: &mut impl Write, value: &(impl Serialize + ?Sized)) -> io::Result<()> {
         serde_json::to_writer_pretty(&mut *w, value).map_err(io::Error::other)?;
-        writeln!(w)
-    }
-
-    fn write_json_seq(
-        w: &mut impl Write,
-        values: impl IntoIterator<Item = impl Serialize>,
-    ) -> io::Result<()> {
-        let mut serializer = serde_json::Serializer::pretty(&mut *w);
-        let mut seq = serializer.serialize_seq(None).map_err(io::Error::other)?;
-
-        for value in values {
-            seq.serialize_element(&value).map_err(io::Error::other)?;
-        }
-
-        seq.end().map_err(io::Error::other)?;
         writeln!(w)
     }
 }

@@ -72,21 +72,11 @@ impl Context {
         self.output.message(msg);
     }
 
-    /// Writes structured data via the output formatter.
-    pub fn print(&self, value: &(impl Display + Serialize)) -> Result {
-        self.output.print(value)
-    }
-
     pub fn present<T, J>(&self, text: T, json: &J) -> Result
     where
         T: Render,
         J: Serialize + ?Sized,
     {
         self.output.present(text, json)
-    }
-
-    /// Writes a list of structured data via the output formatter.
-    pub fn print_list(&self, values: impl IntoIterator<Item = impl Display + Serialize>) -> Result {
-        self.output.print_list(values)
     }
 }
