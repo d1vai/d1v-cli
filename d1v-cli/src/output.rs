@@ -106,38 +106,6 @@ impl Output {
         AutoStream::new(w, self.choice())
     }
 
-    fn success_style(&self) -> Style {
-        if self.color {
-            theme::ansi::success()
-        } else {
-            Style::new()
-        }
-    }
-
-    fn error_style(&self) -> Style {
-        if self.color {
-            theme::ansi::error()
-        } else {
-            Style::new()
-        }
-    }
-
-    fn info_style(&self) -> Style {
-        if self.color {
-            theme::ansi::info()
-        } else {
-            Style::new()
-        }
-    }
-
-    fn hint_style(&self) -> Style {
-        if self.color {
-            theme::ansi::hint()
-        } else {
-            Style::new()
-        }
-    }
-
     pub fn present<T, J>(&self, text: T, json: &J) -> Result
     where
         T: Render,
@@ -169,7 +137,7 @@ impl Output {
                 writeln!(
                     self.auto(io::stdout()),
                     "{}",
-                    message.style(self.success_style())
+                    message.style(theme::ansi::success())
                 )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -185,7 +153,7 @@ impl Output {
                 writeln!(
                     self.auto(io::stdout()),
                     "{}",
-                    message.style(self.info_style())
+                    message.style(theme::ansi::info())
                 )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -199,7 +167,7 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {msg}", symbols::INFO);
-                writeln!(out, "{}", message.style(self.info_style()))
+                writeln!(out, "{}", message.style(theme::ansi::info()))
             }
             Format::Json => writeln!(out, "{msg}"),
         }
@@ -227,7 +195,7 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {err}", symbols::ERROR);
-                writeln!(out, "{}", message.style(self.error_style()))
+                writeln!(out, "{}", message.style(theme::ansi::error()))
             }
             Format::Json => Self::write_json(&mut out, &json!({ "error": format!("{err}") })),
         }
@@ -243,7 +211,7 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let message = message.style(self.hint_style());
+                let message = message.style(theme::ansi::hint());
                 writeln!(out, "  {message}")
             }
             Format::Json => Ok(()),
