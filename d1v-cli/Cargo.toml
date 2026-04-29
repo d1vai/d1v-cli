@@ -14,6 +14,7 @@ mock = ["d1v-api/mock"]
 [dependencies]
 d1v-api = { path = "../d1v-api" }
 anstyle = "1.0"
+anstream = "1.0"
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive", "env"] }
 colorgrad = { version = "0.8", features = ["preset", "named-colors"] }

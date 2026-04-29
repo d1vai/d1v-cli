@@ -1,6 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 use std::io::{self, IsTerminal, Write};
 
+use anstream::stream::{AsLockedWrite, RawStream};
+use anstream::AutoStream;
 use anstyle::Style;
 use clap::ValueEnum;
 use serde::Serialize;
@@ -92,6 +94,18 @@ impl Output {
         Self { format, color }
     }
 
+    fn choice(&self) -> anstream::ColorChoice {
+        if self.color {
+            anstream::ColorChoice::Always
+        } else {
+            anstream::ColorChoice::Never
+        }
+    }
+
+    fn auto<W: RawStream>(&self, w: W) -> AutoStream<W> {
+        AutoStream::new(w, self.choice())
+    }
+
     fn success_style(&self) -> Style {
         if self.color {
             theme::ansi::success()
@@ -129,20 +143,21 @@ impl Output {
         T: Render,
         J: Serialize + ?Sized,
     {
-        self.present_to(&mut io::stdout(), text, json)
+        self.present_to(io::stdout(), text, json)
     }
 
-    pub fn present_to<T, J>(&self, w: &mut impl Write, text: T, json: &J) -> Result
+    pub fn present_to<T, J>(&self, w: impl RawStream + AsLockedWrite, text: T, json: &J) -> Result
     where
         T: Render,
         J: Serialize + ?Sized,
     {
+        let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let mut writer = RenderContext::new(w, self.color);
+                let mut writer = RenderContext::new(&mut out, self.color);
                 text.render(&mut writer)?;
             }
-            Format::Json => Self::write_json(w, json)?,
+            Format::Json => Self::write_json(&mut out, json)?,
         }
         Ok(())
     }
@@ -151,7 +166,11 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {msg}", symbols::SUCCESS);
-                writeln!(io::stdout(), "{}", message.style(self.success_style()))
+                writeln!(
+                    self.auto(io::stdout()),
+                    "{}",
+                    message.style(self.success_style())
+                )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
         }
@@ -163,7 +182,11 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {msg}", symbols::INFO);
-                writeln!(io::stdout(), "{}", message.style(self.info_style()))
+                writeln!(
+                    self.auto(io::stdout()),
+                    "{}",
+                    message.style(self.info_style())
+                )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
         }
@@ -171,13 +194,14 @@ impl Output {
     }
 
     /// Writes an informational message to the given writer.
-    pub fn info_to(&self, w: &mut impl Write, msg: impl Display) -> io::Result<()> {
+    pub fn info_to(&self, w: impl RawStream + AsLockedWrite, msg: impl Display) -> io::Result<()> {
+        let mut out = self.auto(w);
         match self.format {
             Format::Text => {
                 let message = format!("{} {msg}", symbols::INFO);
-                writeln!(w, "{}", message.style(self.info_style()))
+                writeln!(out, "{}", message.style(self.info_style()))
             }
-            Format::Json => writeln!(w, "{msg}"),
+            Format::Json => writeln!(out, "{msg}"),
         }
     }
 
@@ -192,33 +216,35 @@ impl Output {
 
     /// Writes an error to stderr in the appropriate format.
     pub fn error(&self, err: &dyn Display) {
-        if let Err(write_err) = self.error_to(&mut io::stderr(), err) {
+        if let Err(write_err) = self.error_to(io::stderr(), err) {
             tracing::warn!(%write_err, "failed to write error");
         }
     }
 
     /// Writes an error to the given writer.
-    pub fn error_to(&self, w: &mut impl Write, err: &dyn Display) -> io::Result<()> {
+    pub fn error_to(&self, w: impl RawStream + AsLockedWrite, err: &dyn Display) -> io::Result<()> {
+        let mut out = self.auto(w);
         match self.format {
             Format::Text => {
                 let message = format!("{} {err}", symbols::ERROR);
-                writeln!(w, "{}", message.style(self.error_style()))
+                writeln!(out, "{}", message.style(self.error_style()))
             }
-            Format::Json => Self::write_json(w, &json!({ "error": format!("{err}") })),
+            Format::Json => Self::write_json(&mut out, &json!({ "error": format!("{err}") })),
         }
     }
 
     pub fn hint(&self, message: &str) {
-        if let Err(write_err) = self.hint_to(&mut io::stderr(), message) {
+        if let Err(write_err) = self.hint_to(io::stderr(), message) {
             tracing::warn!(%write_err, "failed to write hint");
         }
     }
 
-    pub fn hint_to(&self, w: &mut impl Write, message: &str) -> io::Result<()> {
+    pub fn hint_to(&self, w: impl RawStream + AsLockedWrite, message: &str) -> io::Result<()> {
+        let mut out = self.auto(w);
         match self.format {
             Format::Text => {
                 let message = message.style(self.hint_style());
-                writeln!(w, "  {message}")
+                writeln!(out, "  {message}")
             }
             Format::Json => Ok(()),
         }
