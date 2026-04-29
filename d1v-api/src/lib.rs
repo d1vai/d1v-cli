@@ -18,7 +18,7 @@ pub use crate::locale::{IntoLocale, Locale, ParseLocaleError};
 pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 
-pub use crate::api::user::{PromptDailyActivity, UpdateUser, User};
+pub use crate::api::user::{DailyCount, PromptDailyActivity, UpdateUser, User};
 pub use crate::validate::{
     Code, CodeError, Email, EmailError, UrlError, Validate, ValidationError,
 };

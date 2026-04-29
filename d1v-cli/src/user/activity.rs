@@ -1,22 +1,16 @@
-use crate::theme::ansi::{Stream, Stylize};
-use colorgrad::{Gradient, GradientBuilder, LinearGradient};
-use d1v_api::PromptDailyActivity;
-use serde::Serialize;
-use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
-use super::{write_row, ActivityArgs, ActivityTarget, LABEL_WIDTH};
+use colorgrad::{Gradient, GradientBuilder, LinearGradient};
+use d1v_api::{DailyCount, PromptDailyActivity};
+
+use super::{ActivityArgs, ActivityTarget};
 use crate::error::Result;
-use crate::output::pad_label;
+use crate::text::{Field, Fields, Line, Render, RenderContext, Span};
 use crate::Context;
 use crate::{t, theme};
 
 const BAR_WIDTH: usize = 20;
-
-#[derive(Serialize)]
-#[serde(transparent)]
-struct ActivityDisplay<'a>(&'a PromptDailyActivity);
 
 static BAR_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()
@@ -25,69 +19,70 @@ static BAR_GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
         .expect("valid gradient colors")
 });
 
-impl Display for ActivityDisplay<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+struct ActivityView<'a>(&'a PromptDailyActivity);
+
+impl Render for ActivityView<'_> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> std::io::Result<()> {
         let activity = self.0;
 
-        write!(
-            f,
-            "{}{}",
-            pad_label(t!("activity-label-period"), LABEL_WIDTH)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
-            format!("{} ~ {}", activity.start_date, activity.end_date)
-                .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::value())),
-        )?;
-        write_row(f, "activity-label-days", &activity.days.to_string())?;
+        Fields::new([
+            field_row(
+                t!("activity-label-period"),
+                format!("{} ~ {}", activity.start_date, activity.end_date),
+            ),
+            field_row(t!("activity-label-days"), activity.days.to_string()),
+        ])
+        .render(ctx)?;
 
         if activity.counts.is_empty() {
             return Ok(());
         }
 
-        let max_count = activity
+        writeln!(ctx.writer)?;
+        let max = activity
             .counts
             .iter()
-            .map(|c| c.count)
+            .map(|entry| entry.count)
             .max()
             .unwrap_or(1)
             .max(1);
-        let bar_colors = BAR_GRADIENT.colors(BAR_WIDTH);
 
-        writeln!(f)?;
         for entry in &activity.counts {
-            let ratio = entry.count as f32 / max_count as f32;
-            let filled = (ratio * BAR_WIDTH as f32).round() as usize;
-            let empty = BAR_WIDTH - filled;
-
-            let filled_bar: String = bar_colors[..filled]
-                .iter()
-                .map(|c| {
-                    let [r, g, b, _] = c.to_rgba8();
-                    '█'
-                        .if_supports_color(Stream::Stdout, |s| s.truecolor(r, g, b))
-                        .to_string()
-                })
-                .collect();
-            let empty_bar = "░"
-                .repeat(empty)
-                .if_supports_color(Stream::Stdout, |s| s.truecolor(60, 60, 60))
-                .to_string();
-
-            write!(
-                f,
-                "\n  {} {}{} {}",
-                entry
-                    .date
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::dim())),
-                filled_bar,
-                empty_bar,
-                entry
-                    .count
-                    .if_supports_color(Stream::Stdout, |s| s.style(theme::ansi::label())),
-            )?;
+            bar_line(entry, max).render(ctx)?;
+            writeln!(ctx.writer)?;
         }
 
         Ok(())
     }
+}
+
+fn field_row(label: String, value: impl Into<Cow<'static, str>>) -> Field {
+    Field::new(
+        Span::styled(label, theme::ansi::label()),
+        Span::styled(value, theme::ansi::value()),
+    )
+}
+
+fn bar_line(entry: &DailyCount, max: i32) -> Line {
+    let filled =
+        ((entry.count as f32 / max as f32 * BAR_WIDTH as f32).round() as usize).min(BAR_WIDTH);
+    let empty = BAR_WIDTH - filled;
+
+    let mut line = Line::raw("  ")
+        .push_styled(entry.date.clone(), theme::ansi::dim())
+        .push_plain(" ");
+
+    for color in BAR_GRADIENT.colors(BAR_WIDTH).into_iter().take(filled) {
+        let [r, g, b, _] = color.to_rgba8();
+        line = line.push_styled("█", theme::ansi::rgb(r, g, b));
+    }
+
+    if empty > 0 {
+        line = line.push_styled("░".repeat(empty), theme::ansi::rgb(60, 60, 60));
+    }
+
+    line.push_plain(" ")
+        .push_styled(entry.count.to_string(), theme::ansi::label())
 }
 
 pub async fn run(ctx: &Context, args: ActivityArgs) -> Result<()> {
@@ -104,5 +99,5 @@ pub async fn run(ctx: &Context, args: ActivityArgs) -> Result<()> {
         None => api.prompt_daily_activity(days).await?,
     };
 
-    ctx.print(&ActivityDisplay(&activity))
+    ctx.present(ActivityView(&activity), &activity)
 }
