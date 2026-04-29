@@ -40,9 +40,7 @@ impl<T: Into<Cow<'static, str>>> From<T> for Span {
 
 impl Render for Span {
     fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
-        if ctx.color
-            && let Some(style) = self.style
-        {
+        if let Some(style) = self.style {
             write!(
                 ctx.writer,
                 "{}{}{}",

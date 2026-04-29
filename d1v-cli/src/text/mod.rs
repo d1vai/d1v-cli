@@ -22,50 +22,39 @@ pub trait Render {
 
 pub struct RenderContext<'a> {
     pub writer: &'a mut dyn Write,
-    pub color: bool,
 }
 
 impl<'a> RenderContext<'a> {
-    pub fn new(writer: &'a mut dyn Write, color: bool) -> Self {
-        Self { writer, color }
+    pub fn new(writer: &'a mut dyn Write) -> Self {
+        Self { writer }
     }
 }
 
-/// A [`Display`] wrapper for [`Render`] values.
-pub struct RenderDisplay<T> {
-    renderable: T,
-    color: bool,
-}
+/// A [`Display`] wrapper for [`Render`] values. Always emits plain text;
+/// ANSI escapes produced by [`Render`] implementations are stripped.
+pub struct RenderDisplay<T>(T);
 
 impl<T> RenderDisplay<T> {
     pub fn new(renderable: T) -> Self {
-        Self::with_color(renderable, false)
-    }
-
-    pub fn with_color(renderable: T, color: bool) -> Self {
-        Self { renderable, color }
+        Self(renderable)
     }
 }
 
 impl<T: Render> Display for RenderDisplay<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut buf = Vec::new();
-        let mut ctx = RenderContext::new(&mut buf, self.color);
+        let mut ctx = RenderContext::new(&mut buf);
 
-        self.renderable.render(&mut ctx).map_err(|_| fmt::Error)?;
+        self.0.render(&mut ctx).map_err(|_| fmt::Error)?;
         let text = String::from_utf8(buf).map_err(|_| fmt::Error)?;
 
-        f.write_str(&text)
+        f.write_str(&anstream::adapter::strip_str(&text).to_string())
     }
 }
 
 pub trait RenderExt: Render + Sized {
     fn display(self) -> RenderDisplay<Self> {
         RenderDisplay::new(self)
-    }
-
-    fn display_with_color(self, color: bool) -> RenderDisplay<Self> {
-        RenderDisplay::with_color(self, color)
     }
 }
 

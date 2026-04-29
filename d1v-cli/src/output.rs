@@ -3,7 +3,6 @@ use std::io::{self, IsTerminal, Write};
 
 use anstream::stream::{AsLockedWrite, RawStream};
 use anstream::AutoStream;
-use anstyle::Style;
 use clap::ValueEnum;
 use serde::Serialize;
 use serde_json::json;
@@ -122,7 +121,7 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let mut writer = RenderContext::new(&mut out, self.color);
+                let mut writer = RenderContext::new(&mut out);
                 text.render(&mut writer)?;
             }
             Format::Json => Self::write_json(&mut out, json)?,
