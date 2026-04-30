@@ -22,17 +22,24 @@ pub trait Render {
 
 pub struct RenderContext<'a> {
     pub writer: &'a mut dyn Write,
+    pub color: bool,
 }
 
 impl<'a> RenderContext<'a> {
     pub fn new(writer: &'a mut dyn Write) -> Self {
-        Self { writer }
+        Self {
+            writer,
+            color: true,
+        }
+    }
+
+    pub fn color(mut self, color: bool) -> Self {
+        self.color = color;
+        self
     }
 }
 
 /// A [`Display`] adapter that renders a [`Render`] value as plain text.
-///
-/// ANSI styling emitted during rendering is stripped.
 pub struct RenderDisplay<T>(T);
 
 impl<T> RenderDisplay<T> {
@@ -43,11 +50,10 @@ impl<T> RenderDisplay<T> {
 
 impl<T: Render> Display for RenderDisplay<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut writer = anstream::StripStream::new(Vec::new());
-        let mut ctx = RenderContext::new(&mut writer);
+        let mut buf = Vec::new();
+        let mut ctx = RenderContext::new(&mut buf).color(false);
 
         self.0.render(&mut ctx).map_err(|_| fmt::Error)?;
-        let buf = writer.into_inner();
         let text = std::str::from_utf8(&buf).map_err(|_| fmt::Error)?;
 
         f.write_str(text)
@@ -78,19 +84,11 @@ mod tests {
 
     impl Render for AnsiRender {
         fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
-            ctx.writer.write_all(b"\x1b[32mhello\x1b[0m")
-        }
-    }
-
-    struct SplitRender;
-
-    impl Render for SplitRender {
-        fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
-            for byte in "\x1b[32m✓\x1b[0m".as_bytes() {
-                ctx.writer.write_all(&[*byte])?;
+            if ctx.color {
+                ctx.writer.write_all(b"\x1b[32mhello\x1b[0m")
+            } else {
+                ctx.writer.write_all(b"hello")
             }
-
-            Ok(())
         }
     }
 
@@ -106,13 +104,33 @@ mod tests {
     }
 
     #[test]
-    fn display_strips_ansi() {
+    fn display_plain_source() {
         assert_eq!(AnsiRender.display().to_string(), "hello");
     }
 
     #[test]
-    fn display_handles_split_writes() {
-        assert_eq!(SplitRender.display().to_string(), "✓");
+    fn span_display_plain() {
+        let span = Span::styled("hello", crate::theme::ansi::success());
+
+        assert_eq!(span.to_string(), "hello");
+    }
+
+    #[test]
+    fn line_display_plain() {
+        let line = Line::new()
+            .push_styled("hello", crate::theme::ansi::success())
+            .push_plain(" world");
+
+        assert_eq!(line.to_string(), "hello world");
+    }
+
+    #[test]
+    fn text_display_plain() {
+        let text = Text::new()
+            .line(Line::styled("hello", crate::theme::ansi::success()))
+            .line(Line::styled("world", crate::theme::ansi::info()));
+
+        assert_eq!(text.to_string(), "hello\nworld\n");
     }
 
     #[test]

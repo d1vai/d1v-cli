@@ -10,8 +10,7 @@ use serde_json::json;
 use crate::error::Result;
 use crate::symbols;
 use crate::t;
-use crate::text::Span;
-use crate::text::{Render, RenderContext};
+use crate::text::{Line, Render, RenderContext};
 use crate::theme;
 
 /// Output format.
@@ -55,6 +54,24 @@ pub struct Output {
     pub color: ColorChoice,
 }
 
+struct StatusLine<M> {
+    symbol: &'static str,
+    message: M,
+    style: theme::ansi::Style,
+}
+
+impl<M: Display> Render for StatusLine<M> {
+    fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
+        Line::new()
+            .push_styled(self.symbol, self.style)
+            .push_plain(" ")
+            .push_styled(self.message.to_string(), self.style)
+            .render(ctx)?;
+
+        writeln!(ctx.writer)
+    }
+}
+
 impl Output {
     pub fn new(format: Format, color: ColorChoice) -> Self {
         Self { format, color }
@@ -91,12 +108,14 @@ impl Output {
     pub fn success(&self, msg: impl Display) {
         match self.format {
             Format::Text => {
-                let message = format!("{} {msg}", symbols::SUCCESS);
-                writeln!(
-                    self.auto(io::stdout()),
-                    "{}",
-                    Span::styled(message, theme::ansi::success())
-                )
+                let mut out = self.auto(io::stdout());
+                let mut ctx = RenderContext::new(&mut out);
+                StatusLine {
+                    symbol: symbols::SUCCESS,
+                    message: msg,
+                    style: theme::ansi::success(),
+                }
+                .render(&mut ctx)
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
         }
@@ -107,12 +126,14 @@ impl Output {
     pub fn info(&self, msg: impl Display) {
         match self.format {
             Format::Text => {
-                let message = format!("{} {msg}", symbols::INFO);
-                writeln!(
-                    self.auto(io::stdout()),
-                    "{}",
-                    Span::styled(message, theme::ansi::info())
-                )
+                let mut out = self.auto(io::stdout());
+                let mut ctx = RenderContext::new(&mut out);
+                StatusLine {
+                    symbol: symbols::INFO,
+                    message: msg,
+                    style: theme::ansi::info(),
+                }
+                .render(&mut ctx)
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
         }
@@ -124,8 +145,13 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let message = format!("{} {msg}", symbols::INFO);
-                writeln!(out, "{}", Span::styled(message, theme::ansi::info()))
+                let mut ctx = RenderContext::new(&mut out);
+                StatusLine {
+                    symbol: symbols::INFO,
+                    message: msg,
+                    style: theme::ansi::info(),
+                }
+                .render(&mut ctx)
             }
             Format::Json => writeln!(out, "{msg}"),
         }
@@ -152,8 +178,13 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let message = format!("{} {err}", symbols::ERROR);
-                writeln!(out, "{}", Span::styled(message, theme::ansi::error()))
+                let mut ctx = RenderContext::new(&mut out);
+                StatusLine {
+                    symbol: symbols::ERROR,
+                    message: err,
+                    style: theme::ansi::error(),
+                }
+                .render(&mut ctx)
             }
             Format::Json => Self::write_json(&mut out, &json!({ "error": format!("{err}") })),
         }
@@ -169,8 +200,12 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let message = Span::styled(message.to_owned(), theme::ansi::hint());
-                writeln!(out, "  {message}")
+                let mut ctx = RenderContext::new(&mut out);
+                Line::new()
+                    .push_plain("  ")
+                    .push_styled(message.to_owned(), theme::ansi::hint())
+                    .render(&mut ctx)?;
+                writeln!(out)
             }
             Format::Json => Ok(()),
         }

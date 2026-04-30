@@ -41,7 +41,9 @@ impl<T: Into<Cow<'static, str>>> From<T> for Span {
 
 impl Render for Span {
     fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
-        if let Some(style) = self.style {
+        if ctx.color
+            && let Some(style) = self.style
+        {
             write!(
                 ctx.writer,
                 "{}{}{}",
@@ -57,16 +59,6 @@ impl Render for Span {
 
 impl Display for Span {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if let Some(style) = self.style {
-            write!(
-                f,
-                "{}{}{}",
-                style.render(),
-                self.content,
-                style.render_reset()
-            )
-        } else {
-            f.write_str(&self.content)
-        }
+        f.write_str(&self.content)
     }
 }

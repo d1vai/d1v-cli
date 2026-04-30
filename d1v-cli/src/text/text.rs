@@ -1,3 +1,4 @@
+use std::fmt::{self, Display, Formatter};
 use std::io;
 
 use super::{Line, Render, RenderContext};
@@ -48,6 +49,16 @@ impl Render for Text {
         for line in &self.lines {
             line.render(ctx)?;
             writeln!(ctx.writer)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for Text {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for line in &self.lines {
+            writeln!(f, "{line}")?;
         }
 
         Ok(())

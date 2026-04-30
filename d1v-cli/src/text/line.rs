@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::{self, Display, Formatter};
 use std::io;
 
 use anstyle::Style;
@@ -64,6 +65,16 @@ impl Render for Line {
     fn render(&self, ctx: &mut RenderContext<'_>) -> io::Result<()> {
         for span in &self.spans {
             span.render(ctx)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for Line {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        for span in &self.spans {
+            write!(f, "{span}")?;
         }
 
         Ok(())
