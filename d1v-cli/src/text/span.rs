@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::{self, Display, Formatter};
 use std::io;
 
 use anstyle::Style;
@@ -50,6 +51,22 @@ impl Render for Span {
             )
         } else {
             write!(ctx.writer, "{}", self.content)
+        }
+    }
+}
+
+impl Display for Span {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        if let Some(style) = self.style {
+            write!(
+                f,
+                "{}{}{}",
+                style.render(),
+                self.content,
+                style.render_reset()
+            )
+        } else {
+            f.write_str(&self.content)
         }
     }
 }

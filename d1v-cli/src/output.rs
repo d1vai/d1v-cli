@@ -10,9 +10,9 @@ use serde_json::json;
 use crate::error::Result;
 use crate::symbols;
 use crate::t;
+use crate::text::Span;
 use crate::text::{Render, RenderContext};
 use crate::theme;
-use crate::theme::ansi::Stylize;
 
 /// Output format.
 #[derive(Debug, Copy, Clone, Default, ValueEnum)]
@@ -136,7 +136,7 @@ impl Output {
                 writeln!(
                     self.auto(io::stdout()),
                     "{}",
-                    message.style(theme::ansi::success())
+                    Span::styled(message, theme::ansi::success())
                 )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -152,7 +152,7 @@ impl Output {
                 writeln!(
                     self.auto(io::stdout()),
                     "{}",
-                    message.style(theme::ansi::info())
+                    Span::styled(message, theme::ansi::info())
                 )
             }
             Format::Json => writeln!(io::stderr(), "{msg}"),
@@ -166,7 +166,7 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {msg}", symbols::INFO);
-                writeln!(out, "{}", message.style(theme::ansi::info()))
+                writeln!(out, "{}", Span::styled(message, theme::ansi::info()))
             }
             Format::Json => writeln!(out, "{msg}"),
         }
@@ -194,7 +194,7 @@ impl Output {
         match self.format {
             Format::Text => {
                 let message = format!("{} {err}", symbols::ERROR);
-                writeln!(out, "{}", message.style(theme::ansi::error()))
+                writeln!(out, "{}", Span::styled(message, theme::ansi::error()))
             }
             Format::Json => Self::write_json(&mut out, &json!({ "error": format!("{err}") })),
         }
@@ -210,7 +210,7 @@ impl Output {
         let mut out = self.auto(w);
         match self.format {
             Format::Text => {
-                let message = message.style(theme::ansi::hint());
+                let message = Span::styled(message.to_owned(), theme::ansi::hint());
                 writeln!(out, "  {message}")
             }
             Format::Json => Ok(()),
