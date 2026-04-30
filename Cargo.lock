@@ -548,6 +548,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "colorchoice-clap"
+version = "1.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb349f1be51d537c77d89ba5d1ba4344385175446eb01dacde8e1eace4094226"
+dependencies = [
+ "clap",
+ "colorchoice",
+]
+
+[[package]]
 name = "colorgrad"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,6 +805,7 @@ dependencies = [
  "anyhow",
  "apple-native-keyring-store",
  "clap",
+ "colorchoice-clap",
  "colorgrad",
  "const_format",
  "crossterm",

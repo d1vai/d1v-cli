@@ -35,7 +35,6 @@ Run `d1v --help` for all available commands.
 | `D1V_AUTH_TOKEN`  | Auth token           |
 | `D1V_BASE_URL`    | API base URL         |
 | `D1V_FORMAT`      | Output format        |
-| `D1V_COLOR`       | Color output         |
 | `D1V_LANG`        | Display language     |
 | `D1V_LOG_FILE`    | Log file path        |
 | `D1V_RECORD_FILE` | HTTP recording file  |

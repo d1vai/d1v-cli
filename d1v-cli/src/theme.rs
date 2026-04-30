@@ -1,8 +1,8 @@
 pub mod ansi {
     use std::fmt::{self, Display, Formatter};
-    use std::io::{self, IsTerminal};
-    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::io;
 
+    use anstream::{AutoStream, ColorChoice};
     use anstyle::{Color, RgbColor};
     use colorgrad::Gradient;
 
@@ -60,41 +60,13 @@ pub mod ansi {
         Stderr,
     }
 
-    const OVERRIDE_SET: u8 = 0b10;
-    const OVERRIDE_ON: u8 = 0b01;
-    static OVERRIDE: AtomicU8 = AtomicU8::new(0);
-
-    pub fn set_override(enabled: bool) {
-        let bits = OVERRIDE_SET | if enabled { OVERRIDE_ON } else { 0 };
-        OVERRIDE.store(bits, Ordering::Relaxed);
-    }
-
-    pub fn unset_override() {
-        OVERRIDE.store(0, Ordering::Relaxed);
-    }
-
-    fn override_state() -> (bool, bool) {
-        let bits = OVERRIDE.load(Ordering::Relaxed);
-        let set = bits & OVERRIDE_SET != 0;
-        let on = bits & OVERRIDE_ON != 0;
-        (set && on, set && !on)
-    }
-
     pub fn supports_color(stream: Stream) -> bool {
-        let (force_on, force_off) = override_state();
+        let choice = match stream {
+            Stream::Stdout => AutoStream::choice(&io::stdout()),
+            Stream::Stderr => AutoStream::choice(&io::stderr()),
+        };
 
-        if force_on {
-            return true;
-        }
-
-        if force_off || std::env::var_os("NO_COLOR").is_some() {
-            return false;
-        }
-
-        match stream {
-            Stream::Stdout => io::stdout().is_terminal(),
-            Stream::Stderr => io::stderr().is_terminal(),
-        }
+        !matches!(choice, ColorChoice::Never)
     }
 
     pub struct Styled<T: ?Sized> {

@@ -20,12 +20,13 @@ pub mod user;
 use std::fmt::Display;
 use std::time::Duration;
 
+use anstream::ColorChoice;
 use d1v_api::{Client, UserAgent};
 use serde::Serialize;
 
 use crate::config::Config;
 use crate::error::Result;
-use crate::output::{Color, Format, Output};
+use crate::output::{Format, Output};
 use crate::token::{TokenChain, TokenSource};
 use text::Render;
 
@@ -36,7 +37,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(format: Format, color: Color, base_url: Option<String>) -> Result<Self> {
+    pub fn new(format: Format, color: ColorChoice, base_url: Option<String>) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
@@ -53,7 +54,7 @@ impl Context {
         Ok(Self {
             client: builder.build()?,
             tokens,
-            output: Output::new(format, color.resolve()),
+            output: Output::new(format, color),
         })
     }
 

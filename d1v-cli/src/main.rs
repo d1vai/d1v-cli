@@ -2,6 +2,7 @@ use std::io::{stdin, IsTerminal};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
+use colorchoice_clap::Color;
 use jiff::SignedDuration;
 use tracing::info;
 
@@ -9,7 +10,7 @@ use d1v_cli::banner::Banner;
 use d1v_cli::config::cmd::ConfigKey;
 use d1v_cli::config::Config;
 use d1v_cli::error::{Error, Result};
-use d1v_cli::output::{format_duration, Color, Format, Output};
+use d1v_cli::output::{format_duration, Format, Output};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{auth, config, debug, i18n, logging, t, user, Context};
 
@@ -21,7 +22,7 @@ struct Cli {
     format: Format,
 
     /// Color output
-    #[arg(long, global = true, default_value_t, env = "D1V_COLOR")]
+    #[command(flatten)]
     color: Color,
 
     /// Language override
@@ -153,7 +154,7 @@ async fn run(cli: Cli) -> Result<()> {
             .map_err(anyhow::Error::from)?
     };
 
-    let ctx = Context::new(cli.format, cli.color, cli.base_url)?;
+    let ctx = Context::new(cli.format, cli.color.as_choice(), cli.base_url)?;
 
     if cli.command.requires_auth() {
         if ctx.tokens.lookup()?.is_none() {
@@ -236,8 +237,8 @@ async fn main() -> ExitCode {
     let _log = logging::init(cli.log_file.take(), cli.verbose).ok();
     i18n::init(locale_sources(cli.lang.as_deref()));
 
-    let output = Output::new(cli.format, cli.color.resolve());
-    d1v_cli::theme::ansi::set_override(output.color);
+    cli.color.write_global();
+    let output = Output::new(cli.format, cli.color.as_choice());
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 

@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, Write};
 
 use anstream::stream::{AsLockedWrite, RawStream};
-use anstream::AutoStream;
+use anstream::{AutoStream, ColorChoice};
 use clap::ValueEnum;
 use serde::Serialize;
 use serde_json::json;
@@ -33,39 +33,6 @@ impl Display for Format {
     }
 }
 
-/// Color output preference.
-#[derive(Debug, Copy, Clone, Default, ValueEnum)]
-pub enum Color {
-    /// Enable colors when writing to a terminal
-    #[default]
-    Auto,
-    /// Always emit ANSI color codes
-    Always,
-    /// Never emit ANSI color codes
-    Never,
-}
-
-impl Color {
-    /// Resolves to a concrete boolean based on terminal capabilities.
-    pub fn resolve(self) -> bool {
-        match self {
-            Self::Always => true,
-            Self::Never => false,
-            Self::Auto => std::env::var_os("NO_COLOR").is_none() && io::stderr().is_terminal(),
-        }
-    }
-}
-
-impl Display for Color {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Color::Auto => write!(f, "auto"),
-            Color::Always => write!(f, "always"),
-            Color::Never => write!(f, "never"),
-        }
-    }
-}
-
 /// Formats seconds into a localized human-readable duration (e.g., `2d 3h`).
 pub fn format_duration(total_secs: i64) -> String {
     let days = total_secs / 86400;
@@ -85,24 +52,16 @@ pub fn format_duration(total_secs: i64) -> String {
 #[derive(Debug, Clone)]
 pub struct Output {
     pub format: Format,
-    pub color: bool,
+    pub color: ColorChoice,
 }
 
 impl Output {
-    pub fn new(format: Format, color: bool) -> Self {
+    pub fn new(format: Format, color: ColorChoice) -> Self {
         Self { format, color }
     }
 
-    fn choice(&self) -> anstream::ColorChoice {
-        if self.color {
-            anstream::ColorChoice::Always
-        } else {
-            anstream::ColorChoice::Never
-        }
-    }
-
     fn auto<W: RawStream>(&self, w: W) -> AutoStream<W> {
-        AutoStream::new(w, self.choice())
+        AutoStream::new(w, self.color)
     }
 
     pub fn present<T, J>(&self, text: T, json: &J) -> Result
@@ -265,7 +224,7 @@ mod tests {
     fn present_text() {
         let info = sample();
         let mut buf = Vec::new();
-        Output::new(Format::Text, false)
+        Output::new(Format::Text, ColorChoice::Never)
             .present_to(&mut buf, InfoView { info: &info }, &info)
             .unwrap();
 
@@ -282,7 +241,7 @@ mod tests {
     fn present_json() {
         let info = sample();
         let mut buf = Vec::new();
-        Output::new(Format::Json, false)
+        Output::new(Format::Json, ColorChoice::Never)
             .present_to(&mut buf, InfoView { info: &info }, &info)
             .unwrap();
 
@@ -304,7 +263,7 @@ mod tests {
             code: 1.into(),
             message: "something broke".into(),
         });
-        Output::new(Format::Text, false)
+        Output::new(Format::Text, ColorChoice::Never)
             .error_to(&mut buf, &err)
             .unwrap();
 
@@ -321,7 +280,7 @@ mod tests {
             code: 1.into(),
             message: "something broke".into(),
         });
-        Output::new(Format::Json, false)
+        Output::new(Format::Json, ColorChoice::Never)
             .error_to(&mut buf, &err)
             .unwrap();
 
@@ -338,7 +297,7 @@ mod tests {
     #[test]
     fn info_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text, false)
+        Output::new(Format::Text, ColorChoice::Never)
             .info_to(&mut buf, "Code sent to user@example.com")
             .unwrap();
 
@@ -351,7 +310,7 @@ mod tests {
     #[test]
     fn info_json() {
         let mut buf = Vec::new();
-        Output::new(Format::Json, false)
+        Output::new(Format::Json, ColorChoice::Never)
             .info_to(&mut buf, "Code sent to user@example.com")
             .unwrap();
 
@@ -364,7 +323,7 @@ mod tests {
     #[test]
     fn hint_text() {
         let mut buf = Vec::new();
-        Output::new(Format::Text, false)
+        Output::new(Format::Text, ColorChoice::Never)
             .hint_to(&mut buf, "Run `d1v auth login` to authenticate.")
             .unwrap();
 
@@ -377,7 +336,7 @@ mod tests {
     #[test]
     fn hint_json_is_silent() {
         let mut buf = Vec::new();
-        Output::new(Format::Json, false)
+        Output::new(Format::Json, ColorChoice::Never)
             .hint_to(&mut buf, "some hint")
             .unwrap();
 

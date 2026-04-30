@@ -35,7 +35,6 @@
 | `D1V_AUTH_TOKEN`  | 认证令牌      |
 | `D1V_BASE_URL`    | API 基础地址  |
 | `D1V_FORMAT`      | 输出格式      |
-| `D1V_COLOR`       | 颜色输出      |
 | `D1V_LANG`        | 显示语言      |
 | `D1V_LOG_FILE`    | 日志文件路径  |
 | `D1V_RECORD_FILE` | HTTP 录制文件 |
