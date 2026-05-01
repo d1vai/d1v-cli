@@ -1,8 +1,4 @@
 pub mod ansi {
-    use std::fmt::{self, Display, Formatter};
-    use std::io;
-
-    use anstream::{AutoStream, ColorChoice};
     use anstyle::{Color, RgbColor};
     use colorgrad::Gradient;
 
@@ -52,91 +48,6 @@ pub mod ansi {
 
     pub const fn border() -> Style {
         rgb(62, 59, 74)
-    }
-
-    #[derive(Debug, Copy, Clone)]
-    pub enum Stream {
-        Stdout,
-        Stderr,
-    }
-
-    pub fn supports_color(stream: Stream) -> bool {
-        let choice = match stream {
-            Stream::Stdout => AutoStream::choice(&io::stdout()),
-            Stream::Stderr => AutoStream::choice(&io::stderr()),
-        };
-
-        !matches!(choice, ColorChoice::Never)
-    }
-
-    pub struct Styled<T: ?Sized> {
-        style: Style,
-        value: T,
-    }
-
-    impl<T: Display + ?Sized> Display for Styled<T> {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            write!(
-                f,
-                "{}{}{}",
-                self.style.render(),
-                &self.value,
-                self.style.render_reset()
-            )
-        }
-    }
-
-    pub struct ColorDisplay<'a, T, Out, F>(&'a T, Stream, F)
-    where
-        T: ?Sized,
-        F: Fn(&'a T) -> Out;
-
-    impl<'a, T, Out, F> Display for ColorDisplay<'a, T, Out, F>
-    where
-        T: Display + ?Sized,
-        Out: Display,
-        F: Fn(&'a T) -> Out,
-    {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            if supports_color(self.1) {
-                (self.2)(self.0).fmt(f)
-            } else {
-                self.0.fmt(f)
-            }
-        }
-    }
-
-    pub trait Stylize {
-        fn style(&self, style: Style) -> Styled<&Self>;
-
-        fn truecolor(&self, r: u8, g: u8, b: u8) -> Styled<&Self> {
-            self.style(rgb(r, g, b))
-        }
-
-        fn if_supports_color<'a, Out, F>(
-            &'a self,
-            stream: Stream,
-            apply: F,
-        ) -> ColorDisplay<'a, Self, Out, F>
-        where
-            F: Fn(&'a Self) -> Out;
-    }
-
-    impl<T: ?Sized> Stylize for T {
-        fn style(&self, style: Style) -> Styled<&Self> {
-            Styled { style, value: self }
-        }
-
-        fn if_supports_color<'a, Out, F>(
-            &'a self,
-            stream: Stream,
-            apply: F,
-        ) -> ColorDisplay<'a, Self, Out, F>
-        where
-            F: Fn(&'a Self) -> Out,
-        {
-            ColorDisplay(self, stream, apply)
-        }
     }
 
     /// Applies a color gradient across each character of a string.
