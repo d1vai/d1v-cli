@@ -1,9 +1,10 @@
-use std::fmt::Write;
 use std::sync::LazyLock;
 
-use crate::theme::ansi::{Stream, Stylize};
 use colorgrad::{Color, Gradient, GradientBuilder, LinearGradient};
 use itertools::Itertools;
+
+use crate::text::{Line, Render, RenderContext, Text};
+use crate::theme::ansi::rgb;
 
 static GRADIENT: LazyLock<LinearGradient> = LazyLock::new(|| {
     GradientBuilder::new()
@@ -95,7 +96,7 @@ impl Default for Banner {
     fn default() -> Self {
         Self {
             padding_top: "\n\n",
-            padding_bottom: "\n\n",
+            padding_bottom: "\n",
             padding_left: "  ",
             letter_spacing: " ",
             word_spacing: "     ",
@@ -176,12 +177,12 @@ impl Banner {
     }
 
     /// Applies gradient coloring to a single composed row, dimming shadow characters.
-    fn colorize_line(&self, line: &str, colors: &[Color]) -> String {
-        let mut out = String::from(self.padding_left);
+    fn colorize_line(&self, line: &str, colors: &[Color]) -> Line {
+        let mut composed = Line::new().push_plain(self.padding_left);
 
         for (col, ch) in line.chars().enumerate() {
             if ch == ' ' {
-                out.push(' ');
+                composed = composed.push_plain(" ");
                 continue;
             }
 
@@ -192,14 +193,10 @@ impl Banner {
                 (r, g, b)
             };
 
-            let _ = write!(
-                out,
-                "{}",
-                ch.if_supports_color(Stream::Stdout, |c| c.truecolor(r, g, b))
-            );
+            composed = composed.push_styled(ch.to_string(), rgb(r, g, b));
         }
 
-        out
+        composed
     }
 
     /// Renders the "D1V CLI" ASCII art banner with gradient and shadow.
@@ -208,10 +205,15 @@ impl Banner {
         let width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(1);
         let colors = GRADIENT.colors(width);
 
-        let art = lines
+        let text: Text = lines
             .iter()
             .map(|line| self.colorize_line(line, &colors))
-            .join("\n");
+            .collect();
+
+        let mut buf: Vec<u8> = Vec::new();
+        text.render(&mut RenderContext::new(&mut buf))
+            .expect("write to Vec");
+        let art = String::from_utf8(buf).expect("ANSI rendering yields valid UTF-8");
 
         format!("{}{art}{}", self.padding_top, self.padding_bottom)
     }
