@@ -1,7 +1,7 @@
 use crate::jwt::{Claims, DecodeError, Token};
 use crate::{Error, HttpStatusError, Response, ServerValidationError, UserAgent};
 use parking_lot::RwLock;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT};
 use reqwest::{Method, StatusCode};
 use secrecy::ExposeSecret;
 use serde::Serialize;
@@ -254,7 +254,7 @@ impl RequestBuilder {
     }
 
     pub async fn send(self) -> Result<Response, Error> {
-        let mut inner = self.inner?;
+        let mut inner = self.inner?.header(ACCEPT, "application/json");
 
         if self.auth {
             if self.client.is_token_expired() {
