@@ -1,6 +1,7 @@
 use crate::jwt::{Claims, DecodeError, Token};
 use crate::{Error, HttpStatusError, Response, ServerValidationError, UserAgent};
 use parking_lot::RwLock;
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Method, StatusCode};
 use secrecy::ExposeSecret;
 use serde::Serialize;
@@ -26,6 +27,7 @@ pub struct ClientBuilder {
     inner: reqwest::ClientBuilder,
     base_url: String,
     token: Option<Token>,
+    client_name: Option<String>,
 }
 
 impl ClientBuilder {
@@ -52,6 +54,12 @@ impl ClientBuilder {
     }
 
     #[must_use]
+    pub fn client_name(mut self, client_name: impl Into<String>) -> Self {
+        self.client_name = Some(client_name.into());
+        self
+    }
+
+    #[must_use]
     pub fn token(mut self, token: impl Into<Token>) -> Self {
         self.token = Some(token.into());
         self
@@ -70,23 +78,24 @@ impl ClientBuilder {
     }
 
     pub fn build(self) -> Result<Client, Error> {
-        #[cfg(feature = "mock")]
-        let inner = if let Ok(scenario) = std::env::var("D1V_TEST_SCENARIO")
-            && let Ok(value) = reqwest::header::HeaderValue::from_str(&scenario)
-        {
-            let mut headers = reqwest::header::HeaderMap::new();
-            headers.insert("X-Test-Scenario", value);
-            self.inner.default_headers(headers)
-        } else {
-            self.inner
-        };
+        let mut headers = HeaderMap::new();
 
-        #[cfg(not(feature = "mock"))]
-        let inner = self.inner;
+        #[cfg(feature = "mock")]
+        if let Ok(scenario) = std::env::var("D1V_TEST_SCENARIO")
+            && let Ok(value) = HeaderValue::from_str(&scenario)
+        {
+            headers.insert("X-Test-Scenario", value);
+        }
+
+        if let Some(client_name) = self.client_name
+            && let Ok(value) = HeaderValue::from_str(&client_name)
+        {
+            headers.insert("X-D1V-Client", value);
+        }
 
         Ok(Client {
             inner: Arc::new(ClientInner {
-                http: inner.build()?,
+                http: self.inner.default_headers(headers).build()?,
                 base_url: Url::parse(&self.base_url)?,
                 token: RwLock::new(self.token),
             }),
@@ -108,6 +117,7 @@ impl From<reqwest::ClientBuilder> for ClientBuilder {
             inner: builder,
             base_url: crate::DEFAULT_BASE_URL.to_string(),
             token: None,
+            client_name: None,
         }
     }
 }
