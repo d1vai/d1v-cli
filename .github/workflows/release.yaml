@@ -91,6 +91,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      attestations: write
+      id-token: write
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     steps:
@@ -109,6 +111,11 @@ jobs:
       - name: Show release files
         shell: bash
         run: ls -lah release
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "release/*"
 
       - name: Publish
         uses: softprops/action-gh-release@v2
