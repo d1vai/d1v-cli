@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${D1V_INSTALL_REPO:-d1v-ai/d1v-cli}"
+REPO="${D1V_INSTALL_REPO:-d1vai/d1v-cli}"
 INSTALL_DIR="${D1V_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION=""
 PRINT_ONLY="false"
