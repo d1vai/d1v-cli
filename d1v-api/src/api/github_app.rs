@@ -92,6 +92,40 @@ pub struct GitHubImportRequest {
     pub project_description: Option<String>,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GitHubProjectCliAccess {
+    pub configured: bool,
+    pub connected: bool,
+    pub token_valid: bool,
+    pub project_id: String,
+    pub repository_full_name: Option<String>,
+    pub repository_url: Option<String>,
+    pub default_branch: Option<String>,
+    pub current_branch: Option<String>,
+    pub platform_managed_repository: Option<bool>,
+    pub auth_mode: Option<String>,
+    pub github_installation_id: Option<u64>,
+    pub can_pull: bool,
+    pub can_push: bool,
+    pub binding_required: bool,
+    pub suggested_remote_name: Option<String>,
+    pub settings_url: Option<String>,
+    pub install_url: Option<String>,
+    pub reason: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GitHubProjectGitCredential {
+    pub username: String,
+    pub password: String,
+    pub expires_at: String,
+    pub repository_full_name: String,
+    pub repository_id: u64,
+    pub installation_id: u64,
+}
+
 impl GitHubAppApi {
     pub async fn status(&self) -> Result<GitHubAppStatus, Error> {
         self.client.get("/api/github-app/status").ok().await
@@ -130,6 +164,32 @@ impl GitHubAppApi {
         self.client
             .post("/api/github-app/import")
             .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn project_cli_access(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<GitHubProjectCliAccess, Error> {
+        self.client
+            .get(format!(
+                "/api/github-app/projects/{}/cli-access",
+                project_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn project_git_credential(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<GitHubProjectGitCredential, Error> {
+        self.client
+            .post(format!(
+                "/api/github-app/projects/{}/git-credential",
+                project_id.as_ref()
+            ))
             .ok()
             .await
     }

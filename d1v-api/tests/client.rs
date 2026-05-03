@@ -1,6 +1,9 @@
 mod common;
 
-use d1v_api::{Client, UserAgent};
+use d1v_api::{
+    Client, GitHubProjectCliAccess, GitHubProjectGitCredential, PullWorkspaceRequest,
+    PullWorkspaceResponse, UserAgent,
+};
 use httpmock::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -241,6 +244,90 @@ async fn validation_error() {
     let err = client.post("/api/user/login").ok::<()>().await.unwrap_err();
     assert!(err.is_server_validation());
 
+    mock.assert();
+}
+
+#[tokio::test]
+async fn github_app_project_cli_access() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET).path("/api/github-app/projects/proj_123/cli-access");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"code": 0, "msg": "success", "data": {"configured": true, "connected": true, "token_valid": true, "project_id": "proj_123", "repository_full_name": "d1v-community/demo", "repository_url": "https://github.com/d1v-community/demo.git", "default_branch": "main", "current_branch": "dev", "platform_managed_repository": true, "auth_mode": "github_app", "github_installation_id": 42, "can_pull": true, "can_push": true, "binding_required": false, "suggested_remote_name": "d1v"}}"#,
+            );
+    });
+
+    let client = test_client(&server);
+    let access: GitHubProjectCliAccess = client
+        .github_app()
+        .project_cli_access("proj_123")
+        .await
+        .unwrap();
+
+    assert_eq!(access.project_id, "proj_123");
+    assert_eq!(access.current_branch.as_deref(), Some("dev"));
+    assert!(access.can_pull);
+    assert!(!access.binding_required);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn github_app_project_git_credential() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/github-app/projects/proj_123/git-credential");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"code": 0, "msg": "success", "data": {"username": "x-access-token", "password": "inst-token", "expires_at": "2026-05-04T00:00:00Z", "repository_full_name": "d1v-community/demo", "repository_id": 7, "installation_id": 42}}"#,
+            );
+    });
+
+    let client = test_client(&server);
+    let credential: GitHubProjectGitCredential = client
+        .github_app()
+        .project_git_credential("proj_123")
+        .await
+        .unwrap();
+
+    assert_eq!(credential.username, "x-access-token");
+    assert_eq!(credential.password, "inst-token");
+    assert_eq!(credential.installation_id, 42);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn github_ops_pull_workspace() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/github-ops/proj_123/pull")
+            .header("content-type", "application/json")
+            .json_body_obj(&serde_json::json!({ "branch": "dev" }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(
+                r#"{"code": 0, "msg": "success", "data": {"success": true, "message": "pulled", "commit_hash": "abc123", "branch": "dev"}}"#,
+            );
+    });
+
+    let client = test_client(&server);
+    let response: PullWorkspaceResponse = client
+        .github_ops()
+        .pull_workspace(
+            "proj_123",
+            &PullWorkspaceRequest {
+                branch: Some("dev".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.success, Some(true));
+    assert_eq!(response.branch.as_deref(), Some("dev"));
     mock.assert();
 }
 

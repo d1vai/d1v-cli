@@ -21,6 +21,7 @@ pub mod theme;
 pub mod token;
 pub mod ui;
 pub mod user;
+pub mod workspace;
 
 use std::fmt::Display;
 use std::time::Duration;

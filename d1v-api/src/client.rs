@@ -246,6 +246,14 @@ impl RequestBuilder {
     }
 
     #[must_use]
+    pub fn multipart(self, form: reqwest::multipart::Form) -> Self {
+        Self {
+            inner: self.inner.map(|inner| inner.multipart(form)),
+            ..self
+        }
+    }
+
+    #[must_use]
     pub fn no_auth(self) -> Self {
         Self {
             auth: false,

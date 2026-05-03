@@ -65,6 +65,12 @@ pub struct CreateProjectResponse {
     pub import_auto_deploy: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone)]
+pub struct LocalImportUploadFile {
+    pub path: String,
+    pub bytes: Vec<u8>,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UserProject {
@@ -123,6 +129,34 @@ impl ProjectApi {
         self.client
             .post("/api/projects/create-with-integrations")
             .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn cli_import_local(
+        &self,
+        project_name: Option<&str>,
+        project_description: Option<&str>,
+        files: &[LocalImportUploadFile],
+    ) -> Result<CreateProjectResponse, Error> {
+        let mut form = reqwest::multipart::Form::new().text("private", "true");
+        if let Some(name) = project_name.filter(|value| !value.trim().is_empty()) {
+            form = form.text("project_name", name.to_string());
+        }
+        if let Some(description) = project_description.filter(|value| !value.trim().is_empty()) {
+            form = form.text("project_description", description.to_string());
+        }
+        form = form.text("wait_for_deploy", "false");
+
+        for file in files {
+            let part =
+                reqwest::multipart::Part::bytes(file.bytes.clone()).file_name(file.path.clone());
+            form = form.part("files", part);
+        }
+
+        self.client
+            .post("/api/projects/cli-import-local")
+            .multipart(form)
             .ok()
             .await
     }

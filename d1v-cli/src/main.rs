@@ -14,6 +14,7 @@ use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
     Context, auth, config, db, debug, deploy, github, i18n, logging, project, session, t, user,
+    workspace,
 };
 
 #[derive(Parser)]
@@ -101,6 +102,12 @@ enum Command {
         #[command(subcommand)]
         command: session::SessionCommand,
     },
+    /// Initialize a local directory as a d1v workspace
+    Init(workspace::InitArgs),
+    /// Inspect local workspace pull readiness
+    Pull(workspace::PullArgs),
+    /// Push local git commits to the bound project repository branch
+    Push(workspace::PushArgs),
     /// Show debug information
     Debug,
     /// Print the ASCII art banner
@@ -119,6 +126,8 @@ impl Command {
             | Command::Db { .. }
             | Command::Deploy { .. }
             | Command::Session { .. } => true,
+            Command::Init(..) => false,
+            Command::Pull(..) | Command::Push(..) => true,
         }
     }
 }
@@ -240,6 +249,9 @@ async fn run(cli: Cli) -> Result<()> {
         Command::Db { command } => db::run(&ctx, command).await,
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
+        Command::Init(args) => workspace::init(&ctx, args).await,
+        Command::Pull(args) => workspace::pull(&ctx, args).await,
+        Command::Push(args) => workspace::push(&ctx, args).await,
         Command::Config { command } => match command {
             ConfigCommand::Show => config::cmd::show(&ctx),
             ConfigCommand::Get { key } => config::cmd::get(&ctx, key),

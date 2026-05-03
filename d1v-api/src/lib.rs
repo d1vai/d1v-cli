@@ -36,11 +36,13 @@ pub use crate::api::{
     },
     github_app::{
         GitHubAppConnectUrl, GitHubAppInstallation, GitHubAppRepository, GitHubAppStatus,
-        GitHubImportAutoDeploy, GitHubImportRequest, GitHubImportResponse,
+        GitHubImportAutoDeploy, GitHubImportRequest, GitHubImportResponse, GitHubProjectCliAccess,
+        GitHubProjectGitCredential,
     },
+    github_ops::{PullWorkspaceRequest, PullWorkspaceResponse},
     project::{
-        CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, ProjectTemplateInfo,
-        UpdateProject, UserProject,
+        CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, LocalImportUploadFile,
+        ProjectTemplateInfo, UpdateProject, UserProject,
     },
     session::{
         ChatHistoryEntry, ExecuteSessionRequest, ExecuteSessionResponse, HistoryOptions,
