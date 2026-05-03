@@ -1,7 +1,7 @@
 use crate::jwt::{Claims, DecodeError, Token};
 use crate::{Error, HttpStatusError, Response, ServerValidationError, UserAgent};
 use parking_lot::RwLock;
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT};
+use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
 use reqwest::{Method, StatusCode};
 use secrecy::ExposeSecret;
 use serde::Serialize;

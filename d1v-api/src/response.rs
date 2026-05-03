@@ -18,7 +18,7 @@ impl Response {
     where
         T: DeserializeOwned,
     {
-        if self.code != 0 && self.code != 200 {
+        if self.code != 0 {
             return Err(Error::Api {
                 code: self.code.into(),
                 message: self.message,
@@ -61,6 +61,17 @@ mod tests {
         assert_eq!(
             resp.ok::<()>().unwrap_err().to_string(),
             "api error 401: unauthorized"
+        );
+    }
+
+    #[test]
+    fn code_200_error() {
+        let json = r#"{"code": 200, "msg": "ok", "data": "success", "total": null}"#;
+        let resp: Response = serde_json::from_str(json).unwrap();
+
+        assert_eq!(
+            resp.ok::<String>().unwrap_err().to_string(),
+            "api error 200: ok"
         );
     }
 
