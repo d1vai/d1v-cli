@@ -1,4 +1,4 @@
-use std::io::{stdin, IsTerminal};
+use std::io::{IsTerminal, stdin};
 
 use anstyle::Style;
 use secrecy::SecretString;
@@ -10,7 +10,7 @@ use crate::output::format_duration;
 use crate::text::{Field, Fields, Line, Render, RenderContext, Span, Text};
 use crate::token::{TokenSource, TokenStore};
 use crate::ui::{Password, Select, SelectOption};
-use crate::{i18n, prompt, symbols, t, theme, Context};
+use crate::{Context, i18n, prompt, symbols, t, theme};
 
 pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     let token = if password {
@@ -256,26 +256,29 @@ impl Render for AuthStatusView<'_> {
 pub fn status(ctx: &Context) -> Result<()> {
     let status = match ctx.tokens.source().map(String::from) {
         None => AuthStatus::NotLoggedIn,
-        Some(source) if let Some(claims) = ctx.client.claims() => {
-            let expired = claims.is_expired();
-            let expires_in = claims.expires_in().map(|d| d.as_secs());
-            let subject = claims.subject;
+        Some(source) => {
+            if let Some(claims) = ctx.client.claims() {
+                let expired = claims.is_expired();
+                let expires_in = claims.expires_in().map(|d| d.as_secs());
+                let subject = claims.subject;
 
-            if expired {
-                AuthStatus::Expired { source, subject }
+                if expired {
+                    AuthStatus::Expired { source, subject }
+                } else {
+                    AuthStatus::LoggedIn {
+                        source,
+                        subject,
+                        expires_in,
+                    }
+                }
             } else {
                 AuthStatus::LoggedIn {
                     source,
-                    subject,
-                    expires_in,
+                    subject: None,
+                    expires_in: None,
                 }
             }
         }
-        Some(source) => AuthStatus::LoggedIn {
-            source,
-            subject: None,
-            expires_in: None,
-        },
     };
 
     ctx.present(AuthStatusView { status: &status }, &status)

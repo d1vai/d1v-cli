@@ -1,5 +1,5 @@
-use d1v_api::record::{Request, Response};
 use d1v_api::Recorder;
+use d1v_api::record::{Request, Response};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};

@@ -4,12 +4,12 @@ use std::sync::LazyLock;
 use tracing::debug;
 
 use super::{GetArgs, UpdateArgs};
+use crate::Context;
 use crate::error::Result;
 use crate::text::{
     Field, Fields, Line, Render, RenderContext, Span, Table, TableRow, Text as TextBlock,
 };
 use crate::ui::{Select, SelectOption, Text};
-use crate::Context;
 use crate::{t, theme};
 
 pub struct UserListItemView<'a>(pub &'a User);

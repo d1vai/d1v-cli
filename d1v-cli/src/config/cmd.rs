@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::config::{Config, ConfigError};
 use crate::error::Result;
 use crate::text::{Field, Fields, Render, RenderContext, Span, Text};
-use crate::{t, theme, Context};
+use crate::{Context, t, theme};
 
 #[derive(Debug, Clone, Copy, ValueEnum, strum::Display)]
 #[strum(serialize_all = "snake_case")]

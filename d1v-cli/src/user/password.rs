@@ -1,7 +1,7 @@
 use crate::error::Result;
 use tracing::debug;
 
-use crate::{i18n, prompt, t, Context};
+use crate::{Context, i18n, prompt, t};
 
 pub async fn set(ctx: &Context) -> Result<()> {
     let password = prompt::new_password()?;

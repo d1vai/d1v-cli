@@ -2,7 +2,7 @@ use crate::error::Result;
 use tracing::debug;
 
 use super::info::UserListView;
-use crate::{t, Context};
+use crate::{Context, t};
 
 pub async fn accept(ctx: &Context, invite_code: &str) -> Result<()> {
     debug!(%invite_code, "accepting invitation");

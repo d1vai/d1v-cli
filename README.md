@@ -19,6 +19,36 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 Run `d1v --help` for all available commands.
 
+## Install
+
+Recommended:
+
+```sh
+curl -fsSL https://d1v.ai/install/d1v-cli.sh | bash
+```
+
+Install page:
+
+```sh
+https://d1v.ai/cli-install
+```
+
+Alternatives:
+
+```sh
+brew install d1v-ai/tap/d1v
+cargo binstall d1v-cli
+cargo install --locked d1v-cli
+```
+
+After install:
+
+```sh
+d1v auth login
+d1v project list
+d1v github status
+```
+
 ### Global Options
 
 | Option     | Description                | Default         |
@@ -110,6 +140,57 @@ Available config keys:
 | Command     | Description            |
 | ----------- | ---------------------- |
 | `d1v debug` | Show debug information |
+
+## Project Workflows
+
+These commands require authentication. Start with:
+
+```sh
+d1v auth status
+d1v auth login
+```
+
+### Core Resources
+
+| Area      | Commands |
+| --------- | -------- |
+| Projects  | `d1v project list|get|create|update|delete|templates` |
+| Sessions  | `d1v session run|continue|status|history|cancel` |
+| Deploys   | `d1v deploy preview|prod|status|history|logs` |
+| GitHub    | `d1v github status|bind|installations|repos|import` |
+| Database  | `d1v db schema|data|branches|tables|rows|token|migrate` |
+
+### GitHub Handoff
+
+Use CLI first, then jump to web only when setup is required:
+
+```sh
+d1v github status
+d1v github bind
+d1v github installations
+d1v github repos --installation-id 123456
+```
+
+If GitHub App installation or OAuth binding is incomplete, `d1v github bind` opens the correct handoff page, including `https://d1v.ai/setting?tab=github` when needed.
+
+### Database And Migration Smoke Checklist
+
+After logging in and choosing a project id, the smallest end-to-end validation flow is:
+
+```sh
+d1v db token issue <project_id> --scopes db:read,migrate
+d1v db schema <project_id>
+d1v db rows list <project_id> --schema public --table your_table
+d1v db migrate plan <project_id> --sql 'CREATE TABLE IF NOT EXISTS smoke_cli(id serial primary key);'
+```
+
+Useful follow-up commands:
+
+```sh
+d1v db migrate validate <plan_id>
+d1v db migrate approve <plan_id>
+d1v db migrate auto-review <approval_id>
+```
 
 ## Development
 

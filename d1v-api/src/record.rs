@@ -1,7 +1,7 @@
 use ahash::AHashMap;
 use parking_lot::Mutex;
-use reqwest::header::HeaderMap;
 use reqwest::StatusCode;
+use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

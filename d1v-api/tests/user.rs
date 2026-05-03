@@ -20,7 +20,11 @@ async fn send_code() {
     });
 
     let client = test_client(&server);
-    client.user().send_code("test@example.com", None).await.unwrap();
+    client
+        .user()
+        .send_code("test@example.com", None)
+        .await
+        .unwrap();
 
     mock.assert();
 }

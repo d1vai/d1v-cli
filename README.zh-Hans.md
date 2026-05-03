@@ -19,6 +19,36 @@
 
 运行 `d1v --help` 查看所有可用命令。
 
+## 安装
+
+推荐方式：
+
+```sh
+curl -fsSL https://d1v.ai/install/d1v-cli.sh | bash
+```
+
+安装页面：
+
+```sh
+https://d1v.ai/cli-install
+```
+
+备选方式：
+
+```sh
+brew install d1v-ai/tap/d1v
+cargo binstall d1v-cli
+cargo install --locked d1v-cli
+```
+
+安装后：
+
+```sh
+d1v auth login
+d1v project list
+d1v github status
+```
+
 ### 全局选项
 
 | 选项       | 描述                  | 默认值      |
@@ -110,6 +140,57 @@
 | 命令        | 描述         |
 | ----------- | ------------ |
 | `d1v debug` | 显示调试信息 |
+
+## 项目工作流
+
+以下命令都依赖登录态，建议先执行：
+
+```sh
+d1v auth status
+d1v auth login
+```
+
+### 核心资源命令
+
+| 领域      | 命令 |
+| --------- | ---- |
+| 项目      | `d1v project list|get|create|update|delete|templates` |
+| 会话      | `d1v session run|continue|status|history|cancel` |
+| 部署      | `d1v deploy preview|prod|status|history|logs` |
+| GitHub    | `d1v github status|bind|installations|repos|import` |
+| 数据库    | `d1v db schema|data|branches|tables|rows|token|migrate` |
+
+### GitHub 跳转路径
+
+优先走 CLI，只有在绑定或安装缺失时再跳浏览器：
+
+```sh
+d1v github status
+d1v github bind
+d1v github installations
+d1v github repos --installation-id 123456
+```
+
+如果 GitHub App 安装或 OAuth 绑定还没完成，`d1v github bind` 会打开正确的页面，包括需要时跳到 `https://d1v.ai/setting?tab=github`。
+
+### 数据库与迁移最小 Smoke 清单
+
+登录并拿到项目 id 后，可以按这条最短路径验证数据库链路：
+
+```sh
+d1v db token issue <project_id> --scopes db:read,migrate
+d1v db schema <project_id>
+d1v db rows list <project_id> --schema public --table your_table
+d1v db migrate plan <project_id> --sql 'CREATE TABLE IF NOT EXISTS smoke_cli(id serial primary key);'
+```
+
+后续常用命令：
+
+```sh
+d1v db migrate validate <plan_id>
+d1v db migrate approve <plan_id>
+d1v db migrate auto-review <approval_id>
+```
 
 ## 开发
 

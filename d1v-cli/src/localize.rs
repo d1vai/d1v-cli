@@ -46,10 +46,13 @@ impl Localize for APIError {
             Self::Url(_) => t!("error-invalid-url"),
             Self::ServerValidation(_) => t!("error-server-validation"),
             Self::Validation(err) => err.localize(),
-            Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
-                t!("api-error-unknown", code = code.raw(), message = message)
+            Self::Api { code, message } => {
+                if matches!(code, ApiCode::Unknown(_)) {
+                    t!("api-error-unknown", code = code.raw(), message = message)
+                } else {
+                    code.localize()
+                }
             }
-            Self::Api { code, .. } => code.localize(),
             Self::TokenExpired => t!("error-token-expired"),
         }
     }

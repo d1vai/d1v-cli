@@ -4,13 +4,13 @@ mod info;
 mod invitation;
 mod password;
 
-use std::io::{stdin, IsTerminal};
+use std::io::{IsTerminal, stdin};
 
 use clap::{Args, Subcommand};
 use tracing::debug;
 
 use crate::error::Result;
-use crate::{t, Context};
+use crate::{Context, t};
 
 #[derive(Subcommand)]
 pub enum UserCommand {

@@ -1,11 +1,11 @@
 use std::future::Future;
 
 use crossterm::terminal;
-use rattles::presets::braille::Dots;
 use rattles::TickedRattler;
+use rattles::presets::braille::Dots;
 
-use super::widgets::{Answered, Canceled, Pending};
 use super::Terminal;
+use super::widgets::{Answered, Canceled, Pending};
 use crate::error::Error;
 
 pub struct PendingPrompt {

@@ -5,9 +5,9 @@ use colorgrad::{Gradient, GradientBuilder, LinearGradient};
 use d1v_api::{DailyCount, PromptDailyActivity};
 
 use super::{ActivityArgs, ActivityTarget};
+use crate::Context;
 use crate::error::Result;
 use crate::text::{Field, Fields, Line, Render, RenderContext, Span};
-use crate::Context;
 use crate::{t, theme};
 
 const BAR_WIDTH: usize = 20;

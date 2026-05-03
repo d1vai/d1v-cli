@@ -14,14 +14,14 @@ pub use select::{Select, SelectOption};
 pub use text::Text;
 pub use widgets::{Answered, Canceled, Inline, Pending, Prompt, SelectItem, SelectList, Toggle};
 
+use crossterm::QueueableCommand;
 use crossterm::cursor::MoveTo;
 use crossterm::event::{self, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use crossterm::QueueableCommand;
 use ratatui::buffer::Buffer;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
-use ratatui::{backend::CrosstermBackend, TerminalOptions, Viewport};
+use ratatui::{TerminalOptions, Viewport, backend::CrosstermBackend};
 use std::io::{self, Stdout, Write};
 use tracing::debug;
 use unicode_width::UnicodeWidthStr;

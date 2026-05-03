@@ -18,7 +18,7 @@ impl Response {
     where
         T: DeserializeOwned,
     {
-        if self.code != 0 {
+        if self.code != 0 && self.code != 200 {
             return Err(Error::Api {
                 code: self.code.into(),
                 message: self.message,

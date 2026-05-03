@@ -1,5 +1,5 @@
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64;
 use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64;
 use jiff::fmt::friendly::{FractionalUnit, SpanPrinter};
 use jiff::fmt::serde::timestamp;
 use jiff::{SignedDuration, Timestamp};

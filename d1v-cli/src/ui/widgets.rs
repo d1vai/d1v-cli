@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Widget};
 use unicode_width::UnicodeWidthStr;
 
-use super::{as_u16, PREFIX_WIDTH};
+use super::{PREFIX_WIDTH, as_u16};
 use crate::symbols;
 use crate::theme;
 

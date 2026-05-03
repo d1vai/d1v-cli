@@ -2,10 +2,10 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use fluent_templates::fluent_bundle::FluentValue;
-use fluent_templates::{static_loader, Loader};
+use fluent_templates::{Loader, static_loader};
 use parking_lot::RwLock;
 use tracing::debug;
-use unic_langid::{langid, LanguageIdentifier};
+use unic_langid::{LanguageIdentifier, langid};
 
 static_loader! {
     static LOCALES = {

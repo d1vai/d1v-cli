@@ -2,7 +2,7 @@ use crossterm::event::{self, KeyCode, KeyModifiers};
 use ratatui::text::Line;
 
 use super::widgets::{Answered, SelectItem, SelectList};
-use super::{as_u16, ctrl_c_hint_line, nav_hint_line, Terminal};
+use super::{Terminal, as_u16, ctrl_c_hint_line, nav_hint_line};
 use crate::error::Error;
 
 /// A single choice in a [`Select`] prompt.

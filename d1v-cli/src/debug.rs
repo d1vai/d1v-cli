@@ -1,12 +1,12 @@
-use d1v_api::jwt::Claims;
 use d1v_api::UserAgent;
+use d1v_api::jwt::Claims;
 use serde::Serialize;
 
+use crate::Context;
 use crate::config::Config;
 use crate::error::Result;
 use crate::output::format_duration;
 use crate::text::{Field, Fields, Line, Render, RenderContext, Span};
-use crate::Context;
 use crate::{i18n, symbols, t, theme};
 
 #[derive(Debug, Serialize)]

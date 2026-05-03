@@ -22,6 +22,7 @@ thiserror = "2.0"
 tracing = "0.1"
 unic-langid = "0.9"
 url = "2.5"
+urlencoding = "2.1"
 serde_with = "3.18"
 garde = { version = "0.22", features = ["email"] }
 

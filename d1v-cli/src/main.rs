@@ -1,4 +1,4 @@
-use std::io::{stdin, IsTerminal};
+use std::io::{IsTerminal, stdin};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
@@ -7,12 +7,14 @@ use jiff::SignedDuration;
 use tracing::info;
 
 use d1v_cli::banner::Banner;
-use d1v_cli::config::cmd::ConfigKey;
 use d1v_cli::config::Config;
+use d1v_cli::config::cmd::ConfigKey;
 use d1v_cli::error::{Error, Result};
-use d1v_cli::output::{format_duration, Format, Output};
+use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
-use d1v_cli::{auth, config, debug, i18n, logging, t, user, Context};
+use d1v_cli::{
+    Context, auth, config, db, debug, deploy, github, i18n, logging, project, session, t, user,
+};
 
 #[derive(Parser)]
 #[command(name = "d1v", version, before_help = banner())]
@@ -74,6 +76,31 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    /// Manage projects
+    Project {
+        #[command(subcommand)]
+        command: project::ProjectCommand,
+    },
+    /// Manage GitHub App connection
+    Github {
+        #[command(subcommand)]
+        command: github::GitHubCommand,
+    },
+    /// Manage database workflows
+    Db {
+        #[command(subcommand)]
+        command: db::DbCommand,
+    },
+    /// Manage deployments
+    Deploy {
+        #[command(subcommand)]
+        command: deploy::DeployCommand,
+    },
+    /// Manage AI runtime sessions
+    Session {
+        #[command(subcommand)]
+        command: session::SessionCommand,
+    },
     /// Show debug information
     Debug,
     /// Print the ASCII art banner
@@ -87,6 +114,11 @@ impl Command {
                 false
             }
             Command::User { command } => command.requires_auth(),
+            Command::Project { .. }
+            | Command::Github { .. }
+            | Command::Db { .. }
+            | Command::Deploy { .. }
+            | Command::Session { .. } => true,
         }
     }
 }
@@ -203,6 +235,11 @@ async fn run(cli: Cli) -> Result<()> {
             AuthCommand::Status => auth::status(&ctx),
         },
         Command::User { command } => user::run(&ctx, command).await,
+        Command::Project { command } => project::run(&ctx, command).await,
+        Command::Github { command } => github::run(&ctx, command).await,
+        Command::Db { command } => db::run(&ctx, command).await,
+        Command::Deploy { command } => deploy::run(&ctx, command).await,
+        Command::Session { command } => session::run(&ctx, command).await,
         Command::Config { command } => match command {
             ConfigCommand::Show => config::cmd::show(&ctx),
             ConfigCommand::Get { key } => config::cmd::get(&ctx, key),
