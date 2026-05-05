@@ -49,6 +49,14 @@ d1v project list
 d1v github status
 ```
 
+后续升级：
+
+```sh
+d1v upgrade
+d1v upgrade --version v0.1.3
+d1v uninstall
+```
+
 ### 全局选项
 
 | 选项       | 描述                  | 默认值      |
@@ -140,6 +148,8 @@ d1v github status
 | 命令        | 描述         |
 | ----------- | ------------ |
 | `d1v debug` | 显示调试信息 |
+| `d1v upgrade` | 检查更新并自升级 |
+| `d1v uninstall` | 移除当前 d1v 可执行文件 |
 
 ## 项目工作流
 

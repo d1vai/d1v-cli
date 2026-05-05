@@ -145,3 +145,15 @@ select-ctrl-c-hint = Press { $key } again to exit
 duration-days-hours = { $days }d { $hours }h
 duration-hours-minutes = { $hours }h { $minutes }m
 duration-minutes = { $minutes }m
+
+## Upgrade
+upgrade-up-to-date = d1v { $version } is already up to date.
+upgrade-available = Update available: { $current } -> { $latest }
+upgrade-downloading = Downloading d1v { $version }...
+upgrade-download-complete = Download complete
+upgrade-verifying = Verifying release checksum...
+upgrade-installing = Installing update...
+upgrade-success = 🎉 Upgrade successful! Installed release { $version }.
+
+## Uninstall
+uninstall-success = 🗑️ Uninstall successful! Removed d1v from { $path }.

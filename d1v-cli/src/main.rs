@@ -13,8 +13,8 @@ use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
-    Context, auth, config, db, debug, deploy, github, i18n, logging, project, session, t, user,
-    workspace,
+    Context, auth, config, db, debug, deploy, github, i18n, logging, project, session, t, upgrade,
+    user, workspace,
 };
 
 #[derive(Parser)]
@@ -110,6 +110,10 @@ enum Command {
     Push(workspace::PushArgs),
     /// Show debug information
     Debug,
+    /// Check for a newer release and upgrade this CLI
+    Upgrade(upgrade::UpgradeArgs),
+    /// Uninstall this CLI from the current executable path
+    Uninstall(upgrade::UninstallArgs),
     /// Print the ASCII art banner
     Banner,
 }
@@ -117,9 +121,12 @@ enum Command {
 impl Command {
     fn requires_auth(&self) -> bool {
         match self {
-            Command::Auth { .. } | Command::Config { .. } | Command::Debug | Command::Banner => {
-                false
-            }
+            Command::Auth { .. }
+            | Command::Config { .. }
+            | Command::Debug
+            | Command::Upgrade(..)
+            | Command::Uninstall(..)
+            | Command::Banner => false,
             Command::User { command } => command.requires_auth(),
             Command::Project { .. }
             | Command::Github { .. }
@@ -262,6 +269,8 @@ async fn run(cli: Cli) -> Result<()> {
             ConfigCommand::Edit => config::cmd::edit(),
         },
         Command::Debug => debug::run(&ctx),
+        Command::Upgrade(args) => upgrade::run(&ctx, args).await,
+        Command::Uninstall(args) => upgrade::run_uninstall(&ctx, args),
         Command::Banner => {
             print!("{}", Banner::new().render());
             Ok(())

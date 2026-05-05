@@ -145,3 +145,15 @@ select-ctrl-c-hint = 再次按 { $key } 退出
 duration-days-hours = { $days } 天 { $hours } 小时
 duration-hours-minutes = { $hours } 小时 { $minutes } 分钟
 duration-minutes = { $minutes } 分钟
+
+## 升级
+upgrade-up-to-date = d1v { $version } 已是最新版本。
+upgrade-available = 发现新版本：{ $current } -> { $latest }
+upgrade-downloading = 正在下载 d1v { $version }...
+upgrade-download-complete = 下载完成
+upgrade-verifying = 正在校验发布包...
+upgrade-installing = 正在安装更新...
+upgrade-success = 🎉 升级成功！已安装发布版本 { $version }。
+
+## 卸载
+uninstall-success = 🗑️ 卸载成功！已从 { $path } 移除 d1v。

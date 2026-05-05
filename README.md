@@ -49,6 +49,14 @@ d1v project list
 d1v github status
 ```
 
+Upgrade later:
+
+```sh
+d1v upgrade
+d1v upgrade --version v0.1.3
+d1v uninstall
+```
+
 ### Global Options
 
 | Option     | Description                | Default         |
@@ -140,6 +148,8 @@ Available config keys:
 | Command     | Description            |
 | ----------- | ---------------------- |
 | `d1v debug` | Show debug information |
+| `d1v upgrade` | Check for updates and self-upgrade |
+| `d1v uninstall` | Remove the current d1v executable |
 
 ## Project Workflows
 

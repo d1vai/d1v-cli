@@ -1,6 +1,6 @@
 [package]
 name = "d1v-api"
-version = "0.1.0"
+version = "0.1.3"
 edition = "2024"
 description = "Experimental Rust HTTP client for d1v.ai API."
 categories = ["api-bindings", "web-programming::http-client"]

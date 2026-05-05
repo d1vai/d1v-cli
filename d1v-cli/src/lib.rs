@@ -20,6 +20,7 @@ pub mod text;
 pub mod theme;
 pub mod token;
 pub mod ui;
+pub mod upgrade;
 pub mod user;
 pub mod workspace;
 

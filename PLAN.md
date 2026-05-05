@@ -1,4 +1,62 @@
-# Goal: Turn d1v-cli From Account Utility Into A Real Project Workflow CLI
+# Goal: Add `d1v upgrade` Self-Update From GitHub Releases
+
+## Current Execution
+
+- Background: `d1v-cli` is currently distributed through GitHub Releases with a versioned tarball and `checksums.txt`, but the CLI itself cannot yet detect and install a newer release.
+- User outcome: `d1v upgrade` should check the latest release, report when the current binary is already up to date, and otherwise download, verify, and replace the current executable with visible progress.
+- UX requirements:
+  - default behavior is check-then-upgrade
+  - no authentication required
+  - text mode should show human-readable status and a download progress bar
+  - JSON mode must return stable machine-readable output without progress noise on stdout
+  - success output should include emoji copy
+- Selected validators for this execution: `@cli-ux-qa`, `@cli-json-qa`, `@docs-adoption-qa`
+
+## Current Todo
+
+- [x] Add `d1v upgrade` command surface and wire it into auth-free command dispatch. `@cli-ux-qa`
+  - Owner: main agent
+  - Verification: `cargo run -p d1v-cli -- upgrade --help`
+  - Status: completed
+  - Evidence: `cargo run -p d1v-cli -- upgrade --help` prints the new top-level command with `--check`; command is auth-free and inherits global `--format`, `--color`, and `--lang` options.
+  - Notes: keep the command top-level because upgrade is operational, not project-scoped.
+
+- [x] Implement release lookup, version comparison, archive download, checksum verification, and in-place binary replacement. `@cli-ux-qa` `@cli-json-qa`
+  - Owner: main agent
+  - Verification: `cargo test -p d1v-cli`; `cargo run -p d1v-cli -- --format json upgrade --check`
+  - Status: completed
+  - Evidence: `cargo test -p d1v-cli` passed with 85 tests; `cargo run -p d1v-cli -- --format json upgrade --check` returned stable JSON only; isolated smoke copied `target/debug/d1v` into a temp dir, ran `d1v upgrade`, and the temp binary SHA-256 changed from `7d88889a...54bc` to `c7d9be67...57f7`, proving download + checksum + replace executed end to end.
+  - Notes: implementation reuses the GitHub Releases naming convention from `install.sh`, writes downloads into a side workspace next to the executable, and replaces the current binary in place. Residual risk: the current upstream release asset tagged `v0.1.2` still reports `d1v 0.1.0` via `--version`, so success copy intentionally reports the installed release tag rather than claiming the embedded binary version.
+
+- [x] Update adoption docs and execution log for the new upgrade path. `@docs-adoption-qa`
+  - Owner: main agent
+  - Verification: README command/docs review after implementation
+  - Status: completed
+  - Evidence: updated `README.md` and `README.zh-Hans.md` to document `d1v upgrade` in the install flow and diagnostics command list; this execution block now records command surface, validators, evidence, and residual risk.
+  - Notes: document both the default self-update flow and the up-to-date check behavior.
+
+- [x] Extend lifecycle support with uninstall and explicit target-version install/upgrade paths. `@cli-ux-qa` `@cli-json-qa`
+  - Owner: main agent
+  - Verification: `cargo run -p d1v-cli -- uninstall --help`; `cargo run -p d1v-cli -- upgrade --help`; local lifecycle smoke in a temp install dir
+  - Status: completed
+  - Evidence: `cargo test -p d1v-cli` passed with 87 tests after adding explicit-target install logic and uninstall coverage helpers; `cargo run -p d1v-cli -- uninstall --help` and `cargo run -p d1v-cli -- upgrade --help` rendered the new flags; temp-binary smoke confirmed `d1v uninstall --keep-path` removes its own executable; `install.sh --uninstall` removed a temp install correctly; `cargo run -p d1v-cli -- --format json upgrade --check --version v0.1.2` returned stable JSON with `target_version`.
+  - Notes: avoid bundling unrelated existing diffs from `d1v-cli/src/workspace.rs`.
+
+- [ ] Add repeatable install/upgrade/uninstall E2E coverage and use it against the published release. `@cli-ux-qa` `@docs-adoption-qa`
+  - Owner: main agent
+  - Verification: dedicated script covering specific-version install -> target-version upgrade -> uninstall
+  - Status: in_progress
+  - Evidence: added `scripts/test-install-upgrade-uninstall-e2e.sh`; local compatibility run `--initial-version v0.1.2 --target-version v0.1.2` passed and correctly fell back to installer upgrade/uninstall when the historical binary lacked those subcommands.
+  - Notes: final published-release run should use the freshly created tag after GitHub Release assets are available.
+
+- [ ] Bump crate version and publish a new tagged release for release-backed validation. `@docs-adoption-qa`
+  - Owner: main agent
+  - Verification: push commit to `main`, create and push release tag, confirm GitHub Actions release succeeds
+  - Status: pending
+  - Evidence: pending
+  - Notes: current public tag `v0.1.2` ships a binary that still reports `0.1.0`, so a clean version bump is required before release E2E is meaningful.
+
+# Archived Long-Range Plan: Turn d1v-cli From Account Utility Into A Real Project Workflow CLI
 
 ## Design Thinking And Demand Background
 

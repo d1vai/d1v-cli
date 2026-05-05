@@ -6,6 +6,7 @@ INSTALL_DIR="${D1V_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION=""
 PRINT_ONLY="false"
 NO_MODIFY_PATH="false"
+UNINSTALL="false"
 
 usage() {
   cat <<'EOF'
@@ -18,6 +19,7 @@ Options:
   --version <tag>       Install a specific release tag
   --install-dir <dir>   Override target install directory
   --print-url           Print the resolved download URL and exit
+  --uninstall           Remove the installed d1v binary
   --no-modify-path      Do not append INSTALL_DIR to shell rc files
   --help                Show this help
 EOF
@@ -37,6 +39,10 @@ while [ "$#" -gt 0 ]; do
       PRINT_ONLY="true"
       shift
       ;;
+    --uninstall)
+      UNINSTALL="true"
+      shift
+      ;;
     --no-modify-path)
       NO_MODIFY_PATH="true"
       shift
@@ -52,6 +58,17 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+normalize_version() {
+  local input="$1"
+  if [ -z "$input" ]; then
+    printf '%s\n' "$input"
+  elif [ "${input#v}" != "$input" ] || [ "${input#V}" != "$input" ]; then
+    printf '%s\n' "$input"
+  else
+    printf 'v%s\n' "$input"
+  fi
+}
+
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "Missing required command: $1" >&2
@@ -65,6 +82,48 @@ need_cmd uname
 need_cmd mktemp
 need_cmd install
 need_cmd shasum
+
+append_path() {
+  local rc_file="$1"
+  local line="export PATH=\"$INSTALL_DIR:\$PATH\""
+
+  [ -f "$rc_file" ] || touch "$rc_file"
+  if ! grep -F "$line" "$rc_file" >/dev/null 2>&1; then
+    printf '\n%s\n' "$line" >>"$rc_file"
+    echo "Added d1v to PATH in $rc_file"
+  fi
+}
+
+remove_path() {
+  local rc_file="$1"
+  local line="export PATH=\"$INSTALL_DIR:\$PATH\""
+
+  [ -f "$rc_file" ] || return 0
+
+  local tmp_file
+  tmp_file="$(mktemp)"
+  awk -v needle="$line" '$0 != needle { print }' "$rc_file" >"$tmp_file"
+  mv "$tmp_file" "$rc_file"
+}
+
+if [ "$UNINSTALL" = "true" ]; then
+  if [ -f "$INSTALL_DIR/d1v" ]; then
+    rm -f "$INSTALL_DIR/d1v"
+    echo "Removed $INSTALL_DIR/d1v"
+  else
+    echo "d1v not found at $INSTALL_DIR/d1v"
+  fi
+
+  if [ "$NO_MODIFY_PATH" != "true" ]; then
+    case "${SHELL##*/}" in
+      zsh) remove_path "$HOME/.zshrc" ;;
+      bash) remove_path "$HOME/.bashrc" ;;
+    esac
+  fi
+
+  echo "Uninstall complete."
+  exit 0
+fi
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -101,6 +160,8 @@ if [ -z "$VERSION" ]; then
   echo "Failed to resolve latest release tag" >&2
   exit 1
 fi
+
+VERSION="$(normalize_version "$VERSION")"
 
 ARCHIVE="d1v-${TARGET}.tar.gz"
 CHECKSUM_FILE="checksums.txt"
@@ -144,17 +205,6 @@ if [ ! -f "$TMP_DIR/d1v" ]; then
 fi
 
 install -m 0755 "$TMP_DIR/d1v" "$INSTALL_DIR/d1v"
-
-append_path() {
-  local rc_file="$1"
-  local line="export PATH=\"$INSTALL_DIR:\$PATH\""
-
-  [ -f "$rc_file" ] || touch "$rc_file"
-  if ! grep -F "$line" "$rc_file" >/dev/null 2>&1; then
-    printf '\n%s\n' "$line" >>"$rc_file"
-    echo "Added d1v to PATH in $rc_file"
-  fi
-}
 
 if [ "$NO_MODIFY_PATH" != "true" ]; then
   case "${SHELL##*/}" in
