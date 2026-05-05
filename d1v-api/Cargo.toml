@@ -2,6 +2,7 @@
 name = "d1v-api"
 version = "0.1.4"
 edition = "2024"
+rust-version = "1.95"
 description = "Experimental Rust HTTP client for d1v.ai API."
 categories = ["api-bindings", "web-programming::http-client"]
 keywords = ["d1vai", "ai", "api"]

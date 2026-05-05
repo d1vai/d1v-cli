@@ -31,6 +31,10 @@ Use this file as the execution contract for work in `d1v-cli`.
 
 Treat failing formatting, tests, or help-output regressions as blockers and record any environment blocker in `PLAN.md`.
 
+## Rust Toolchain
+
+- MSRV is Rust 1.95. Any stable feature available at this MSRV is allowed, including `if let` guards in `match` arms (`Some(x) if let Ok(y) = ... => ...`).
+
 ## Validator Registry
 
 - `@cli-ux-qa`: command naming, flag ergonomics, help text, interactive vs non-interactive behavior, exit-code expectations

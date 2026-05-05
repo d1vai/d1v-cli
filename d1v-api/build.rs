@@ -10,7 +10,7 @@ fn main() {
         .output()
         .expect("failed to run rustc");
 
-    // "rustc 1.94.0 (4a4ef493e 2026-03-02)" -> "1.94.0"
+    // "rustc 1.95.0 (59807616e 2026-04-14)" -> "1.95.0"
     let output = String::from_utf8(output.stdout).unwrap();
     let version = output.split_whitespace().nth(1).unwrap_or("unknown");
 

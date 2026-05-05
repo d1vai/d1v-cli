@@ -2,6 +2,7 @@
 name = "d1v-cli"
 version = "0.1.4"
 edition = "2024"
+rust-version = "1.95"
 description = "Experimental command-line interface for d1v.ai"
 categories = ["command-line-utilities"]
 keywords = ["d1vai", "ai", "cli"]
