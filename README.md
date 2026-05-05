@@ -53,7 +53,7 @@ Upgrade later:
 
 ```sh
 d1v upgrade
-d1v upgrade --version v0.1.3
+d1v upgrade --version v0.1.4
 d1v uninstall
 ```
 
