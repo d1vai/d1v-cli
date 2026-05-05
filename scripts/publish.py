@@ -115,6 +115,8 @@ def main() -> int:
     except RuntimeError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
+    except subprocess.CalledProcessError as error:
+        return error.returncode
 
     return 0
 
