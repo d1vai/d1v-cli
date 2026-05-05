@@ -19,7 +19,7 @@ jobs:
       id-token: write   # Required for Trusted Publishing OIDC token exchange
     env:
       HAS_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
-      DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+      DRY_RUN: ${{ inputs.dry_run }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,19 +34,23 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Dry-run publish
+        if: env.DRY_RUN == 'true'
+        run: python scripts/publish.py --dry-run
+
       - name: Publish with CARGO_REGISTRY_TOKEN
-        if: env.HAS_TOKEN == 'true'
+        if: env.DRY_RUN != 'true' && env.HAS_TOKEN == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: python scripts/publish.py $DRY_RUN
+        run: python scripts/publish.py
 
       - name: Authenticate via Trusted Publishing
-        if: env.HAS_TOKEN == 'false'
+        if: env.DRY_RUN != 'true' && env.HAS_TOKEN == 'false'
         id: auth
         uses: rust-lang/crates-io-auth-action@v1
 
       - name: Publish with Trusted Publishing
-        if: env.HAS_TOKEN == 'false'
+        if: env.DRY_RUN != 'true' && env.HAS_TOKEN == 'false'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: python scripts/publish.py $DRY_RUN
+        run: python scripts/publish.py
