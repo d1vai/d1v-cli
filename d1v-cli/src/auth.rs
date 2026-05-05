@@ -256,29 +256,26 @@ impl Render for AuthStatusView<'_> {
 pub fn status(ctx: &Context) -> Result<()> {
     let status = match ctx.tokens.source().map(String::from) {
         None => AuthStatus::NotLoggedIn,
-        Some(source) => {
-            if let Some(claims) = ctx.client.claims() {
-                let expired = claims.is_expired();
-                let expires_in = claims.expires_in().map(|d| d.as_secs());
-                let subject = claims.subject;
+        Some(source) if let Some(claims) = ctx.client.claims() => {
+            let expired = claims.is_expired();
+            let expires_in = claims.expires_in().map(|d| d.as_secs());
+            let subject = claims.subject;
 
-                if expired {
-                    AuthStatus::Expired { source, subject }
-                } else {
-                    AuthStatus::LoggedIn {
-                        source,
-                        subject,
-                        expires_in,
-                    }
-                }
+            if expired {
+                AuthStatus::Expired { source, subject }
             } else {
                 AuthStatus::LoggedIn {
                     source,
-                    subject: None,
-                    expires_in: None,
+                    subject,
+                    expires_in,
                 }
             }
         }
+        Some(source) => AuthStatus::LoggedIn {
+            source,
+            subject: None,
+            expires_in: None,
+        },
     };
 
     ctx.present(AuthStatusView { status: &status }, &status)
