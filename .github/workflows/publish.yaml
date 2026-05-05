@@ -4,6 +4,12 @@ name: Publish
 on:
   push:
     tags: [ "v*.*.*" ]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run cargo publish with --dry-run"
+        type: boolean
+        default: true
 
 jobs:
   publish:
@@ -13,6 +19,7 @@ jobs:
       id-token: write   # Required for Trusted Publishing OIDC token exchange
     env:
       HAS_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN != '' }}
+      DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,7 +38,7 @@ jobs:
         if: env.HAS_TOKEN == 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: python scripts/publish.py
+        run: python scripts/publish.py $DRY_RUN
 
       - name: Authenticate via Trusted Publishing
         if: env.HAS_TOKEN == 'false'
@@ -42,4 +49,4 @@ jobs:
         if: env.HAS_TOKEN == 'false'
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: python scripts/publish.py
+        run: python scripts/publish.py $DRY_RUN
