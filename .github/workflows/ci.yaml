@@ -13,6 +13,8 @@ on:
     paths-ignore:
       - "**/*.md"
       - ".gitignore"
+  schedule:
+    - cron: "0 16 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +24,7 @@ concurrency:
 jobs:
   build:
     name: Build (ubuntu-latest)
-    if: github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')
+    if: github.event_name != 'workflow_dispatch' && github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,7 +46,7 @@ jobs:
 
   build-all:
     name: Build (${{ matrix.os }})
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: true
       matrix:
