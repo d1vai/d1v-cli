@@ -42,19 +42,26 @@
   - Evidence: `cargo test -p d1v-cli` passed with 87 tests after adding explicit-target install logic and uninstall coverage helpers; `cargo run -p d1v-cli -- uninstall --help` and `cargo run -p d1v-cli -- upgrade --help` rendered the new flags; temp-binary smoke confirmed `d1v uninstall --keep-path` removes its own executable; `install.sh --uninstall` removed a temp install correctly; `cargo run -p d1v-cli -- --format json upgrade --check --version v0.1.2` returned stable JSON with `target_version`.
   - Notes: avoid bundling unrelated existing diffs from `d1v-cli/src/workspace.rs`.
 
-- [ ] Add repeatable install/upgrade/uninstall E2E coverage and use it against the published release. `@cli-ux-qa` `@docs-adoption-qa`
+- [x] Add repeatable install/upgrade/uninstall E2E coverage and use it against the published release. `@cli-ux-qa` `@docs-adoption-qa`
   - Owner: main agent
   - Verification: dedicated script covering specific-version install -> target-version upgrade -> uninstall
-  - Status: in_progress
-  - Evidence: added `scripts/test-install-upgrade-uninstall-e2e.sh`; local compatibility run `--initial-version v0.1.2 --target-version v0.1.2` passed and correctly fell back to installer upgrade/uninstall when the historical binary lacked those subcommands.
+  - Status: completed
+  - Evidence: added `scripts/test-install-upgrade-uninstall-e2e.sh`; local compatibility run `--initial-version v0.1.2 --target-version v0.1.2` passed and correctly fell back to installer upgrade/uninstall when the historical binary lacked those subcommands; published-release run `--initial-version v0.1.2 --target-version v0.1.3` passed end to end, including installer fallback upgrade from the historical binary and `d1v uninstall` on the new binary.
   - Notes: final published-release run should use the freshly created tag after GitHub Release assets are available.
 
-- [ ] Bump crate version and publish a new tagged release for release-backed validation. `@docs-adoption-qa`
+- [x] Bump crate version and publish a new tagged release for release-backed validation. `@docs-adoption-qa`
   - Owner: main agent
   - Verification: push commit to `main`, create and push release tag, confirm GitHub Actions release succeeds
-  - Status: pending
-  - Evidence: pending
-  - Notes: current public tag `v0.1.2` ships a binary that still reports `0.1.0`, so a clean version bump is required before release E2E is meaningful.
+  - Status: completed
+  - Evidence: pushed commit `de202d1` to `main`, tagged `v0.1.3`, and GitHub Release workflow run `25358392424` completed successfully; `gh release view v0.1.3` confirms release publication and assets, including `d1v-aarch64-apple-darwin.tar.gz`.
+  - Notes: `v0.1.3` now reports `d1v 0.1.3` correctly after install; the historical `v0.1.2` asset still self-reports `0.1.0`.
+
+- [ ] Fix Windows CI newline-sensitive git helper tests and platform-specific warnings. `@cli-ux-qa`
+  - Owner: main agent
+  - Verification: `cargo test -p d1v-cli`; inspect failed GitHub Actions run `25358392436`
+  - Status: in_progress
+  - Evidence: Windows CI run `25358392436` failed in `workspace::tests::git_helpers_pull_fast_forward_syncs_changes` and `git_helpers_push_head_to_remote_branch` because the checked-out file content was `v2\r\n` instead of `v2\n`; additional Windows-only warnings came from `upgrade.rs` items compiled out on non-Windows paths.
+  - Notes: keep the commit narrowly scoped so unrelated local `workspace.rs` formatting changes are not swept in accidentally.
 
 # Archived Long-Range Plan: Turn d1v-cli From Account Utility Into A Real Project Workflow CLI
 

@@ -54,9 +54,8 @@ enum UpgradeResult {
         target_version: String,
         executable_path: String,
     },
-    Uninstalled {
-        executable_path: String,
-    },
+    #[cfg(not(windows))]
+    Uninstalled { executable_path: String },
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -398,6 +397,7 @@ fn current_target() -> Result<String> {
     Ok(format!("{arch}-{os}"))
 }
 
+#[cfg(not(windows))]
 fn cleanup_path_entries(install_dir: &Path) -> Result<()> {
     let line = format!("export PATH=\"{}:$PATH\"", install_dir.display());
     for rc_path in shell_rc_paths() {
@@ -406,6 +406,7 @@ fn cleanup_path_entries(install_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(windows))]
 fn shell_rc_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     if let Some(home) = dirs::home_dir() {
@@ -415,6 +416,7 @@ fn shell_rc_paths() -> Vec<PathBuf> {
     paths
 }
 
+#[cfg(not(windows))]
 fn remove_line_if_present(path: &Path, needle: &str) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -486,14 +488,14 @@ fn other(err: impl Into<anyhow::Error>) -> Error {
     Error::Other(err.into())
 }
 
-fn ensure_executable(path: &Path) -> Result<()> {
+fn ensure_executable(_path: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
 
-        let mut perms = fs::metadata(path)?.permissions();
+        let mut perms = fs::metadata(_path)?.permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(path, perms)?;
+        fs::set_permissions(_path, perms)?;
     }
 
     Ok(())

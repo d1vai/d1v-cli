@@ -1319,6 +1319,10 @@ mod tests {
         run_git(root, args, None, None).unwrap();
     }
 
+    fn normalize_text(value: String) -> String {
+        value.replace("\r\n", "\n")
+    }
+
     #[test]
     fn git_helpers_report_repo_state() {
         let dir = temp_dir("git-state");
@@ -1406,7 +1410,7 @@ mod tests {
         git_fetch_branch(&workspace, remote.to_str().unwrap(), "dev", None).unwrap();
         git_merge_fetch_head(&workspace).unwrap();
         assert_eq!(
-            fs::read_to_string(workspace.join("app.txt")).unwrap(),
+            normalize_text(fs::read_to_string(workspace.join("app.txt")).unwrap()),
             "v2\n"
         );
 
@@ -1481,7 +1485,10 @@ mod tests {
                 verify.to_str().unwrap(),
             ],
         );
-        assert_eq!(fs::read_to_string(verify.join("app.txt")).unwrap(), "v2\n");
+        assert_eq!(
+            normalize_text(fs::read_to_string(verify.join("app.txt")).unwrap()),
+            "v2\n"
+        );
 
         fs::remove_dir_all(seed).unwrap();
         fs::remove_dir_all(workspace).unwrap();
