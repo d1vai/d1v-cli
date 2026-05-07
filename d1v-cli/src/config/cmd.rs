@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn set_base_url_empty() {
-        let mut config = Config::default().with_base_url("https://example.com");
+        let mut config = Config::builder().base_url("https://example.com").build();
         config.set(ConfigKey::BaseUrl, "").unwrap();
         assert_eq!(config.base_url(), d1v_api::DEFAULT_BASE_URL);
     }
@@ -294,18 +294,17 @@ mod tests {
 
     #[test]
     fn set_language_empty() {
-        let mut config = Config::default().language("en");
+        let mut config = Config::builder().language("en").build();
         config.set(ConfigKey::Language, "").unwrap();
         assert!(config.language.is_none());
     }
 
     #[test]
     fn info_text() {
-        let config = Config {
-            language: Some("en".into()),
-            ..Config::default()
-        }
-        .with_base_url("https://api.d1v.ai");
+        let config = Config::builder()
+            .base_url("https://api.d1v.ai")
+            .language("en")
+            .build();
 
         let info = ConfigInfo::from(&config);
         let text = ConfigInfoView { info: &info }.display().to_string();
@@ -318,11 +317,10 @@ mod tests {
 
     #[test]
     fn info_json() {
-        let config = Config {
-            language: Some("en".into()),
-            ..Config::default()
-        }
-        .with_base_url("https://api.d1v.ai");
+        let config = Config::builder()
+            .base_url("https://api.d1v.ai")
+            .language("en")
+            .build();
 
         let info = ConfigInfo::from(&config);
         let json: serde_json::Value = serde_json::to_value(&info).unwrap();

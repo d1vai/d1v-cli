@@ -177,27 +177,43 @@ where
     }
 }
 
+#[derive(Debug, Default)]
+pub struct ConfigBuilder {
+    inner: Config,
+}
+
+impl ConfigBuilder {
+    #[must_use]
+    pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.inner.set_base_url(base_url);
+        self
+    }
+
+    #[must_use]
+    pub fn token(mut self, token: SecretString) -> Self {
+        self.inner.token = Some(token);
+        self
+    }
+
+    #[must_use]
+    pub fn language(mut self, language: impl Into<String>) -> Self {
+        self.inner.language = Some(language.into());
+        self
+    }
+
+    pub fn build(self) -> Config {
+        self.inner
+    }
+}
+
 impl Config {
     pub fn new() -> Config {
         Self::default()
     }
 
     #[must_use]
-    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.set_base_url(base_url);
-        self
-    }
-
-    #[must_use]
-    pub fn token(mut self, token: SecretString) -> Self {
-        self.token = Some(token);
-        self
-    }
-
-    #[must_use]
-    pub fn language(mut self, language: impl Into<String>) -> Self {
-        self.language = Some(language.into());
-        self
+    pub fn builder() -> ConfigBuilder {
+        ConfigBuilder::default()
     }
 
     pub fn dir() -> Result<PathBuf> {
