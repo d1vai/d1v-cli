@@ -36,8 +36,12 @@ pub enum ConfigError {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    #[serde(default = "default_base_url")]
-    pub base_url: String,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_base_url"
+    )]
+    base_url: Option<String>,
 
     #[serde(
         serialize_with = "serialize_token",
@@ -80,12 +84,33 @@ pub struct RecordConfig {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            base_url: default_base_url(),
+            base_url: None,
             token: None,
             language: None,
             #[cfg(feature = "record")]
             record: RecordConfig::default(),
         }
+    }
+}
+
+impl Config {
+    /// Returns the configured base URL, or [`d1v_api::DEFAULT_BASE_URL`] when unset.
+    pub fn base_url(&self) -> &str {
+        self.base_url
+            .as_deref()
+            .unwrap_or(d1v_api::DEFAULT_BASE_URL)
+    }
+
+    /// Sets the base URL. Empty or whitespace-only input clears the override.
+    pub fn set_base_url(&mut self, base_url: impl Into<String>) {
+        let base_url = base_url.into();
+        let trimmed = base_url.trim();
+
+        self.base_url = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        };
     }
 }
 
@@ -118,8 +143,14 @@ pub fn record_path(dir: Option<&std::path::Path>) -> Result<PathBuf> {
     Ok(dir.join(format!("{today}.json")))
 }
 
-fn default_base_url() -> String {
-    d1v_api::DEFAULT_BASE_URL.to_string()
+/// Treats empty or whitespace-only `base_url` as unset.
+fn deserialize_base_url<'de, D>(deserializer: D) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty()))
 }
 
 /// Deserializes an optional path, expanding `~` and normalizing separators.
@@ -152,8 +183,8 @@ impl Config {
     }
 
     #[must_use]
-    pub fn base_url(mut self, base_url: impl Into<String>) -> Self {
-        self.base_url = base_url.into();
+    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.set_base_url(base_url);
         self
     }
 

@@ -27,7 +27,7 @@ pub enum ConfigKey {
 impl Config {
     fn get(&self, key: ConfigKey) -> Option<String> {
         match key {
-            ConfigKey::BaseUrl => Some(self.base_url.clone()),
+            ConfigKey::BaseUrl => Some(self.base_url().to_string()),
             ConfigKey::Language => self.language.clone(),
             #[cfg(feature = "record")]
             ConfigKey::RecordEnabled => Some(self.record.enabled.to_string()),
@@ -45,11 +45,7 @@ impl Config {
 
         match key {
             ConfigKey::BaseUrl => {
-                self.base_url = if value.is_empty() {
-                    d1v_api::DEFAULT_BASE_URL.to_string()
-                } else {
-                    value
-                };
+                self.set_base_url(value);
             }
             ConfigKey::Language => {
                 self.language = if value.is_empty() { None } else { Some(value) };
@@ -92,7 +88,7 @@ struct ConfigInfo {
 impl From<&Config> for ConfigInfo {
     fn from(config: &Config) -> Self {
         Self {
-            base_url: config.base_url.clone(),
+            base_url: config.base_url().to_string(),
             language: config.language.clone(),
             #[cfg(feature = "record")]
             record_enabled: config.record.enabled,
@@ -279,14 +275,14 @@ mod tests {
         config
             .set(ConfigKey::BaseUrl, "https://example.com")
             .unwrap();
-        assert_eq!(config.base_url, "https://example.com");
+        assert_eq!(config.base_url(), "https://example.com");
     }
 
     #[test]
     fn set_base_url_empty() {
-        let mut config = Config::default().base_url("https://example.com");
+        let mut config = Config::default().with_base_url("https://example.com");
         config.set(ConfigKey::BaseUrl, "").unwrap();
-        assert_eq!(config.base_url, d1v_api::DEFAULT_BASE_URL);
+        assert_eq!(config.base_url(), d1v_api::DEFAULT_BASE_URL);
     }
 
     #[test]
@@ -306,10 +302,10 @@ mod tests {
     #[test]
     fn info_text() {
         let config = Config {
-            base_url: "https://api.d1v.ai".into(),
             language: Some("en".into()),
             ..Config::default()
-        };
+        }
+        .with_base_url("https://api.d1v.ai");
 
         let info = ConfigInfo::from(&config);
         let text = ConfigInfoView { info: &info }.display().to_string();
@@ -323,10 +319,10 @@ mod tests {
     #[test]
     fn info_json() {
         let config = Config {
-            base_url: "https://api.d1v.ai".into(),
             language: Some("en".into()),
             ..Config::default()
-        };
+        }
+        .with_base_url("https://api.d1v.ai");
 
         let info = ConfigInfo::from(&config);
         let json: serde_json::Value = serde_json::to_value(&info).unwrap();

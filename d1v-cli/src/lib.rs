@@ -49,7 +49,7 @@ impl Context {
         let tokens = TokenChain::default();
 
         let mut builder = Client::builder()
-            .base_url(base_url.unwrap_or(config.base_url))
+            .base_url(base_url.as_deref().unwrap_or(config.base_url()))
             .user_agent(&UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .client_name("d1v-cli")
             .connect_timeout(Duration::from_secs(10))
