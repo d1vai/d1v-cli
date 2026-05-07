@@ -7,8 +7,7 @@ use std::process::{Command, Stdio};
 use anyhow::{Context as AnyhowContext, anyhow};
 use clap::Args;
 use d1v_api::{
-    GitHubProjectCliAccess, GitHubProjectGitCredential, LocalImportUploadFile,
-    PullWorkspaceRequest,
+    GitHubProjectCliAccess, GitHubProjectGitCredential, LocalImportUploadFile, PullWorkspaceRequest,
 };
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -909,7 +908,12 @@ fn fallback_commit_message(diff: &str) -> String {
 }
 
 fn git_diff_for_summary(root: &Path) -> Result<String> {
-    let status = run_git(root, &["status", "--short", "--untracked-files=all"], None, None)?;
+    let status = run_git(
+        root,
+        &["status", "--short", "--untracked-files=all"],
+        None,
+        None,
+    )?;
     let diff = run_git(root, &["diff", "--no-ext-diff", "--minimal"], None, None)?;
     let cached = run_git(
         root,
@@ -1312,7 +1316,10 @@ mod tests {
     fn fallback_commit_message_is_stable() {
         let diff = "Status:\n M src/main.rs\n\nUnstaged diff:\n@@\n+hello\n";
         assert_eq!(fallback_commit_message(diff), "chore: update local changes");
-        assert_eq!(sanitize_commit_message("`feat: add auth flow`\nbody"), "feat: add auth flow");
+        assert_eq!(
+            sanitize_commit_message("`feat: add auth flow`\nbody"),
+            "feat: add auth flow"
+        );
     }
 
     fn run_git_ok(root: &Path, args: &[&str]) {
