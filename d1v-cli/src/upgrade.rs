@@ -481,7 +481,8 @@ fn sha256_file(path: &Path) -> io::Result<String> {
         hasher.update(&buf[..read]);
     }
 
-    Ok(format!("{:x}", hasher.finalize()))
+    let digest = hasher.finalize();
+    Ok(format!("{:x}", base16ct::HexDisplay(&digest)))
 }
 
 fn other(err: impl Into<anyhow::Error>) -> Error {
@@ -591,5 +592,19 @@ mod tests {
             Some("abc123")
         );
         assert_eq!(parse_checksum(body, "missing.tar.gz"), None);
+    }
+
+    #[test]
+    fn sha256_file_hex() {
+        use std::io::Write as _;
+
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(b"hello world").unwrap();
+
+        let digest = sha256_file(file.path()).unwrap();
+        assert_eq!(
+            digest,
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+        );
     }
 }
