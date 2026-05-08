@@ -94,11 +94,16 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Returns the configured base URL, or [`d1v_api::DEFAULT_BASE_URL`] when unset.
+    /// Returns the effective base URL.
     pub fn base_url(&self) -> &str {
         self.base_url
             .as_deref()
             .unwrap_or(d1v_api::DEFAULT_BASE_URL)
+    }
+
+    /// Returns the user-configured base URL.
+    pub fn base_url_override(&self) -> Option<&str> {
+        self.base_url.as_deref()
     }
 
     /// Sets the base URL. Empty or whitespace-only input clears the override.
@@ -253,5 +258,38 @@ impl Config {
         debug!(path = %path.display(), "config saved");
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_falls_back_to_default() {
+        let config: Config = toml::from_str(r#"base_url = """#).unwrap();
+        assert_eq!(config.base_url(), d1v_api::DEFAULT_BASE_URL);
+        assert_eq!(config.base_url_override(), None);
+    }
+
+    #[test]
+    fn whitespace_falls_back_to_default() {
+        let config: Config = toml::from_str(r#"base_url = "   ""#).unwrap();
+        assert_eq!(config.base_url(), d1v_api::DEFAULT_BASE_URL);
+        assert_eq!(config.base_url_override(), None);
+    }
+
+    #[test]
+    fn missing_uses_default() {
+        let config: Config = toml::from_str("").unwrap();
+        assert_eq!(config.base_url(), d1v_api::DEFAULT_BASE_URL);
+        assert_eq!(config.base_url_override(), None);
+    }
+
+    #[test]
+    fn trims_whitespace() {
+        let config: Config = toml::from_str(r#"base_url = "  https://api.example.com  ""#).unwrap();
+        assert_eq!(config.base_url(), "https://api.example.com");
+        assert_eq!(config.base_url_override(), Some("https://api.example.com"));
     }
 }

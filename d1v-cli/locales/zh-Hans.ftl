@@ -54,6 +54,10 @@ hint-connection = 请检查服务器地址和网络连接，运行 `d1v debug` �
 error-http-status = 服务端响应异常
 error-invalid-response = 响应数据格式错误
 error-invalid-url = 服务器地址无效
+error-invalid-base-url = 服务器地址 "{ $value }" 无效（来自 { $source }）
+hint-invalid-base-url-cli = 请传入有效的 URL，或省略该参数。
+hint-invalid-base-url-env = 请取消 `D1V_BASE_URL` 或将其设为有效的 URL。
+hint-invalid-base-url-config = 请修改 ~/.d1v/config.toml 中的 `base_url`。
 error-server-validation = 服务端验证失败
 
 ## API 错误码

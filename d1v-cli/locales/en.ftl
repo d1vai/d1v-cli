@@ -54,6 +54,10 @@ hint-connection = Check the server URL and your network connection. Run `d1v deb
 error-http-status = unexpected server response
 error-invalid-response = invalid response data
 error-invalid-url = invalid server URL
+error-invalid-base-url = invalid server URL "{ $value }" from { $source }
+hint-invalid-base-url-cli = Pass a valid URL or omit the flag.
+hint-invalid-base-url-env = Unset `D1V_BASE_URL` or set it to a valid URL.
+hint-invalid-base-url-config = Update `base_url` in ~/.d1v/config.toml.
 error-server-validation = server validation failed
 
 ## API Error Codes

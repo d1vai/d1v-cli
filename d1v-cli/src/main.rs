@@ -1,7 +1,7 @@
 use std::io::{IsTerminal, stdin};
 use std::process::ExitCode;
 
-use clap::{Parser, Subcommand};
+use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand, parser::ValueSource};
 use colorchoice_clap::Color;
 use jiff::SignedDuration;
 use tracing::info;
@@ -13,8 +13,8 @@ use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
-    Context, auth, config, db, debug, deploy, github, i18n, logging, project, session, t, upgrade,
-    user, workspace,
+    BaseUrlCandidate, Context, auth, base_url, config, db, debug, deploy, github, i18n, logging,
+    project, session, t, upgrade, user, workspace,
 };
 
 #[derive(Parser)]
@@ -182,7 +182,7 @@ enum AuthCommand {
     Status,
 }
 
-async fn run(cli: Cli) -> Result<()> {
+async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
     #[cfg(feature = "record")]
     let _recorder = {
         use d1v_cli::config::record_path;
@@ -202,7 +202,7 @@ async fn run(cli: Cli) -> Result<()> {
             .map_err(anyhow::Error::from)?
     };
 
-    let ctx = Context::new(cli.format, cli.color.as_choice(), cli.base_url)?;
+    let ctx = Context::new(cli.format, cli.color.as_choice(), base_url_override)?;
 
     if cli.command.requires_auth() {
         if ctx.tokens.lookup()?.is_none() {
@@ -289,9 +289,28 @@ fn locale_sources(cli_lang: Option<&str>) -> impl Iterator<Item = String> {
     .flatten()
 }
 
+fn base_url_candidate(matches: &ArgMatches) -> BaseUrlCandidate {
+    let value = matches.get_one::<String>("base_url").cloned();
+    match matches.value_source("base_url") {
+        Some(ValueSource::CommandLine) => base_url::from_cli(value),
+        Some(ValueSource::EnvVariable) => base_url::from_env(value),
+        _ => base_url::default(),
+    }
+}
+
+fn parse_cli() -> (Cli, BaseUrlCandidate) {
+    let matches = Cli::command().get_matches();
+    let base_url = base_url_candidate(&matches);
+    let cli = match Cli::from_arg_matches(&matches) {
+        Ok(cli) => cli,
+        Err(err) => err.exit(),
+    };
+    (cli, base_url)
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
-    let mut cli = Cli::parse();
+    let (mut cli, base_url_override) = parse_cli();
     let _log = logging::init(cli.log_file.take(), cli.verbose).ok();
     i18n::init(locale_sources(cli.lang.as_deref()));
 
@@ -300,7 +319,7 @@ async fn main() -> ExitCode {
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 
-    match run(cli).await {
+    match run(cli, base_url_override).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => err.handle(&output),
     }

@@ -20,6 +20,11 @@ impl Localize for Error {
             Self::Config(err) => err.localize(),
             Self::Token(err) => err.localize(),
             Self::Api(err) => err.localize(),
+            Self::InvalidBaseUrl { url, .. } => t!(
+                "error-invalid-base-url",
+                source = url.source().to_string(),
+                value = url.as_str()
+            ),
             Self::Io(_) | Self::Other(_) => format!("{self:#}"),
         }
     }

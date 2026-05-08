@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod banner;
+pub mod base_url;
 pub mod config;
 pub mod db;
 pub mod debug;
@@ -32,10 +33,12 @@ use d1v_api::{Client, UserAgent};
 use serde::Serialize;
 
 use crate::config::Config;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::output::{Format, Output};
 use crate::token::{TokenChain, TokenSource};
 use text::Render;
+
+pub use crate::base_url::{BaseUrl, BaseUrlCandidate, BaseUrlSource};
 
 pub struct Context {
     pub client: Client,
@@ -44,12 +47,22 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(format: Format, color: ColorChoice, base_url: Option<String>) -> Result<Self> {
+    pub fn new(
+        format: Format,
+        color: ColorChoice,
+        base_url_override: BaseUrlCandidate,
+    ) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
+        let candidates = [
+            base_url_override,
+            base_url::from_config(config.base_url_override().map(ToOwned::to_owned)),
+        ];
+        let base_url = BaseUrl::resolve(candidates);
+
         let mut builder = Client::builder()
-            .base_url(base_url.as_deref().unwrap_or(config.base_url()))
+            .base_url(base_url.as_str())
             .user_agent(&UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .client_name("d1v-cli")
             .connect_timeout(Duration::from_secs(10))
@@ -59,8 +72,16 @@ impl Context {
             builder = builder.token(token);
         }
 
+        let client = builder.build().map_err(|err| match err {
+            d1v_api::Error::Url(cause) => Error::InvalidBaseUrl {
+                url: base_url,
+                cause: cause.to_string(),
+            },
+            other => Error::from(other),
+        })?;
+
         Ok(Self {
-            client: builder.build()?,
+            client,
             tokens,
             output: Output::new(format, color),
         })
