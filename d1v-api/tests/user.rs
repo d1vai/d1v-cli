@@ -673,7 +673,8 @@ async fn prompt_daily_activity_by_user() {
     let mock = server.mock(|when, then| {
         when.method(GET)
             .path("/api/user/activity/prompt-daily/user/42")
-            .query_param("days", "30");
+            .query_param("days", "30")
+            .header("authorization", "Bearer token123");
         then.status(200)
             .header("content-type", "application/json")
             .json_body(json!({ "code": 0, "msg": "success", "data": activity_json() }));
@@ -681,6 +682,7 @@ async fn prompt_daily_activity_by_user() {
 
     let client = Client::builder()
         .base_url(server.base_url())
+        .token("token123")
         .build()
         .unwrap();
     let activity = client
@@ -689,6 +691,43 @@ async fn prompt_daily_activity_by_user() {
         .await
         .unwrap();
     assert_eq!(activity.counts[0].count, 5);
+
+    mock.assert();
+}
+
+#[tokio::test]
+async fn prompt_daily_activity_by_user_forbidden() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/activity/prompt-daily/user/42");
+        then.status(403)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 403,
+                "msg": "User does not have sufficient privileges.",
+                "data": null,
+            }));
+    });
+
+    let client = Client::builder()
+        .base_url(server.base_url())
+        .token("token123")
+        .build()
+        .unwrap();
+    let err = client
+        .user()
+        .prompt_daily_activity_by_user(42, None)
+        .await
+        .unwrap_err();
+
+    match err {
+        d1v_api::Error::Api { code, message, .. } => {
+            assert_eq!(code.raw(), 403);
+            assert_eq!(message, "User does not have sufficient privileges.");
+        }
+        other => panic!("expected Error::Api, got {other:?}"),
+    }
 
     mock.assert();
 }

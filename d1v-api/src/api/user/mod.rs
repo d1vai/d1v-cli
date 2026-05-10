@@ -440,7 +440,6 @@ impl UserApi {
         self.client
             .get(format!("/api/user/activity/prompt-daily/user/{user_id}"))
             .query_if_some("days", days)
-            .no_auth()
             .ok()
             .await
     }
