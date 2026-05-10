@@ -62,7 +62,7 @@ impl Localize for BadRequestKind {
             BadRequestKind::InviteLimitReached => t!("api-error-invite-limit"),
             BadRequestKind::InviteCodeNotBoundToInviter => t!("api-error-invite-not-bound"),
             BadRequestKind::InviterNotFound => t!("api-error-inviter-not-found"),
-            _ => t!("api-error-bad-request"),
+            _ => t!("api-error-bad-request-message", message = self.message()),
         }
     }
 }
@@ -83,7 +83,9 @@ impl Localize for APIError {
                 message,
             } => match BadRequestKind::from_message(message) {
                 Some(kind) => kind.localize(),
-                None if !message.is_empty() => t!("api-error-bad-request-message", message = message),
+                None if !message.is_empty() => {
+                    t!("api-error-bad-request-message", message = message)
+                }
                 None => t!("api-error-bad-request"),
             },
             Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
