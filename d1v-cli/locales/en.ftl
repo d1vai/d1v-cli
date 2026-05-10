@@ -61,7 +61,25 @@ hint-invalid-base-url-config = Update `base_url` in ~/.d1v/config.toml.
 error-server-validation = server validation failed
 
 ## API Error Codes
+api-error-bad-request = bad request
+api-error-bad-request-message = bad request ({ $message })
 api-error-password-not-set = password not set
+api-error-invalid-credentials = invalid email or password
+api-error-email-required-before-password = bind an email before setting a password
+api-error-invalid-code = invalid verification code
+api-error-code-expired = verification code expired
+api-error-code-invalid-or-expired = invalid or expired verification code
+api-error-user-not-found = user not found
+api-error-password-too-short = password is too short
+api-error-email-in-use = email already in use
+api-error-email-not-bound = email is not bound
+api-error-invite-own-code = cannot accept your own invite code
+api-error-invite-invalid = invalid invite code
+api-error-invite-expired = invite code expired
+api-error-invite-capacity = invite code capacity reached
+api-error-invite-limit = invite limit reached for this code
+api-error-invite-not-bound = invite code is not bound to an inviter
+api-error-inviter-not-found = inviter not found
 api-error-unknown = server error { $code } ({ $message })
 api-error-unknown-code = server error { $code }
 

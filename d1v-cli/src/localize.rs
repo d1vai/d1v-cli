@@ -33,10 +33,36 @@ impl Localize for Error {
 impl Localize for ApiCode {
     fn localize(&self) -> String {
         match self {
-            ApiCode::PasswordNotSet => t!("api-error-password-not-set"),
+            ApiCode::BadRequest => t!("api-error-bad-request"),
             ApiCode::Unknown(code) => t!("api-error-unknown-code", code = code),
             _ => t!("api-error-unknown-code", code = self.raw()),
         }
+    }
+}
+
+fn localize_bad_request(message: &str) -> String {
+    match message {
+        "password not set" => t!("api-error-password-not-set"),
+        "invalid email or password" => t!("api-error-invalid-credentials"),
+        "email is required before setting a password" => {
+            t!("api-error-email-required-before-password")
+        }
+        "invalid verify code" => t!("api-error-invalid-code"),
+        "verify code expired" => t!("api-error-code-expired"),
+        "invalid or expired code" => t!("api-error-code-invalid-or-expired"),
+        "user not found" => t!("api-error-user-not-found"),
+        "password too short" => t!("api-error-password-too-short"),
+        "email already in use" => t!("api-error-email-in-use"),
+        "email not bound" => t!("api-error-email-not-bound"),
+        "cannot accept your own invite code" => t!("api-error-invite-own-code"),
+        "invalid invite code" => t!("api-error-invite-invalid"),
+        "invite code expired" => t!("api-error-invite-expired"),
+        "invite code capacity reached" => t!("api-error-invite-capacity"),
+        "invite limit reached for this code" => t!("api-error-invite-limit"),
+        "invite code not bound to inviter" => t!("api-error-invite-not-bound"),
+        "inviter not found" => t!("api-error-inviter-not-found"),
+        _ if !message.is_empty() => t!("api-error-bad-request-message", message = message),
+        _ => t!("api-error-bad-request"),
     }
 }
 
@@ -51,6 +77,10 @@ impl Localize for APIError {
             Self::Url(_) => t!("error-invalid-url"),
             Self::ServerValidation(_) => t!("error-server-validation"),
             Self::Validation(err) => err.localize(),
+            Self::Api {
+                code: ApiCode::BadRequest,
+                message,
+            } => localize_bad_request(message),
             Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
                 t!("api-error-unknown", code = code.raw(), message = message)
             }
@@ -140,23 +170,29 @@ mod tests {
 
     #[test]
     fn localize_api_code() {
-        assert_eq!(ApiCode::PasswordNotSet.localize(), "password not set");
+        assert_eq!(ApiCode::BadRequest.localize(), "bad request");
         assert_eq!(ApiCode::Unknown(99999).localize(), "server error 99999");
     }
 
     #[test]
     fn localize_api_error() {
         let err = APIError::Api {
-            code: ApiCode::PasswordNotSet,
+            code: ApiCode::BadRequest,
             message: "password not set".into(),
         };
         assert_eq!(err.localize(), "password not set");
 
         let err = APIError::Api {
-            code: ApiCode::Unknown(40001),
-            message: "bad request".into(),
+            code: ApiCode::BadRequest,
+            message: "invalid email or password".into(),
         };
-        assert_eq!(err.localize(), "server error 40001 (bad request)");
+        assert_eq!(err.localize(), "invalid email or password");
+
+        let err = APIError::Api {
+            code: ApiCode::BadRequest,
+            message: "something changed".into(),
+        };
+        assert_eq!(err.localize(), "bad request (something changed)");
 
         assert_eq!(APIError::TokenExpired.localize(), "token has expired");
     }

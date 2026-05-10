@@ -9,7 +9,10 @@ use crate::validate::{CodeError, EmailError, UrlError, ValidationError};
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ApiCode {
-    PasswordNotSet,
+    /// A common request error code.
+    ///
+    /// Use the API error message to determine the specific cause.
+    BadRequest,
     Unknown(i64),
 }
 
@@ -17,7 +20,7 @@ impl ApiCode {
     #[must_use]
     pub fn raw(&self) -> i64 {
         match self {
-            Self::PasswordNotSet => 40000,
+            Self::BadRequest => 40000,
             Self::Unknown(code) => *code,
         }
     }
@@ -26,7 +29,7 @@ impl ApiCode {
 impl From<i64> for ApiCode {
     fn from(code: i64) -> Self {
         match code {
-            40000 => Self::PasswordNotSet,
+            40000 => Self::BadRequest,
             _ => Self::Unknown(code),
         }
     }
@@ -277,6 +280,13 @@ mod tests {
         assert!(!err.is_server_validation());
         assert!(!err.is_status());
         assert!(!err.is_network());
+    }
+
+    #[test]
+    fn bad_request_api_code() {
+        assert_eq!(ApiCode::from(40000), ApiCode::BadRequest);
+        assert_eq!(ApiCode::BadRequest.raw(), 40000);
+        assert_eq!(i64::from(ApiCode::BadRequest), 40000);
     }
 
     #[test]

@@ -61,7 +61,25 @@ hint-invalid-base-url-config = 请修改 ~/.d1v/config.toml 中的 `base_url`。
 error-server-validation = 服务端验证失败
 
 ## API 错误码
+api-error-bad-request = 请求无效
+api-error-bad-request-message = 请求无效（{ $message }）
 api-error-password-not-set = 未设置密码
+api-error-invalid-credentials = 邮箱或密码无效
+api-error-email-required-before-password = 请先绑定邮箱再设置密码
+api-error-invalid-code = 验证码无效
+api-error-code-expired = 验证码已过期
+api-error-code-invalid-or-expired = 验证码无效或已过期
+api-error-user-not-found = 用户不存在
+api-error-password-too-short = 密码太短
+api-error-email-in-use = 邮箱已被使用
+api-error-email-not-bound = 未绑定邮箱
+api-error-invite-own-code = 不能接受自己的邀请码
+api-error-invite-invalid = 邀请码无效
+api-error-invite-expired = 邀请码已过期
+api-error-invite-capacity = 邀请码容量已满
+api-error-invite-limit = 该邀请码已达到邀请上限
+api-error-invite-not-bound = 邀请码未绑定邀请人
+api-error-inviter-not-found = 邀请人不存在
 api-error-unknown = 服务端错误 { $code } ({ $message })
 api-error-unknown-code = 服务端错误 { $code }
 
