@@ -11,6 +11,10 @@ use crate::validate::{CodeError, EmailError, UrlError, ValidationError};
 pub enum ApiCode {
     /// A common request error code.
     BadRequest,
+    /// Authentication required (HTTP 401).
+    Unauthorized,
+    /// Permission denied (HTTP 403).
+    Forbidden,
     Unknown(i64),
 }
 
@@ -93,6 +97,8 @@ impl ApiCode {
     pub fn raw(&self) -> i64 {
         match self {
             Self::BadRequest => 40000,
+            Self::Unauthorized => 401,
+            Self::Forbidden => 403,
             Self::Unknown(code) => *code,
         }
     }
@@ -102,6 +108,8 @@ impl From<i64> for ApiCode {
     fn from(code: i64) -> Self {
         match code {
             40000 => Self::BadRequest,
+            401 => Self::Unauthorized,
+            403 => Self::Forbidden,
             _ => Self::Unknown(code),
         }
     }
@@ -371,6 +379,14 @@ mod tests {
         assert_eq!(ApiCode::from(40000), ApiCode::BadRequest);
         assert_eq!(ApiCode::BadRequest.raw(), 40000);
         assert_eq!(i64::from(ApiCode::BadRequest), 40000);
+    }
+
+    #[test]
+    fn auth_api_codes() {
+        assert_eq!(ApiCode::from(401), ApiCode::Unauthorized);
+        assert_eq!(ApiCode::from(403), ApiCode::Forbidden);
+        assert_eq!(ApiCode::Unauthorized.raw(), 401);
+        assert_eq!(ApiCode::Forbidden.raw(), 403);
     }
 
     #[test]
