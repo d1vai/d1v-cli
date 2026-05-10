@@ -11,7 +11,8 @@ mod validate;
 
 pub use crate::client::{Client, ClientBuilder, RequestBuilder};
 pub use crate::error::{
-    ApiCode, Error, HttpStatusError, Location, ServerValidationError, ValidationDetail,
+    ApiCode, BadRequestKind, Error, HttpStatusError, Location, ServerValidationError,
+    ValidationDetail,
 };
 pub use crate::jwt::Token;
 pub use crate::locale::{IntoLocale, Locale, ParseLocaleError};

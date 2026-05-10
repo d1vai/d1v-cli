@@ -10,10 +10,82 @@ use crate::validate::{CodeError, EmailError, UrlError, ValidationError};
 #[non_exhaustive]
 pub enum ApiCode {
     /// A common request error code.
-    ///
-    /// Use the API error message to determine the specific cause.
     BadRequest,
     Unknown(i64),
+}
+
+/// Specific cause of an [`ApiCode::BadRequest`] response.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum BadRequestKind {
+    PasswordNotSet,
+    InvalidCredentials,
+    EmailRequiredBeforePassword,
+    InvalidVerifyCode,
+    VerifyCodeExpired,
+    InvalidOrExpiredCode,
+    UserNotFound,
+    PasswordTooShort,
+    EmailAlreadyInUse,
+    EmailNotBound,
+    CannotAcceptOwnInviteCode,
+    InvalidInviteCode,
+    InviteCodeExpired,
+    InviteCodeCapacityReached,
+    InviteLimitReached,
+    InviteCodeNotBoundToInviter,
+    InviterNotFound,
+}
+
+impl BadRequestKind {
+    /// Returns the kind matching `message`, or `None` if unrecognized.
+    #[must_use]
+    pub fn from_message(message: &str) -> Option<Self> {
+        Some(match message {
+            "password not set" => Self::PasswordNotSet,
+            "invalid email or password" => Self::InvalidCredentials,
+            "email is required before setting a password" => Self::EmailRequiredBeforePassword,
+            "invalid verify code" => Self::InvalidVerifyCode,
+            "verify code expired" => Self::VerifyCodeExpired,
+            "invalid or expired code" => Self::InvalidOrExpiredCode,
+            "user not found" => Self::UserNotFound,
+            "password too short" => Self::PasswordTooShort,
+            "email already in use" => Self::EmailAlreadyInUse,
+            "email not bound" => Self::EmailNotBound,
+            "cannot accept your own invite code" => Self::CannotAcceptOwnInviteCode,
+            "invalid invite code" => Self::InvalidInviteCode,
+            "invite code expired" => Self::InviteCodeExpired,
+            "invite code capacity reached" => Self::InviteCodeCapacityReached,
+            "invite limit reached for this code" => Self::InviteLimitReached,
+            "invite code not bound to inviter" => Self::InviteCodeNotBoundToInviter,
+            "inviter not found" => Self::InviterNotFound,
+            _ => return None,
+        })
+    }
+
+    /// Canonical message for this kind.
+    #[must_use]
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::PasswordNotSet => "password not set",
+            Self::InvalidCredentials => "invalid email or password",
+            Self::EmailRequiredBeforePassword => "email is required before setting a password",
+            Self::InvalidVerifyCode => "invalid verify code",
+            Self::VerifyCodeExpired => "verify code expired",
+            Self::InvalidOrExpiredCode => "invalid or expired code",
+            Self::UserNotFound => "user not found",
+            Self::PasswordTooShort => "password too short",
+            Self::EmailAlreadyInUse => "email already in use",
+            Self::EmailNotBound => "email not bound",
+            Self::CannotAcceptOwnInviteCode => "cannot accept your own invite code",
+            Self::InvalidInviteCode => "invalid invite code",
+            Self::InviteCodeExpired => "invite code expired",
+            Self::InviteCodeCapacityReached => "invite code capacity reached",
+            Self::InviteLimitReached => "invite limit reached for this code",
+            Self::InviteCodeNotBoundToInviter => "invite code not bound to inviter",
+            Self::InviterNotFound => "inviter not found",
+        }
+    }
 }
 
 impl ApiCode {
@@ -83,6 +155,18 @@ impl Error {
     pub fn api_code(&self) -> Option<ApiCode> {
         match self {
             Error::Api { code, .. } => Some(*code),
+            _ => None,
+        }
+    }
+
+    /// Returns the [`BadRequestKind`] for a recognized [`ApiCode::BadRequest`] message.
+    #[must_use]
+    pub fn bad_request_kind(&self) -> Option<BadRequestKind> {
+        match self {
+            Error::Api {
+                code: ApiCode::BadRequest,
+                message,
+            } => BadRequestKind::from_message(message),
             _ => None,
         }
     }
@@ -287,6 +371,57 @@ mod tests {
         assert_eq!(ApiCode::from(40000), ApiCode::BadRequest);
         assert_eq!(ApiCode::BadRequest.raw(), 40000);
         assert_eq!(i64::from(ApiCode::BadRequest), 40000);
+    }
+
+    #[test]
+    fn bad_request_kind() {
+        for kind in [
+            BadRequestKind::PasswordNotSet,
+            BadRequestKind::InvalidCredentials,
+            BadRequestKind::EmailRequiredBeforePassword,
+            BadRequestKind::InvalidVerifyCode,
+            BadRequestKind::VerifyCodeExpired,
+            BadRequestKind::InvalidOrExpiredCode,
+            BadRequestKind::UserNotFound,
+            BadRequestKind::PasswordTooShort,
+            BadRequestKind::EmailAlreadyInUse,
+            BadRequestKind::EmailNotBound,
+            BadRequestKind::CannotAcceptOwnInviteCode,
+            BadRequestKind::InvalidInviteCode,
+            BadRequestKind::InviteCodeExpired,
+            BadRequestKind::InviteCodeCapacityReached,
+            BadRequestKind::InviteLimitReached,
+            BadRequestKind::InviteCodeNotBoundToInviter,
+            BadRequestKind::InviterNotFound,
+        ] {
+            assert_eq!(BadRequestKind::from_message(kind.message()), Some(kind));
+        }
+        assert_eq!(BadRequestKind::from_message("something new"), None);
+        assert_eq!(BadRequestKind::from_message(""), None);
+    }
+
+    #[test]
+    fn bad_request_kind_from_error() {
+        let err = Error::Api {
+            code: ApiCode::BadRequest,
+            message: "password not set".into(),
+        };
+        assert_eq!(err.bad_request_kind(), Some(BadRequestKind::PasswordNotSet));
+
+        let err = Error::Api {
+            code: ApiCode::BadRequest,
+            message: "something unknown".into(),
+        };
+        assert_eq!(err.bad_request_kind(), None);
+
+        let err = Error::Api {
+            code: ApiCode::Unknown(500),
+            message: "password not set".into(),
+        };
+        assert_eq!(err.bad_request_kind(), None);
+
+        let err = Error::TokenExpired;
+        assert_eq!(err.bad_request_kind(), None);
     }
 
     #[test]

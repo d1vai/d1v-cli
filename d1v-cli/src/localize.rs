@@ -1,4 +1,4 @@
-use d1v_api::{ApiCode, CodeError, EmailError, UrlError, ValidationError};
+use d1v_api::{ApiCode, BadRequestKind, CodeError, EmailError, UrlError, ValidationError};
 
 use crate::config::ConfigError;
 use crate::error::{APIError, Error};
@@ -40,29 +40,30 @@ impl Localize for ApiCode {
     }
 }
 
-fn localize_bad_request(message: &str) -> String {
-    match message {
-        "password not set" => t!("api-error-password-not-set"),
-        "invalid email or password" => t!("api-error-invalid-credentials"),
-        "email is required before setting a password" => {
-            t!("api-error-email-required-before-password")
+impl Localize for BadRequestKind {
+    fn localize(&self) -> String {
+        match self {
+            BadRequestKind::PasswordNotSet => t!("api-error-password-not-set"),
+            BadRequestKind::InvalidCredentials => t!("api-error-invalid-credentials"),
+            BadRequestKind::EmailRequiredBeforePassword => {
+                t!("api-error-email-required-before-password")
+            }
+            BadRequestKind::InvalidVerifyCode => t!("api-error-invalid-code"),
+            BadRequestKind::VerifyCodeExpired => t!("api-error-code-expired"),
+            BadRequestKind::InvalidOrExpiredCode => t!("api-error-code-invalid-or-expired"),
+            BadRequestKind::UserNotFound => t!("api-error-user-not-found"),
+            BadRequestKind::PasswordTooShort => t!("api-error-password-too-short"),
+            BadRequestKind::EmailAlreadyInUse => t!("api-error-email-in-use"),
+            BadRequestKind::EmailNotBound => t!("api-error-email-not-bound"),
+            BadRequestKind::CannotAcceptOwnInviteCode => t!("api-error-invite-own-code"),
+            BadRequestKind::InvalidInviteCode => t!("api-error-invite-invalid"),
+            BadRequestKind::InviteCodeExpired => t!("api-error-invite-expired"),
+            BadRequestKind::InviteCodeCapacityReached => t!("api-error-invite-capacity"),
+            BadRequestKind::InviteLimitReached => t!("api-error-invite-limit"),
+            BadRequestKind::InviteCodeNotBoundToInviter => t!("api-error-invite-not-bound"),
+            BadRequestKind::InviterNotFound => t!("api-error-inviter-not-found"),
+            _ => t!("api-error-bad-request"),
         }
-        "invalid verify code" => t!("api-error-invalid-code"),
-        "verify code expired" => t!("api-error-code-expired"),
-        "invalid or expired code" => t!("api-error-code-invalid-or-expired"),
-        "user not found" => t!("api-error-user-not-found"),
-        "password too short" => t!("api-error-password-too-short"),
-        "email already in use" => t!("api-error-email-in-use"),
-        "email not bound" => t!("api-error-email-not-bound"),
-        "cannot accept your own invite code" => t!("api-error-invite-own-code"),
-        "invalid invite code" => t!("api-error-invite-invalid"),
-        "invite code expired" => t!("api-error-invite-expired"),
-        "invite code capacity reached" => t!("api-error-invite-capacity"),
-        "invite limit reached for this code" => t!("api-error-invite-limit"),
-        "invite code not bound to inviter" => t!("api-error-invite-not-bound"),
-        "inviter not found" => t!("api-error-inviter-not-found"),
-        _ if !message.is_empty() => t!("api-error-bad-request-message", message = message),
-        _ => t!("api-error-bad-request"),
     }
 }
 
@@ -80,7 +81,11 @@ impl Localize for APIError {
             Self::Api {
                 code: ApiCode::BadRequest,
                 message,
-            } => localize_bad_request(message),
+            } => match BadRequestKind::from_message(message) {
+                Some(kind) => kind.localize(),
+                None if !message.is_empty() => t!("api-error-bad-request-message", message = message),
+                None => t!("api-error-bad-request"),
+            },
             Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
                 t!("api-error-unknown", code = code.raw(), message = message)
             }
