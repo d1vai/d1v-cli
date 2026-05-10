@@ -312,6 +312,11 @@ impl RequestBuilder {
             StatusCode::UNPROCESSABLE_ENTITY => {
                 Err(serde_json::from_slice::<ServerValidationError>(bytes)?.into())
             }
+            _ if let Ok(resp) = serde_json::from_slice::<Response>(bytes)
+                && let Err(err) = resp.ok::<()>() =>
+            {
+                Err(err)
+            }
             _ => Err(HttpStatusError::new(status, String::from_utf8_lossy(bytes)).into()),
         }
     }
@@ -327,6 +332,7 @@ impl RequestBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ApiCode;
 
     #[test]
     fn debug_redacts_token() {
@@ -407,5 +413,42 @@ mod tests {
 
         assert_eq!(request.url().path(), "/api/items");
         assert_eq!(request.url().query(), None);
+    }
+
+    #[test]
+    fn error_status_with_base_response() {
+        let err = RequestBuilder::parse_response(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            br#"{"code":500,"msg":"Internal Error","data":null}"#,
+        )
+        .unwrap_err();
+
+        match err {
+            Error::Api { code, message } => {
+                assert_eq!(code, ApiCode::Unknown(500));
+                assert_eq!(message, "Internal Error");
+            }
+            other => panic!("expected api error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn error_status_with_unknown_body() {
+        let err = RequestBuilder::parse_response(StatusCode::INTERNAL_SERVER_ERROR, b"<html>")
+            .unwrap_err();
+
+        assert!(matches!(err, Error::HttpStatus(_)));
+        assert_eq!(err.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+
+    #[test]
+    fn validation_error_response() {
+        let err = RequestBuilder::parse_response(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            br#"{"detail":[{"loc":["body","email"],"msg":"Field required","type":"missing"}]}"#,
+        )
+        .unwrap_err();
+
+        assert!(matches!(err, Error::ServerValidation(_)));
     }
 }
