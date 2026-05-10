@@ -80,6 +80,11 @@ api-error-invite-capacity = invite code capacity reached
 api-error-invite-limit = invite limit reached for this code
 api-error-invite-not-bound = invite code is not bound to an inviter
 api-error-inviter-not-found = inviter not found
+api-error-auth-required = authentication required
+api-error-auth-required-message = authentication required ({ $message })
+api-error-permission-denied = permission denied
+api-error-permission-denied-message = permission denied ({ $message })
+api-error-insufficient-privileges = requires a super-admin account
 api-error-unknown = server error { $code } ({ $message })
 api-error-unknown-code = server error { $code }
 

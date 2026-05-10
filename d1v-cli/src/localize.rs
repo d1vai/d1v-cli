@@ -34,6 +34,8 @@ impl Localize for ApiCode {
     fn localize(&self) -> String {
         match self {
             ApiCode::BadRequest => t!("api-error-bad-request"),
+            ApiCode::Unauthorized => t!("api-error-auth-required"),
+            ApiCode::Forbidden => t!("api-error-permission-denied"),
             ApiCode::Unknown(code) => t!("api-error-unknown-code", code = code),
             _ => t!("api-error-unknown-code", code = self.raw()),
         }
@@ -88,6 +90,24 @@ impl Localize for APIError {
                 }
                 None => t!("api-error-bad-request"),
             },
+            Self::Api {
+                code: ApiCode::Forbidden,
+                message,
+            } if message == "User does not have sufficient privileges." => {
+                t!("api-error-insufficient-privileges")
+            }
+            Self::Api {
+                code: ApiCode::Unauthorized,
+                message,
+            } if !message.is_empty() => {
+                t!("api-error-auth-required-message", message = message)
+            }
+            Self::Api {
+                code: ApiCode::Forbidden,
+                message,
+            } if !message.is_empty() => {
+                t!("api-error-permission-denied-message", message = message)
+            }
             Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
                 t!("api-error-unknown", code = code.raw(), message = message)
             }
@@ -178,6 +198,8 @@ mod tests {
     #[test]
     fn localize_api_code() {
         assert_eq!(ApiCode::BadRequest.localize(), "bad request");
+        assert_eq!(ApiCode::Unauthorized.localize(), "authentication required");
+        assert_eq!(ApiCode::Forbidden.localize(), "permission denied");
         assert_eq!(ApiCode::Unknown(99999).localize(), "server error 99999");
     }
 
@@ -200,6 +222,27 @@ mod tests {
             message: "something changed".into(),
         };
         assert_eq!(err.localize(), "bad request (something changed)");
+
+        let err = APIError::Api {
+            code: ApiCode::Unauthorized,
+            message: "Requires authentication".into(),
+        };
+        assert_eq!(
+            err.localize(),
+            "authentication required (Requires authentication)"
+        );
+
+        let err = APIError::Api {
+            code: ApiCode::Forbidden,
+            message: "project token mismatch".into(),
+        };
+        assert_eq!(err.localize(), "permission denied (project token mismatch)");
+
+        let err = APIError::Api {
+            code: ApiCode::Forbidden,
+            message: "User does not have sufficient privileges.".into(),
+        };
+        assert_eq!(err.localize(), "requires a super-admin account");
 
         assert_eq!(APIError::TokenExpired.localize(), "token has expired");
     }

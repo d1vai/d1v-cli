@@ -80,6 +80,11 @@ api-error-invite-capacity = 邀请码容量已满
 api-error-invite-limit = 该邀请码已达到邀请上限
 api-error-invite-not-bound = 邀请码未绑定邀请人
 api-error-inviter-not-found = 邀请人不存在
+api-error-auth-required = 认证失败
+api-error-auth-required-message = 认证失败（{ $message }）
+api-error-permission-denied = 没有访问权限
+api-error-permission-denied-message = 没有访问权限（{ $message }）
+api-error-insufficient-privileges = 需要超级管理员账号
 api-error-unknown = 服务端错误 { $code } ({ $message })
 api-error-unknown-code = 服务端错误 { $code }
 
