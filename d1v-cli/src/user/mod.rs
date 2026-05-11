@@ -60,9 +60,6 @@ pub struct UpdateArgs {
     /// Industry
     #[arg(long)]
     pub industry: Option<String>,
-    /// Whether user is a company
-    #[arg(long)]
-    pub is_company: Option<bool>,
     /// Referral code
     #[arg(long)]
     pub referral_code: Option<String>,
@@ -77,7 +74,6 @@ impl UpdateArgs {
                 company_website: None,
                 picture: None,
                 industry: None,
-                is_company: None,
                 referral_code: None,
             }
         )

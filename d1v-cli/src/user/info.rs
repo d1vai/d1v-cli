@@ -74,7 +74,6 @@ impl UserListView<'_> {
 impl From<UpdateArgs> for UpdateUser {
     fn from(args: UpdateArgs) -> Self {
         Self {
-            is_company: args.is_company,
             company_name: args.company_name,
             company_website: args.company_website,
             picture: args.picture,

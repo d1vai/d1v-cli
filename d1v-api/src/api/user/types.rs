@@ -61,12 +61,13 @@ impl Display for User {
     }
 }
 
+// Note: do not add `is_company` here. The server ignores it.
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UpdateUser {
-    pub is_company: Option<bool>,
     pub company_name: Option<String>,
     pub company_website: Option<String>,
+    /// `None` leaves the picture unchanged; `Some("")` clears it on the server.
     pub picture: Option<String>,
     pub industry: Option<String>,
     pub referral_code: Option<String>,
