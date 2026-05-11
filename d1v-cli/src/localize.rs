@@ -1,6 +1,4 @@
-use d1v_api::{
-    ApiCode, ApiError, BadRequestKind, CodeError, EmailError, UrlError, ValidationError,
-};
+use d1v_api::{ApiCode, BadRequestKind, CodeError, EmailError, UrlError, ValidationError};
 
 use crate::config::ConfigError;
 use crate::error::{APIError, Error};
@@ -71,7 +69,7 @@ impl Localize for BadRequestKind {
     }
 }
 
-impl Localize for ApiError {
+impl Localize for d1v_api::ApiError {
     fn localize(&self) -> String {
         let message = self.message.as_str();
         match self.code {
@@ -203,34 +201,28 @@ mod tests {
 
     #[test]
     fn localize_api_error() {
-        let err = APIError::Api(ApiError::new(ApiCode::BadRequest, "password not set"));
+        let err = APIError::api(ApiCode::BadRequest, "password not set");
         assert_eq!(err.localize(), "password not set");
 
-        let err = APIError::Api(ApiError::new(
-            ApiCode::BadRequest,
-            "invalid email or password",
-        ));
+        let err = APIError::api(ApiCode::BadRequest, "invalid email or password");
         assert_eq!(err.localize(), "invalid email or password");
 
-        let err = APIError::Api(ApiError::new(ApiCode::BadRequest, "something changed"));
+        let err = APIError::api(ApiCode::BadRequest, "something changed");
         assert_eq!(err.localize(), "bad request (something changed)");
 
-        let err = APIError::Api(ApiError::new(
-            ApiCode::Unauthorized,
-            "Requires authentication",
-        ));
+        let err = APIError::api(ApiCode::Unauthorized, "Requires authentication");
         assert_eq!(
             err.localize(),
             "authentication required (Requires authentication)"
         );
 
-        let err = APIError::Api(ApiError::new(ApiCode::Forbidden, "project token mismatch"));
+        let err = APIError::api(ApiCode::Forbidden, "project token mismatch");
         assert_eq!(err.localize(), "permission denied (project token mismatch)");
 
-        let err = APIError::Api(ApiError::new(
+        let err = APIError::api(
             ApiCode::Forbidden,
             "User does not have sufficient privileges.",
-        ));
+        );
         assert_eq!(err.localize(), "requires a super-admin account");
 
         assert_eq!(APIError::TokenExpired.localize(), "token has expired");

@@ -222,7 +222,6 @@ mod tests {
     use super::*;
     use crate::error::{APIError, Error};
     use crate::text::Text;
-    use d1v_api::ApiError;
     use indoc::indoc;
 
     #[derive(Debug, Serialize)]
@@ -295,7 +294,7 @@ mod tests {
     #[test]
     fn error_text() {
         let mut buf = Vec::new();
-        let err = Error::Api(APIError::Api(ApiError::new(1, "something broke")));
+        let err = Error::Api(APIError::api(1, "something broke"));
         Output::new(Format::Text, ColorChoice::Never)
             .error_to(&mut buf, &err)
             .unwrap();
@@ -309,7 +308,7 @@ mod tests {
     #[test]
     fn error_json() {
         let mut buf = Vec::new();
-        let err = Error::Api(APIError::Api(ApiError::new(1, "something broke")));
+        let err = Error::Api(APIError::api(1, "something broke"));
         Output::new(Format::Json, ColorChoice::Never)
             .error_to(&mut buf, &err)
             .unwrap();

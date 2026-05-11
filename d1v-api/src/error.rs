@@ -181,6 +181,10 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn api(code: impl Into<ApiCode>, message: impl Into<String>) -> Self {
+        Error::Api(ApiError::new(code, message))
+    }
+
     #[must_use]
     pub fn is_api(&self) -> bool {
         matches!(self, Error::Api(_))
@@ -387,7 +391,7 @@ mod tests {
 
     #[test]
     fn api_inspection() {
-        let err = Error::Api(ApiError::new(1, "fail"));
+        let err = Error::api(1, "fail");
 
         assert!(err.is_api());
         assert_eq!(err.api_code(), Some(ApiCode::Unknown(1)));
@@ -440,13 +444,13 @@ mod tests {
 
     #[test]
     fn bad_request_kind_from_error() {
-        let err = Error::Api(ApiError::new(ApiCode::BadRequest, "password not set"));
+        let err = Error::api(ApiCode::BadRequest, "password not set");
         assert_eq!(err.bad_request_kind(), Some(BadRequestKind::PasswordNotSet));
 
-        let err = Error::Api(ApiError::new(ApiCode::BadRequest, "something unknown"));
+        let err = Error::api(ApiCode::BadRequest, "something unknown");
         assert_eq!(err.bad_request_kind(), None);
 
-        let err = Error::Api(ApiError::new(ApiCode::Unknown(500), "password not set"));
+        let err = Error::api(ApiCode::Unknown(500), "password not set");
         assert_eq!(err.bad_request_kind(), None);
 
         let err = Error::TokenExpired;
@@ -471,7 +475,7 @@ mod tests {
 
     #[test]
     fn status_code_returns_none() {
-        let err = Error::Api(ApiError::new(1, "fail"));
+        let err = Error::api(1, "fail");
 
         assert_eq!(err.status_code(), None);
     }
