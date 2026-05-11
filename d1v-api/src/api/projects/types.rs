@@ -1,0 +1,146 @@
+use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
+
+use super::super::session::ProjectSession;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CreateProject {
+    pub project_name: String,
+    pub project_description: String,
+    pub enable_pay: Option<bool>,
+    pub enable_database: Option<bool>,
+    pub enable_resend: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UpdateProject {
+    pub project_name: Option<String>,
+    pub project_description: Option<String>,
+    pub emoji: Option<String>,
+    pub auto_deploy_on_execute: Option<bool>,
+    pub super_admin_email: Option<String>,
+    pub project_secret: Option<String>,
+    pub repository_platform: Option<String>,
+    pub repository_full_name: Option<String>,
+    pub repository_id: Option<String>,
+    pub repository_owner: Option<String>,
+    pub repository_name: Option<String>,
+    pub repository_clone_url: Option<String>,
+    pub repository_ssh_url: Option<String>,
+    pub repository_default_branch: Option<String>,
+    pub repository_is_private: Option<bool>,
+    pub repository_description: Option<String>,
+    pub repository_language: Option<String>,
+    pub repository_metadata: Option<serde_json::Value>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GenerateProjectMeta {
+    pub prompt: String,
+    pub max_desc_len: Option<u32>,
+}
+
+pub type ProjectMeta = serde_json::Value;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectTemplate {
+    pub template_repo: String,
+    pub name: String,
+    pub description: String,
+    pub category: Option<String>,
+    pub kind: Option<String>,
+    pub featured: Option<bool>,
+    pub rank: Option<i64>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CreateProjectResponse {
+    pub project: Project,
+    pub session: Option<ProjectSession>,
+    pub import_auto_deploy: Option<serde_json::Value>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Project {
+    pub id: String,
+    pub user_id: Option<i64>,
+    #[serde(default)]
+    pub project_name: String,
+    #[serde(default)]
+    pub project_description: String,
+    pub project_port: Option<u16>,
+    pub project_pay_id: Option<String>,
+    pub project_database_id: Option<String>,
+    pub repository_platform: Option<String>,
+    pub repository_mode: Option<String>,
+    pub repository_full_name: Option<String>,
+    pub repository_id: Option<String>,
+    pub repository_owner: Option<String>,
+    pub repository_name: Option<String>,
+    pub repository_clone_url: Option<String>,
+    pub repository_ssh_url: Option<String>,
+    pub repository_default_branch: Option<String>,
+    pub repository_current_branch: Option<String>,
+    pub workspace_current_branch: Option<String>,
+    pub repository_is_private: Option<bool>,
+    pub repository_description: Option<String>,
+    pub repository_language: Option<String>,
+    pub source_repository_full_name: Option<String>,
+    pub source_repository_url: Option<String>,
+    pub platform_managed_repository: Option<bool>,
+    pub repository_metadata: Option<serde_json::Value>,
+    pub opcode_project_id: Option<String>,
+    pub opcode_project_path: Option<String>,
+    pub opcode_username: Option<String>,
+    pub opcode_last_accessed_at: Option<String>,
+    pub vercel_dev_project_id: Option<String>,
+    pub vercel_dev_domain: Option<String>,
+    pub latest_dev_deployment_url: Option<String>,
+    pub vercel_prod_project_id: Option<String>,
+    pub vercel_prod_domain: Option<String>,
+    pub latest_prod_deployment_url: Option<String>,
+    pub latest_preview_url: Option<String>,
+    pub vercel_framework: Option<String>,
+    pub vercel_build_command: Option<String>,
+    pub vercel_output_dir: Option<String>,
+    pub umami_website_id: Option<String>,
+    pub analytics_enabled: Option<bool>,
+    pub analytics_team_code: Option<String>,
+    pub analytics_team_id: Option<String>,
+    pub analytics_id: Option<String>,
+    pub emoji: Option<String>,
+    pub auto_deploy_on_execute: Option<bool>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    #[serde(default)]
+    pub sessions: Vec<ProjectSession>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn create_omits_unset_flags() {
+        let payload = CreateProject {
+            project_name: "demo".to_string(),
+            project_description: "Demo project".to_string(),
+            ..CreateProject::default()
+        };
+
+        assert_eq!(
+            serde_json::to_value(payload).unwrap(),
+            json!({
+                "project_name": "demo",
+                "project_description": "Demo project"
+            })
+        );
+    }
+}
