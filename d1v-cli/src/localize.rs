@@ -1,4 +1,6 @@
-use d1v_api::{ApiCode, BadRequestKind, CodeError, EmailError, UrlError, ValidationError};
+use d1v_api::{
+    ApiCode, ApiError, BadRequestKind, CodeError, EmailError, UrlError, ValidationError,
+};
 
 use crate::config::ConfigError;
 use crate::error::{APIError, Error};
@@ -69,6 +71,33 @@ impl Localize for BadRequestKind {
     }
 }
 
+impl Localize for ApiError {
+    fn localize(&self) -> String {
+        let message = self.message.as_str();
+        match self.code {
+            ApiCode::BadRequest if let Some(kind) = BadRequestKind::from_message(message) => {
+                kind.localize()
+            }
+            ApiCode::BadRequest if !message.is_empty() => {
+                t!("api-error-bad-request-message", message = message)
+            }
+            ApiCode::Unauthorized if !message.is_empty() => {
+                t!("api-error-auth-required-message", message = message)
+            }
+            ApiCode::Forbidden if message == "User does not have sufficient privileges." => {
+                t!("api-error-insufficient-privileges")
+            }
+            ApiCode::Forbidden if !message.is_empty() => {
+                t!("api-error-permission-denied-message", message = message)
+            }
+            ApiCode::Unknown(code) if !message.is_empty() => {
+                t!("api-error-unknown", code = code, message = message)
+            }
+            ref code => code.localize(),
+        }
+    }
+}
+
 impl Localize for APIError {
     fn localize(&self) -> String {
         match self {
@@ -80,38 +109,7 @@ impl Localize for APIError {
             Self::Url(_) => t!("error-invalid-url"),
             Self::ServerValidation(_) => t!("error-server-validation"),
             Self::Validation(err) => err.localize(),
-            Self::Api {
-                code: ApiCode::BadRequest,
-                message,
-            } => match BadRequestKind::from_message(message) {
-                Some(kind) => kind.localize(),
-                None if !message.is_empty() => {
-                    t!("api-error-bad-request-message", message = message)
-                }
-                None => t!("api-error-bad-request"),
-            },
-            Self::Api {
-                code: ApiCode::Forbidden,
-                message,
-            } if message == "User does not have sufficient privileges." => {
-                t!("api-error-insufficient-privileges")
-            }
-            Self::Api {
-                code: ApiCode::Unauthorized,
-                message,
-            } if !message.is_empty() => {
-                t!("api-error-auth-required-message", message = message)
-            }
-            Self::Api {
-                code: ApiCode::Forbidden,
-                message,
-            } if !message.is_empty() => {
-                t!("api-error-permission-denied-message", message = message)
-            }
-            Self::Api { code, message } if let ApiCode::Unknown(_) = code => {
-                t!("api-error-unknown", code = code.raw(), message = message)
-            }
-            Self::Api { code, .. } => code.localize(),
+            Self::Api(err) => err.localize(),
             Self::TokenExpired => t!("error-token-expired"),
         }
     }
@@ -205,43 +203,34 @@ mod tests {
 
     #[test]
     fn localize_api_error() {
-        let err = APIError::Api {
-            code: ApiCode::BadRequest,
-            message: "password not set".into(),
-        };
+        let err = APIError::Api(ApiError::new(ApiCode::BadRequest, "password not set"));
         assert_eq!(err.localize(), "password not set");
 
-        let err = APIError::Api {
-            code: ApiCode::BadRequest,
-            message: "invalid email or password".into(),
-        };
+        let err = APIError::Api(ApiError::new(
+            ApiCode::BadRequest,
+            "invalid email or password",
+        ));
         assert_eq!(err.localize(), "invalid email or password");
 
-        let err = APIError::Api {
-            code: ApiCode::BadRequest,
-            message: "something changed".into(),
-        };
+        let err = APIError::Api(ApiError::new(ApiCode::BadRequest, "something changed"));
         assert_eq!(err.localize(), "bad request (something changed)");
 
-        let err = APIError::Api {
-            code: ApiCode::Unauthorized,
-            message: "Requires authentication".into(),
-        };
+        let err = APIError::Api(ApiError::new(
+            ApiCode::Unauthorized,
+            "Requires authentication",
+        ));
         assert_eq!(
             err.localize(),
             "authentication required (Requires authentication)"
         );
 
-        let err = APIError::Api {
-            code: ApiCode::Forbidden,
-            message: "project token mismatch".into(),
-        };
+        let err = APIError::Api(ApiError::new(ApiCode::Forbidden, "project token mismatch"));
         assert_eq!(err.localize(), "permission denied (project token mismatch)");
 
-        let err = APIError::Api {
-            code: ApiCode::Forbidden,
-            message: "User does not have sufficient privileges.".into(),
-        };
+        let err = APIError::Api(ApiError::new(
+            ApiCode::Forbidden,
+            "User does not have sufficient privileges.",
+        ));
         assert_eq!(err.localize(), "requires a super-admin account");
 
         assert_eq!(APIError::TokenExpired.localize(), "token has expired");

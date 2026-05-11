@@ -127,10 +127,36 @@ impl Display for ApiCode {
     }
 }
 
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+#[error("api error {code}: {message}")]
+pub struct ApiError {
+    pub code: ApiCode,
+    pub message: String,
+}
+
+impl ApiError {
+    pub fn new(code: impl Into<ApiCode>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+        }
+    }
+
+    /// Returns the [`BadRequestKind`] when this is a recognized [`ApiCode::BadRequest`] response.
+    #[must_use]
+    pub fn bad_request_kind(&self) -> Option<BadRequestKind> {
+        if self.code == ApiCode::BadRequest {
+            BadRequestKind::from_message(&self.message)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("api error {code}: {message}")]
-    Api { code: ApiCode, message: String },
+    #[error(transparent)]
+    Api(#[from] ApiError),
 
     #[error("invalid response data: {0}")]
     Data(#[from] serde_json::Error),
@@ -157,25 +183,24 @@ pub enum Error {
 impl Error {
     #[must_use]
     pub fn is_api(&self) -> bool {
-        matches!(self, Error::Api { .. })
+        matches!(self, Error::Api(_))
     }
 
     pub fn api_code(&self) -> Option<ApiCode> {
-        match self {
-            Error::Api { code, .. } => Some(*code),
-            _ => None,
+        if let Error::Api(err) = self {
+            Some(err.code)
+        } else {
+            None
         }
     }
 
     /// Returns the [`BadRequestKind`] for a recognized [`ApiCode::BadRequest`] message.
     #[must_use]
     pub fn bad_request_kind(&self) -> Option<BadRequestKind> {
-        match self {
-            Error::Api {
-                code: ApiCode::BadRequest,
-                message,
-            } => BadRequestKind::from_message(message),
-            _ => None,
+        if let Error::Api(err) = self {
+            err.bad_request_kind()
+        } else {
+            None
         }
     }
 
@@ -362,10 +387,7 @@ mod tests {
 
     #[test]
     fn api_inspection() {
-        let err = Error::Api {
-            code: 1.into(),
-            message: "fail".into(),
-        };
+        let err = Error::Api(ApiError::new(1, "fail"));
 
         assert!(err.is_api());
         assert_eq!(err.api_code(), Some(ApiCode::Unknown(1)));
@@ -418,22 +440,13 @@ mod tests {
 
     #[test]
     fn bad_request_kind_from_error() {
-        let err = Error::Api {
-            code: ApiCode::BadRequest,
-            message: "password not set".into(),
-        };
+        let err = Error::Api(ApiError::new(ApiCode::BadRequest, "password not set"));
         assert_eq!(err.bad_request_kind(), Some(BadRequestKind::PasswordNotSet));
 
-        let err = Error::Api {
-            code: ApiCode::BadRequest,
-            message: "something unknown".into(),
-        };
+        let err = Error::Api(ApiError::new(ApiCode::BadRequest, "something unknown"));
         assert_eq!(err.bad_request_kind(), None);
 
-        let err = Error::Api {
-            code: ApiCode::Unknown(500),
-            message: "password not set".into(),
-        };
+        let err = Error::Api(ApiError::new(ApiCode::Unknown(500), "password not set"));
         assert_eq!(err.bad_request_kind(), None);
 
         let err = Error::TokenExpired;
@@ -458,10 +471,7 @@ mod tests {
 
     #[test]
     fn status_code_returns_none() {
-        let err = Error::Api {
-            code: 1.into(),
-            message: "fail".into(),
-        };
+        let err = Error::Api(ApiError::new(1, "fail"));
 
         assert_eq!(err.status_code(), None);
     }

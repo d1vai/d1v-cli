@@ -722,9 +722,9 @@ async fn prompt_daily_activity_by_user_forbidden() {
         .unwrap_err();
 
     match err {
-        d1v_api::Error::Api { code, message, .. } => {
-            assert_eq!(code.raw(), 403);
-            assert_eq!(message, "User does not have sufficient privileges.");
+        d1v_api::Error::Api(api) => {
+            assert_eq!(api.code.raw(), 403);
+            assert_eq!(api.message, "User does not have sufficient privileges.");
         }
         other => panic!("expected Error::Api, got {other:?}"),
     }

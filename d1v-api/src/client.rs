@@ -424,9 +424,9 @@ mod tests {
         .unwrap_err();
 
         match err {
-            Error::Api { code, message } => {
-                assert_eq!(code, ApiCode::Unknown(500));
-                assert_eq!(message, "Internal Error");
+            Error::Api(api) => {
+                assert_eq!(api.code, ApiCode::Unknown(500));
+                assert_eq!(api.message, "Internal Error");
             }
             other => panic!("expected api error, got {other:?}"),
         }

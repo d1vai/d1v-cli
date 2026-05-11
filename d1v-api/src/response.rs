@@ -1,4 +1,5 @@
 use crate::Error;
+use crate::error::ApiError;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -19,10 +20,7 @@ impl Response {
         T: DeserializeOwned,
     {
         if self.code != 0 {
-            return Err(Error::Api {
-                code: self.code.into(),
-                message: self.message,
-            });
+            return Err(ApiError::new(self.code, self.message).into());
         }
 
         serde_json::from_value(self.data).map_err(Error::Data)
