@@ -1,9 +1,11 @@
+use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
 use super::session::ProjectSession;
+use crate::multipart::FormExt;
 
 pub struct ProjectApi {
     client: Client,
@@ -139,19 +141,20 @@ impl ProjectApi {
         project_description: Option<&str>,
         files: &[LocalImportUploadFile],
     ) -> Result<CreateProjectResponse, Error> {
-        let mut form = reqwest::multipart::Form::new().text("private", "true");
-        if let Some(name) = project_name.filter(|value| !value.trim().is_empty()) {
-            form = form.text("project_name", name.to_string());
-        }
-        if let Some(description) = project_description.filter(|value| !value.trim().is_empty()) {
-            form = form.text("project_description", description.to_string());
-        }
-        form = form.text("wait_for_deploy", "false");
+        let mut form = Form::new()
+            .text("private", "true")
+            .text_if("project_name", project_name.map(str::to_string))
+            .text_if(
+                "project_description",
+                project_description.map(str::to_string),
+            )
+            .text("wait_for_deploy", "false");
 
         for file in files {
-            let part =
-                reqwest::multipart::Part::bytes(file.bytes.clone()).file_name(file.path.clone());
-            form = form.part("files", part);
+            form = form.part(
+                "files",
+                Part::bytes(file.bytes.clone()).file_name(file.path.clone()),
+            );
         }
 
         self.client

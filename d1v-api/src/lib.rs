@@ -3,6 +3,7 @@ pub mod client;
 pub mod error;
 pub mod jwt;
 pub mod locale;
+mod multipart;
 #[cfg(feature = "record")]
 pub mod record;
 pub mod response;
