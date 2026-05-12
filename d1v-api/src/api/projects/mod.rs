@@ -6,10 +6,8 @@ pub use types::{
     ProjectTemplate, UpdateProject,
 };
 
-use reqwest::multipart::{Form, Part};
 use serde::Serialize;
 
-use crate::multipart::FormExt;
 use crate::{Client, Error};
 
 pub struct ProjectsApi {
@@ -129,56 +127,23 @@ impl ProjectsApi {
 
     pub async fn import_from_local(
         &self,
-        payload: &ImportLocal,
+        payload: ImportLocal,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/import-from-local")
-            .multipart(local_import_form(payload))
+            .multipart(payload.into())
             .ok()
             .await
     }
 
     pub async fn cli_import_local(
         &self,
-        payload: &ImportLocal,
+        payload: ImportLocal,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/cli-import-local")
-            .multipart(local_import_form(payload))
+            .multipart(payload.into())
             .ok()
             .await
     }
-}
-
-fn local_import_form(payload: &ImportLocal) -> Form {
-    let mut form = Form::new()
-        .text_if("project_name", payload.project_name.clone())
-        .text_if("project_description", payload.project_description.clone())
-        .text_if("single_file_name", payload.single_file_name.clone())
-        .text_if("single_file_type", payload.single_file_type.clone())
-        .text_if("single_file_content", payload.single_file_content.clone())
-        .text_if("private", payload.private.map(|v| v.to_string()))
-        .text_if(
-            "wait_for_deploy",
-            payload.wait_for_deploy.map(|v| v.to_string()),
-        )
-        .text_if(
-            "wait_deploy_seconds",
-            payload.wait_deploy_seconds.map(|v| v.to_string()),
-        );
-
-    if let Some(archive) = &payload.archive {
-        form = form.part(
-            "archive",
-            Part::bytes(archive.bytes.clone()).file_name(archive.path.clone()),
-        );
-    }
-    for file in &payload.files {
-        form = form.part(
-            "files",
-            Part::bytes(file.bytes.clone()).file_name(file.path.clone()),
-        );
-    }
-
-    form
 }

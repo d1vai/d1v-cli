@@ -231,7 +231,7 @@ async fn import_from_local() {
 
     let response = authed_client(&server)
         .projects()
-        .import_from_local(&ImportLocal {
+        .import_from_local(ImportLocal {
             project_name: Some("local-demo".to_string()),
             private: Some(true),
             files: vec![LocalImportFile {
@@ -262,7 +262,7 @@ async fn cli_import_local() {
 
     let response = authed_client(&server)
         .projects()
-        .cli_import_local(&ImportLocal {
+        .cli_import_local(ImportLocal {
             project_name: Some("cli-demo".to_string()),
             single_file_name: Some("index.html".to_string()),
             single_file_type: Some("html".to_string()),

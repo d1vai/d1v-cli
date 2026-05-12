@@ -1,7 +1,9 @@
+use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use super::super::session::ProjectSession;
+use crate::multipart::FormExt;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -133,6 +135,45 @@ pub struct ImportLocal {
     pub single_file_content: Option<String>,
     pub wait_for_deploy: Option<bool>,
     pub wait_deploy_seconds: Option<u32>,
+}
+
+impl From<ImportLocal> for Form {
+    fn from(payload: ImportLocal) -> Self {
+        let ImportLocal {
+            project_name,
+            project_description,
+            private,
+            archive,
+            files,
+            single_file_name,
+            single_file_type,
+            single_file_content,
+            wait_for_deploy,
+            wait_deploy_seconds,
+        } = payload;
+
+        let mut form = Form::new()
+            .text_if("project_name", project_name)
+            .text_if("project_description", project_description)
+            .text_if("single_file_name", single_file_name)
+            .text_if("single_file_type", single_file_type)
+            .text_if("single_file_content", single_file_content)
+            .text_if_display("private", private)
+            .text_if_display("wait_for_deploy", wait_for_deploy)
+            .text_if_display("wait_deploy_seconds", wait_deploy_seconds);
+
+        if let Some(archive) = archive {
+            form = form.part(
+                "archive",
+                Part::bytes(archive.bytes).file_name(archive.path),
+            );
+        }
+        for file in files {
+            form = form.part("files", Part::bytes(file.bytes).file_name(file.path));
+        }
+
+        form
+    }
 }
 
 #[skip_serializing_none]
