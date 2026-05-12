@@ -8,3 +8,7 @@
 ## Auth wrapping
 
 - `.no_auth()` is opt-in per endpoint and must match `security` on that exact OpenAPI operation; never infer auth from sibling routes sharing a path prefix.
+
+## Datetime fields
+
+- Map API `datetime` fields to `jiff::Timestamp`, not `String`.

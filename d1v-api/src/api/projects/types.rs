@@ -1,3 +1,4 @@
+use jiff::Timestamp;
 use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -227,12 +228,12 @@ pub struct ProjectDeployment {
     pub git_commit_message: Option<String>,
     pub git_commit_author: Option<String>,
     pub deployed_by: Option<String>,
-    pub started_at: Option<String>,
-    pub completed_at: Option<String>,
+    pub started_at: Option<Timestamp>,
+    pub completed_at: Option<Timestamp>,
     pub deployment_duration_seconds: Option<i64>,
     pub error_message: Option<String>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub created_at: Option<Timestamp>,
+    pub updated_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -277,7 +278,7 @@ pub struct Project {
     pub opcode_project_id: Option<String>,
     pub opcode_project_path: Option<String>,
     pub opcode_username: Option<String>,
-    pub opcode_last_accessed_at: Option<String>,
+    pub opcode_last_accessed_at: Option<Timestamp>,
     pub vercel_dev_project_id: Option<String>,
     pub vercel_dev_domain: Option<String>,
     pub latest_dev_deployment_url: Option<String>,
@@ -295,8 +296,8 @@ pub struct Project {
     pub analytics_id: Option<String>,
     pub emoji: Option<String>,
     pub auto_deploy_on_execute: Option<bool>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub created_at: Option<Timestamp>,
+    pub updated_at: Option<Timestamp>,
     #[serde(default)]
     pub sessions: Vec<ProjectSession>,
 }
