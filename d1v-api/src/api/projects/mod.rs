@@ -1,9 +1,11 @@
 mod types;
 
 pub use types::{
-    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, GenerateProjectMeta,
-    ImportFromGithub, ImportLocal, ImportPublic, LocalImportFile, Project, ProjectMeta,
-    ProjectTemplate, UpdateProject,
+    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
+    GenerateProjectEmojisResponse, GenerateProjectMeta, ImportFromGithub, ImportLocal,
+    ImportPublic, LocalImportFile, Project, ProjectDatabase, ProjectDeployment,
+    ProjectDeploymentOptions, ProjectGitMigrationStatus, ProjectMeta, ProjectTemplate,
+    PublishProjectResponse, TransferProject, TransferProjectResponse, UpdateProject,
 };
 
 use serde::Serialize;
@@ -143,6 +145,80 @@ impl ProjectsApi {
         self.client
             .post("/api/projects/cli-import-local")
             .multipart(payload.into())
+            .ok()
+            .await
+    }
+
+    pub async fn database(&self, project_id: impl AsRef<str>) -> Result<ProjectDatabase, Error> {
+        self.client
+            .get(format!("/api/projects/database/{}", project_id.as_ref()))
+            .ok()
+            .await
+    }
+
+    pub async fn github_migration_status(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<ProjectGitMigrationStatus, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/github-migration-status",
+                project_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn migrate_github_to_platform(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<Project, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/github-migrate-platform",
+                project_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn publish(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<PublishProjectResponse, Error> {
+        self.client
+            .post(format!("/api/projects/{}/publish", project_id.as_ref()))
+            .ok()
+            .await
+    }
+
+    pub async fn deployments(
+        &self,
+        project_id: impl AsRef<str>,
+        options: &ProjectDeploymentOptions,
+    ) -> Result<Vec<ProjectDeployment>, Error> {
+        self.client
+            .get(format!("/api/projects/{}/deployments", project_id.as_ref()))
+            .query(options)
+            .ok()
+            .await
+    }
+
+    pub async fn transfer(
+        &self,
+        project_id: impl AsRef<str>,
+        payload: &TransferProject,
+    ) -> Result<TransferProjectResponse, Error> {
+        self.client
+            .post(format!("/api/projects/{}/transfer", project_id.as_ref()))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn generate_emojis(&self) -> Result<GenerateProjectEmojisResponse, Error> {
+        self.client
+            .post("/api/projects/admin/generate-emojis")
             .ok()
             .await
     }

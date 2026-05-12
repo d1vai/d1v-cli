@@ -1,7 +1,8 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     CreateProject, CreateProjectWithIntegrations, GenerateProjectMeta, ImportFromGithub,
-    ImportLocal, ImportPublic, LocalImportFile, UpdateProject,
+    ImportLocal, ImportPublic, LocalImportFile, ProjectDeploymentOptions, TransferProject,
+    UpdateProject,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -448,5 +449,221 @@ async fn delete_project() {
         .await
         .unwrap();
 
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_database() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/database/proj_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{"table_name": "users"}]
+            }));
+    });
+
+    let database = authed_client(&server)
+        .projects()
+        .database("proj_123")
+        .await
+        .unwrap();
+
+    assert_eq!(database[0]["table_name"], "users");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn github_migration_status() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/github-migration-status")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "required": true,
+                    "reason": "legacy",
+                    "source_repository_full_name": "source/demo",
+                    "target_repository_full_name": "d1v/demo",
+                    "repository_mode": "mirrored",
+                    "platform_managed_repository": false,
+                    "has_direct_write_access": false,
+                    "can_migrate_to_platform": true
+                }
+            }));
+    });
+
+    let status = authed_client(&server)
+        .projects()
+        .github_migration_status("proj_123")
+        .await
+        .unwrap();
+
+    assert!(status.required);
+    assert!(status.can_migrate_to_platform);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn migrate_github_to_platform() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/github-migrate-platform")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": project_json() }));
+    });
+
+    let project = authed_client(&server)
+        .projects()
+        .migrate_github_to_platform("proj_123")
+        .await
+        .unwrap();
+
+    assert_eq!(project.id, "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn publish_project() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/publish")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "success": true,
+                    "commit_hash": "abc123",
+                    "message": "published",
+                    "production_url": "https://demo.example.com"
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .publish("proj_123")
+        .await
+        .unwrap();
+
+    assert!(response.success);
+    assert_eq!(response.commit_hash.as_deref(), Some("abc123"));
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_deployments() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/deployments")
+            .query_param("environment", "prod")
+            .query_param("limit", "10")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{
+                    "id": 1,
+                    "project_id": "proj_123",
+                    "environment": "prod",
+                    "status": "success",
+                    "git_commit_sha": "abc123",
+                    "created_at": "2026-05-01T00:00:00Z"
+                }]
+            }));
+    });
+
+    let deployments = authed_client(&server)
+        .projects()
+        .deployments(
+            "proj_123",
+            &ProjectDeploymentOptions {
+                environment: Some("prod".to_string()),
+                limit: Some(10),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(deployments[0].status, "success");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn transfer_project() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/transfer")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({ "target_email": "target@example.com" }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "project": project_json() }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .transfer(
+            "proj_123",
+            &TransferProject {
+                target_email: "target@example.com".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["project"]["id"], "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn generate_project_emojis() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/admin/generate-emojis")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "updated": 3 }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .generate_emojis()
+        .await
+        .unwrap();
+
+    assert_eq!(response["updated"], 3);
     mock.assert();
 }

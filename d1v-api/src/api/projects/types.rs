@@ -178,6 +178,74 @@ impl From<ImportLocal> for Form {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectGitMigrationStatus {
+    pub required: bool,
+    pub reason: Option<String>,
+    pub source_repository_full_name: Option<String>,
+    pub source_repository_url: Option<String>,
+    pub target_repository_full_name: Option<String>,
+    pub repository_mode: Option<String>,
+    pub platform_managed_repository: bool,
+    pub has_direct_write_access: bool,
+    pub can_migrate_to_platform: bool,
+    pub connect_settings_path: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PublishProjectResponse {
+    pub success: bool,
+    pub commit_hash: Option<String>,
+    pub message: String,
+    pub production_url: Option<String>,
+    pub vercel_url: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ProjectDeploymentOptions {
+    pub environment: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectDeployment {
+    pub id: i64,
+    pub project_id: String,
+    pub environment: String,
+    pub status: String,
+    pub vercel_deployment_id: Option<String>,
+    pub vercel_deployment_url: Option<String>,
+    pub vercel_project_id: Option<String>,
+    pub vercel_domain: Option<String>,
+    pub vercel_framework: Option<String>,
+    pub vercel_build_command: Option<String>,
+    pub vercel_output_dir: Option<String>,
+    pub git_branch: Option<String>,
+    pub git_commit_sha: Option<String>,
+    pub git_commit_message: Option<String>,
+    pub git_commit_author: Option<String>,
+    pub deployed_by: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub deployment_duration_seconds: Option<i64>,
+    pub error_message: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TransferProject {
+    pub target_email: String,
+}
+
+pub type ProjectDatabase = Vec<serde_json::Value>;
+pub type TransferProjectResponse = serde_json::Value;
+pub type GenerateProjectEmojisResponse = serde_json::Value;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Project {
     pub id: String,
     pub user_id: Option<i64>,
