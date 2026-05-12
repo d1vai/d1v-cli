@@ -1,5 +1,8 @@
 use d1v_api::Client;
-use d1v_api::api::projects::{CreateProject, GenerateProjectMeta, UpdateProject};
+use d1v_api::api::projects::{
+    CreateProject, CreateProjectWithIntegrations, GenerateProjectMeta, ImportFromGithub,
+    ImportLocal, ImportPublic, LocalImportFile, UpdateProject,
+};
 use httpmock::prelude::*;
 use serde_json::json;
 
@@ -32,6 +35,18 @@ fn project_json() -> serde_json::Value {
         "created_at": "2026-05-01T00:00:00Z",
         "updated_at": "2026-05-02T00:00:00Z",
         "sessions": []
+    })
+}
+
+fn create_response_json() -> serde_json::Value {
+    json!({
+        "code": 0,
+        "msg": "success",
+        "data": {
+            "project": project_json(),
+            "session": null,
+            "import_auto_deploy": null
+        }
     })
 }
 
@@ -74,15 +89,7 @@ async fn create_project() {
             }));
         then.status(200)
             .header("content-type", "application/json")
-            .json_body(json!({
-                "code": 0,
-                "msg": "success",
-                "data": {
-                    "project": project_json(),
-                    "session": null,
-                    "import_auto_deploy": null
-                }
-            }));
+            .json_body(create_response_json());
     });
 
     let response = authed_client(&server)
@@ -99,6 +106,174 @@ async fn create_project() {
 
     assert_eq!(response.project.id, "proj_123");
     assert!(response.session.is_none());
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_with_integrations() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/create-with-integrations")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "prompt": "Build a CRM",
+                "max_desc_len": 120,
+                "enable_database": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(create_response_json());
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .create_with_integrations(&CreateProjectWithIntegrations {
+            prompt: "Build a CRM".to_string(),
+            max_desc_len: Some(120),
+            enable_database: Some(true),
+            ..CreateProjectWithIntegrations::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.project.id, "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn import_from_github() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/import-from-github")
+            .query_param("schedule_auto_deploy", "false")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "repository_full_name": "d1v/demo",
+                "repository_url": "https://github.com/d1v/demo.git",
+                "default_branch": "main",
+                "is_private": false
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(create_response_json());
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .import_from_github(
+            &ImportFromGithub {
+                repository_full_name: "d1v/demo".to_string(),
+                repository_url: Some("https://github.com/d1v/demo.git".to_string()),
+                default_branch: Some("main".to_string()),
+                is_private: Some(false),
+                ..ImportFromGithub::default()
+            },
+            Some(false),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.project.repository_full_name.as_deref(),
+        Some("d1v/demo")
+    );
+    mock.assert();
+}
+
+#[tokio::test]
+async fn import_public_to_org() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/import-public-to-org")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "source_url": "https://github.com/d1v/public-demo.git",
+                "project_name": "public-demo",
+                "private": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(create_response_json());
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .import_public_to_org(&ImportPublic {
+            source_url: "https://github.com/d1v/public-demo.git".to_string(),
+            project_name: "public-demo".to_string(),
+            project_description: None,
+            private: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.project.id, "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn import_from_local() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/import-from-local")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(create_response_json());
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .import_from_local(&ImportLocal {
+            project_name: Some("local-demo".to_string()),
+            private: Some(true),
+            files: vec![LocalImportFile {
+                path: "index.html".to_string(),
+                bytes: b"<h1>Hello</h1>".to_vec(),
+            }],
+            wait_for_deploy: Some(false),
+            ..ImportLocal::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.project.id, "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn cli_import_local() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/cli-import-local")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(create_response_json());
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .cli_import_local(&ImportLocal {
+            project_name: Some("cli-demo".to_string()),
+            single_file_name: Some("index.html".to_string()),
+            single_file_type: Some("html".to_string()),
+            single_file_content: Some("<h1>Hello</h1>".to_string()),
+            wait_for_deploy: Some(false),
+            ..ImportLocal::default()
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.project.id, "proj_123");
     mock.assert();
 }
 

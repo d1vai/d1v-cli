@@ -67,6 +67,76 @@ pub struct CreateProjectResponse {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CreateProjectWithIntegrations {
+    pub prompt: String,
+    pub max_desc_len: Option<u32>,
+    pub template_repo: Option<String>,
+    pub auto_deploy_on_execute: Option<bool>,
+    pub enable_pay: Option<bool>,
+    pub enable_database: Option<bool>,
+    pub enable_resend: Option<bool>,
+    pub repository_platform: Option<String>,
+    pub repository_full_name: Option<String>,
+    pub repository_id: Option<String>,
+    pub repository_owner: Option<String>,
+    pub repository_name: Option<String>,
+    pub repository_clone_url: Option<String>,
+    pub repository_ssh_url: Option<String>,
+    pub repository_default_branch: Option<String>,
+    pub repository_is_private: Option<bool>,
+    pub repository_description: Option<String>,
+    pub repository_language: Option<String>,
+    pub repository_metadata: Option<serde_json::Value>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ImportFromGithub {
+    pub project_name: Option<String>,
+    pub project_description: Option<String>,
+    pub repository_full_name: String,
+    pub repository_url: Option<String>,
+    pub repository_ssh_url: Option<String>,
+    pub default_branch: Option<String>,
+    pub is_private: Option<bool>,
+    pub primary_language: Option<String>,
+    pub repository_mode: Option<String>,
+    pub source_repository_full_name: Option<String>,
+    pub source_repository_url: Option<String>,
+    pub platform_managed_repository: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ImportPublic {
+    pub source_url: String,
+    pub project_name: String,
+    pub project_description: Option<String>,
+    pub private: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalImportFile {
+    pub path: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ImportLocal {
+    pub project_name: Option<String>,
+    pub project_description: Option<String>,
+    pub private: Option<bool>,
+    pub archive: Option<LocalImportFile>,
+    pub files: Vec<LocalImportFile>,
+    pub single_file_name: Option<String>,
+    pub single_file_type: Option<String>,
+    pub single_file_content: Option<String>,
+    pub wait_for_deploy: Option<bool>,
+    pub wait_deploy_seconds: Option<u32>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Project {
     pub id: String,
     pub user_id: Option<i64>,

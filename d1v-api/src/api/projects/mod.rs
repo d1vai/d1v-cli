@@ -1,12 +1,15 @@
 mod types;
 
 pub use types::{
-    CreateProject, CreateProjectResponse, GenerateProjectMeta, Project, ProjectMeta,
+    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, GenerateProjectMeta,
+    ImportFromGithub, ImportLocal, ImportPublic, LocalImportFile, Project, ProjectMeta,
     ProjectTemplate, UpdateProject,
 };
 
+use reqwest::multipart::{Form, Part};
 use serde::Serialize;
 
+use crate::multipart::FormExt;
 use crate::{Client, Error};
 
 pub struct ProjectsApi {
@@ -88,4 +91,94 @@ impl ProjectsApi {
             .ok()
             .await
     }
+
+    pub async fn create_with_integrations(
+        &self,
+        payload: &CreateProjectWithIntegrations,
+    ) -> Result<CreateProjectResponse, Error> {
+        self.client
+            .post("/api/projects/create-with-integrations")
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn import_from_github(
+        &self,
+        payload: &ImportFromGithub,
+        schedule_auto_deploy: Option<bool>,
+    ) -> Result<CreateProjectResponse, Error> {
+        self.client
+            .post("/api/projects/import-from-github")
+            .query_if_some("schedule_auto_deploy", schedule_auto_deploy)
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn import_public_to_org(
+        &self,
+        payload: &ImportPublic,
+    ) -> Result<CreateProjectResponse, Error> {
+        self.client
+            .post("/api/projects/import-public-to-org")
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn import_from_local(
+        &self,
+        payload: &ImportLocal,
+    ) -> Result<CreateProjectResponse, Error> {
+        self.client
+            .post("/api/projects/import-from-local")
+            .multipart(local_import_form(payload))
+            .ok()
+            .await
+    }
+
+    pub async fn cli_import_local(
+        &self,
+        payload: &ImportLocal,
+    ) -> Result<CreateProjectResponse, Error> {
+        self.client
+            .post("/api/projects/cli-import-local")
+            .multipart(local_import_form(payload))
+            .ok()
+            .await
+    }
+}
+
+fn local_import_form(payload: &ImportLocal) -> Form {
+    let mut form = Form::new()
+        .text_if("project_name", payload.project_name.clone())
+        .text_if("project_description", payload.project_description.clone())
+        .text_if("single_file_name", payload.single_file_name.clone())
+        .text_if("single_file_type", payload.single_file_type.clone())
+        .text_if("single_file_content", payload.single_file_content.clone())
+        .text_if("private", payload.private.map(|v| v.to_string()))
+        .text_if(
+            "wait_for_deploy",
+            payload.wait_for_deploy.map(|v| v.to_string()),
+        )
+        .text_if(
+            "wait_deploy_seconds",
+            payload.wait_deploy_seconds.map(|v| v.to_string()),
+        );
+
+    if let Some(archive) = &payload.archive {
+        form = form.part(
+            "archive",
+            Part::bytes(archive.bytes.clone()).file_name(archive.path.clone()),
+        );
+    }
+    for file in &payload.files {
+        form = form.part(
+            "files",
+            Part::bytes(file.bytes.clone()).file_name(file.path.clone()),
+        );
+    }
+
+    form
 }
