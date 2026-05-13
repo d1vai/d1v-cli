@@ -1,4 +1,5 @@
 mod db;
+mod project;
 mod types;
 
 pub use db::{
@@ -8,6 +9,7 @@ pub use db::{
     ProjectDbMutation, ProjectDbRow, ProjectDbSchema, ProjectDbSchemaOptions, ProjectsDb,
     UpdateProjectDbRows,
 };
+pub use project::ProjectApi;
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
     GenerateProjectEmojisResponse, GenerateProjectMeta, ImportFromGithub, ImportLocal,
@@ -70,37 +72,6 @@ impl ProjectsApi {
             .await
     }
 
-    pub async fn get(
-        &self,
-        project_id: impl AsRef<str>,
-        sync: Option<bool>,
-    ) -> Result<Project, Error> {
-        self.client
-            .get(format!("/api/projects/{}", project_id.as_ref()))
-            .query_if_some("sync", sync)
-            .ok()
-            .await
-    }
-
-    pub async fn update(
-        &self,
-        project_id: impl AsRef<str>,
-        payload: &UpdateProject,
-    ) -> Result<Project, Error> {
-        self.client
-            .put(format!("/api/projects/{}", project_id.as_ref()))
-            .json(payload)
-            .ok()
-            .await
-    }
-
-    pub async fn delete(&self, project_id: impl AsRef<str>) -> Result<(), Error> {
-        self.client
-            .delete(format!("/api/projects/{}", project_id.as_ref()))
-            .ok()
-            .await
-    }
-
     pub async fn create_with_integrations(
         &self,
         payload: &CreateProjectWithIntegrations,
@@ -158,73 +129,6 @@ impl ProjectsApi {
             .await
     }
 
-    pub async fn database(&self, project_id: impl AsRef<str>) -> Result<ProjectDatabase, Error> {
-        self.client
-            .get(format!("/api/projects/database/{}", project_id.as_ref()))
-            .ok()
-            .await
-    }
-
-    pub async fn github_migration_status(
-        &self,
-        project_id: impl AsRef<str>,
-    ) -> Result<ProjectGitMigrationStatus, Error> {
-        self.client
-            .get(format!(
-                "/api/projects/{}/github-migration-status",
-                project_id.as_ref()
-            ))
-            .ok()
-            .await
-    }
-
-    pub async fn migrate_github_to_platform(
-        &self,
-        project_id: impl AsRef<str>,
-    ) -> Result<Project, Error> {
-        self.client
-            .post(format!(
-                "/api/projects/{}/github-migrate-platform",
-                project_id.as_ref()
-            ))
-            .ok()
-            .await
-    }
-
-    pub async fn publish(
-        &self,
-        project_id: impl AsRef<str>,
-    ) -> Result<PublishProjectResponse, Error> {
-        self.client
-            .post(format!("/api/projects/{}/publish", project_id.as_ref()))
-            .ok()
-            .await
-    }
-
-    pub async fn deployments(
-        &self,
-        project_id: impl AsRef<str>,
-        options: &ProjectDeploymentOptions,
-    ) -> Result<Vec<ProjectDeployment>, Error> {
-        self.client
-            .get(format!("/api/projects/{}/deployments", project_id.as_ref()))
-            .query(options)
-            .ok()
-            .await
-    }
-
-    pub async fn transfer(
-        &self,
-        project_id: impl AsRef<str>,
-        payload: &TransferProject,
-    ) -> Result<TransferProjectResponse, Error> {
-        self.client
-            .post(format!("/api/projects/{}/transfer", project_id.as_ref()))
-            .json(payload)
-            .ok()
-            .await
-    }
-
     pub async fn generate_emojis(&self) -> Result<GenerateProjectEmojisResponse, Error> {
         self.client
             .post("/api/projects/admin/generate-emojis")
@@ -232,44 +136,15 @@ impl ProjectsApi {
             .await
     }
 
-    pub fn db(&self, project_id: impl Into<String>) -> ProjectsDb {
-        ProjectsDb::new(self.client.clone(), project_id.into())
+    
+    pub fn project(&self, project_id: impl Into<String>) -> ProjectApi {
+        ProjectApi::new(self.client.clone(), project_id.into())
     }
 
     pub async fn neon_usage(&self, options: &NeonUsageOptions) -> Result<NeonUsage, Error> {
         self.client
             .get("/api/projects/db/neon-usage")
             .query(options)
-            .ok()
-            .await
-    }
-
-    pub async fn issue_project_token(
-        &self,
-        project_id: impl AsRef<str>,
-        payload: &ProjectTokenRequest,
-    ) -> Result<ProjectToken, Error> {
-        self.client
-            .post(format!(
-                "/api/projects/{}/project-token/issue",
-                project_id.as_ref()
-            ))
-            .json(payload)
-            .ok()
-            .await
-    }
-
-    pub async fn refresh_project_token(
-        &self,
-        project_id: impl AsRef<str>,
-        payload: &ProjectTokenRequest,
-    ) -> Result<ProjectToken, Error> {
-        self.client
-            .post(format!(
-                "/api/projects/{}/project-token/refresh",
-                project_id.as_ref()
-            ))
-            .json(payload)
             .ok()
             .await
     }

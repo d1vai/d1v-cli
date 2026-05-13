@@ -388,7 +388,8 @@ async fn get_project_with_sync() {
 
     let project = authed_client(&server)
         .projects()
-        .get("proj_123", Some(false))
+        .project("proj_123")
+        .get(Some(false))
         .await
         .unwrap();
 
@@ -418,14 +419,12 @@ async fn update_project() {
 
     let project = authed_client(&server)
         .projects()
-        .update(
-            "proj_123",
-            &UpdateProject {
-                project_name: Some("renamed".to_string()),
-                auto_deploy_on_execute: Some(false),
-                ..UpdateProject::default()
-            },
-        )
+        .project("proj_123")
+        .update(&UpdateProject {
+            project_name: Some("renamed".to_string()),
+            auto_deploy_on_execute: Some(false),
+            ..UpdateProject::default()
+        })
         .await
         .unwrap();
 
@@ -448,7 +447,8 @@ async fn delete_project() {
 
     authed_client(&server)
         .projects()
-        .delete("proj_123")
+        .project("proj_123")
+        .delete()
         .await
         .unwrap();
 
@@ -473,7 +473,8 @@ async fn project_database() {
 
     let database = authed_client(&server)
         .projects()
-        .database("proj_123")
+        .project("proj_123")
+        .database()
         .await
         .unwrap();
 
@@ -508,7 +509,8 @@ async fn github_migration_status() {
 
     let status = authed_client(&server)
         .projects()
-        .github_migration_status("proj_123")
+        .project("proj_123")
+        .github_migration_status()
         .await
         .unwrap();
 
@@ -531,7 +533,8 @@ async fn migrate_github_to_platform() {
 
     let project = authed_client(&server)
         .projects()
-        .migrate_github_to_platform("proj_123")
+        .project("proj_123")
+        .migrate_github_to_platform()
         .await
         .unwrap();
 
@@ -562,7 +565,8 @@ async fn publish_project() {
 
     let response = authed_client(&server)
         .projects()
-        .publish("proj_123")
+        .project("proj_123")
+        .publish()
         .await
         .unwrap();
 
@@ -598,13 +602,11 @@ async fn project_deployments() {
 
     let deployments = authed_client(&server)
         .projects()
-        .deployments(
-            "proj_123",
-            &ProjectDeploymentOptions {
-                environment: Some("prod".to_string()),
-                limit: Some(10),
-            },
-        )
+        .project("proj_123")
+        .deployments(&ProjectDeploymentOptions {
+            environment: Some("prod".to_string()),
+            limit: Some(10),
+        })
         .await
         .unwrap();
 
@@ -632,12 +634,10 @@ async fn transfer_project() {
 
     let response = authed_client(&server)
         .projects()
-        .transfer(
-            "proj_123",
-            &TransferProject {
-                target_email: "target@example.com".to_string(),
-            },
-        )
+        .project("proj_123")
+        .transfer(&TransferProject {
+            target_email: "target@example.com".to_string(),
+        })
         .await
         .unwrap();
 
@@ -699,7 +699,8 @@ async fn project_db_schema() {
 
     let schema = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .schema(&ProjectDbSchemaOptions {
             branch: Some("main".to_string()),
             include_views: Some(true),
@@ -741,7 +742,8 @@ async fn project_db_data() {
 
     let data = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .data(&ProjectDbDataOptions {
             branch: Some("dev".to_string()),
             limit_per_table: Some(5),
@@ -777,7 +779,8 @@ async fn project_db_branches() {
 
     let branches = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .branches()
         .await
         .unwrap();
@@ -854,7 +857,8 @@ async fn create_db_table() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .create_table(&CreateProjectDbTable {
             schema_name: Some("public".to_string()),
             table_name: "users".to_string(),
@@ -896,7 +900,8 @@ async fn drop_db_table() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .drop_table(
             "public",
             "users",
@@ -933,7 +938,8 @@ async fn list_db_table_rows() {
 
     let rows = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .list_table_rows(
             "public",
             "users",
@@ -973,7 +979,8 @@ async fn insert_db_table_row() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .insert_table_row(
             "public",
             "users",
@@ -1016,7 +1023,8 @@ async fn update_db_table_rows() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .update_table_rows(
             "public",
             "users",
@@ -1059,7 +1067,8 @@ async fn delete_db_table_rows() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .delete_table_rows(
             "public",
             "users",
@@ -1105,7 +1114,8 @@ async fn execute_db_sql() {
 
     let response = authed_client(&server)
         .projects()
-        .db("proj_123")
+        .project("proj_123")
+        .db()
         .execute_sql(&ExecuteProjectSql {
             sql: "select * from users".to_string(),
             branch: Some("main".to_string()),
@@ -1148,13 +1158,11 @@ async fn issue_project_token() {
 
     let token = authed_client(&server)
         .projects()
-        .issue_project_token(
-            "proj_123",
-            &ProjectTokenRequest {
-                scopes: Some(vec!["db:read".to_string(), "migrate".to_string()]),
-                ttl_seconds: Some(900),
-            },
-        )
+        .project("proj_123")
+        .issue_token(&ProjectTokenRequest {
+            scopes: Some(vec!["db:read".to_string(), "migrate".to_string()]),
+            ttl_seconds: Some(900),
+        })
         .await
         .unwrap();
 
@@ -1189,13 +1197,11 @@ async fn refresh_project_token() {
 
     let token = authed_client(&server)
         .projects()
-        .refresh_project_token(
-            "proj_123",
-            &ProjectTokenRequest {
-                scopes: None,
-                ttl_seconds: Some(1800),
-            },
-        )
+        .project("proj_123")
+        .refresh_token(&ProjectTokenRequest {
+            scopes: None,
+            ttl_seconds: Some(1800),
+        })
         .await
         .unwrap();
 
