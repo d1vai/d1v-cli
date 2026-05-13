@@ -1,11 +1,20 @@
+mod db;
 mod types;
 
+pub use db::{
+    CreateProjectDbTable, DeleteProjectDbRows, DropProjectDbTableOptions, ExecuteProjectSql,
+    ExecuteProjectSqlResponse, InsertProjectDbRow, ListProjectDbRowsOptions, NeonUsage,
+    NeonUsageOptions, ProjectDbBranch, ProjectDbColumn, ProjectDbData, ProjectDbDataOptions,
+    ProjectDbMutation, ProjectDbRow, ProjectDbSchema, ProjectDbSchemaOptions, ProjectsDb,
+    UpdateProjectDbRows,
+};
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
     GenerateProjectEmojisResponse, GenerateProjectMeta, ImportFromGithub, ImportLocal,
     ImportPublic, LocalImportFile, Project, ProjectDatabase, ProjectDeployment,
     ProjectDeploymentOptions, ProjectGitMigrationStatus, ProjectMeta, ProjectTemplate,
-    PublishProjectResponse, TransferProject, TransferProjectResponse, UpdateProject,
+    ProjectToken, ProjectTokenRequest, PublishProjectResponse, TransferProject,
+    TransferProjectResponse, UpdateProject,
 };
 
 use serde::Serialize;
@@ -219,6 +228,48 @@ impl ProjectsApi {
     pub async fn generate_emojis(&self) -> Result<GenerateProjectEmojisResponse, Error> {
         self.client
             .post("/api/projects/admin/generate-emojis")
+            .ok()
+            .await
+    }
+
+    pub fn db(&self, project_id: impl Into<String>) -> ProjectsDb {
+        ProjectsDb::new(self.client.clone(), project_id.into())
+    }
+
+    pub async fn neon_usage(&self, options: &NeonUsageOptions) -> Result<NeonUsage, Error> {
+        self.client
+            .get("/api/projects/db/neon-usage")
+            .query(options)
+            .ok()
+            .await
+    }
+
+    pub async fn issue_project_token(
+        &self,
+        project_id: impl AsRef<str>,
+        payload: &ProjectTokenRequest,
+    ) -> Result<ProjectToken, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/project-token/issue",
+                project_id.as_ref()
+            ))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn refresh_project_token(
+        &self,
+        project_id: impl AsRef<str>,
+        payload: &ProjectTokenRequest,
+    ) -> Result<ProjectToken, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/project-token/refresh",
+                project_id.as_ref()
+            ))
+            .json(payload)
             .ok()
             .await
     }

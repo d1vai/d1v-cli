@@ -1,8 +1,11 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    CreateProject, CreateProjectWithIntegrations, GenerateProjectMeta, ImportFromGithub,
-    ImportLocal, ImportPublic, LocalImportFile, ProjectDeploymentOptions, TransferProject,
-    UpdateProject,
+    CreateProject, CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
+    DropProjectDbTableOptions, ExecuteProjectSql, GenerateProjectMeta, ImportFromGithub,
+    ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions, LocalImportFile,
+    NeonUsageOptions, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
+    ProjectDeploymentOptions, ProjectTokenRequest, TransferProject, UpdateProject,
+    UpdateProjectDbRows,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -665,5 +668,537 @@ async fn generate_project_emojis() {
         .unwrap();
 
     assert_eq!(response["updated"], 3);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_db_schema() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/db/schema")
+            .query_param("branch", "main")
+            .query_param("include_views", "true")
+            .query_param("with_row_counts", "true")
+            .query_param("include_system_schemas", "false")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "tables": [{
+                        "schema_name": "public",
+                        "table_name": "users",
+                        "row_count": 2
+                    }]
+                }
+            }));
+    });
+
+    let schema = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .schema(&ProjectDbSchemaOptions {
+            branch: Some("main".to_string()),
+            include_views: Some(true),
+            with_row_counts: Some(true),
+            include_system_schemas: Some(false),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(schema["tables"][0]["table_name"], "users");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_db_data() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/db/data")
+            .query_param("branch", "dev")
+            .query_param("limit_per_table", "5")
+            .query_param("include_views", "false")
+            .query_param("include_system_schemas", "false")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "tables": [{
+                        "schema_name": "public",
+                        "table_name": "users",
+                        "rows": [{"id": 1, "email": "user@example.com"}]
+                    }]
+                }
+            }));
+    });
+
+    let data = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .data(&ProjectDbDataOptions {
+            branch: Some("dev".to_string()),
+            limit_per_table: Some(5),
+            include_views: Some(false),
+            include_system_schemas: Some(false),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(data["tables"][0]["rows"][0]["email"], "user@example.com");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_db_branches() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/db/branches")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{
+                    "id": "br-main",
+                    "name": "main",
+                    "current": true
+                }]
+            }));
+    });
+
+    let branches = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .branches()
+        .await
+        .unwrap();
+
+    assert_eq!(branches[0]["name"], "main");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn neon_usage() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/db/neon-usage")
+            .query_param("from_iso", "2026-05-01T00:00:00Z")
+            .query_param("to_iso", "2026-05-02T00:00:00Z")
+            .query_param("granularity", "hour")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "granularity": "hour",
+                    "projects": []
+                }
+            }));
+    });
+
+    let usage = authed_client(&server)
+        .projects()
+        .neon_usage(&NeonUsageOptions {
+            from_iso: Some("2026-05-01T00:00:00Z".parse().unwrap()),
+            to_iso: Some("2026-05-02T00:00:00Z".parse().unwrap()),
+            granularity: Some("hour".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(usage["granularity"], "hour");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_db_table() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/db/tables")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "schema_name": "public",
+                "table_name": "users",
+                "columns": [{
+                    "name": "id",
+                    "data_type": "INTEGER",
+                    "is_nullable": false,
+                    "identity": "by_default"
+                }],
+                "primary_key": ["id"],
+                "branch": "main",
+                "create_schema_if_missing": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "message": "table created" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .create_table(&CreateProjectDbTable {
+            schema_name: Some("public".to_string()),
+            table_name: "users".to_string(),
+            columns: vec![ProjectDbColumn {
+                name: "id".to_string(),
+                data_type: "INTEGER".to_string(),
+                is_nullable: Some(false),
+                default_expr: None,
+                identity: Some("by_default".to_string()),
+            }],
+            primary_key: Some(vec!["id".to_string()]),
+            branch: Some("main".to_string()),
+            create_schema_if_missing: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["message"], "table created");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn drop_db_table() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/db/tables/public/users")
+            .query_param("branch", "main")
+            .query_param("cascade", "true")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "message": "table dropped" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .drop_table(
+            "public",
+            "users",
+            &DropProjectDbTableOptions {
+                branch: Some("main".to_string()),
+                cascade: Some(true),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["message"], "table dropped");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn list_db_table_rows() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/db/tables/public/users/rows")
+            .query_param("branch", "dev")
+            .query_param("limit", "10")
+            .query_param("offset", "20")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{ "id": 1, "email": "user@example.com" }]
+            }));
+    });
+
+    let rows = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .list_table_rows(
+            "public",
+            "users",
+            &ListProjectDbRowsOptions {
+                branch: Some("dev".to_string()),
+                limit: Some(10),
+                offset: Some(20),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(rows[0]["email"], "user@example.com");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn insert_db_table_row() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/db/tables/public/users/rows")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "values": { "email": "user@example.com" },
+                "branch": "main"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "affected": 1 }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .insert_table_row(
+            "public",
+            "users",
+            &InsertProjectDbRow {
+                values: serde_json::Map::from_iter([(
+                    "email".to_string(),
+                    json!("user@example.com"),
+                )]),
+                branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["affected"], 1);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn update_db_table_rows() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PATCH)
+            .path("/api/projects/proj_123/db/tables/public/users/rows")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "where": { "id": 1 },
+                "values": { "email": "updated@example.com" },
+                "branch": "main"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "affected": 1 }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .update_table_rows(
+            "public",
+            "users",
+            &UpdateProjectDbRows {
+                where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
+                values: serde_json::Map::from_iter([(
+                    "email".to_string(),
+                    json!("updated@example.com"),
+                )]),
+                branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["affected"], 1);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_db_table_rows() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/db/tables/public/users/rows/delete")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "where": { "id": 1 },
+                "branch": "main"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "affected": 1 }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .delete_table_rows(
+            "public",
+            "users",
+            &DeleteProjectDbRows {
+                where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
+                branch: Some("main".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["affected"], 1);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn execute_db_sql() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/db/sql")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "sql": "select * from users",
+                "branch": "main",
+                "dry_run": false,
+                "read_only": true,
+                "max_rows": 50
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "status": "success",
+                    "statement_count": 1,
+                    "results": []
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .db("proj_123")
+        .execute_sql(&ExecuteProjectSql {
+            sql: "select * from users".to_string(),
+            branch: Some("main".to_string()),
+            dry_run: Some(false),
+            read_only: Some(true),
+            approval_token: None,
+            max_rows: Some(50),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["status"], "success");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn issue_project_token() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/project-token/issue")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "scopes": ["db:read", "migrate"],
+                "ttl_seconds": 900
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project_token": "project.jwt",
+                    "expires_at": "2026-05-01T00:15:00+00:00",
+                    "scopes": ["db:read", "migrate"]
+                }
+            }));
+    });
+
+    let token = authed_client(&server)
+        .projects()
+        .issue_project_token(
+            "proj_123",
+            &ProjectTokenRequest {
+                scopes: Some(vec!["db:read".to_string(), "migrate".to_string()]),
+                ttl_seconds: Some(900),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(token.project_token, "project.jwt");
+    assert_eq!(token.scopes, ["db:read", "migrate"]);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn refresh_project_token() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/project-token/refresh")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "ttl_seconds": 1800
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project_token": "refreshed.jwt",
+                    "expires_at": "2026-05-01T00:30:00+00:00",
+                    "scopes": ["db:read", "migrate"]
+                }
+            }));
+    });
+
+    let token = authed_client(&server)
+        .projects()
+        .refresh_project_token(
+            "proj_123",
+            &ProjectTokenRequest {
+                scopes: None,
+                ttl_seconds: Some(1800),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(token.project_token, "refreshed.jwt");
     mock.assert();
 }

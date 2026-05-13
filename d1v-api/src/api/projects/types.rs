@@ -241,6 +241,20 @@ pub struct TransferProject {
     pub target_email: String,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectTokenRequest {
+    pub scopes: Option<Vec<String>>,
+    pub ttl_seconds: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectToken {
+    pub project_token: String,
+    pub expires_at: Timestamp,
+    pub scopes: Vec<String>,
+}
+
 pub type ProjectDatabase = Vec<serde_json::Value>;
 pub type TransferProjectResponse = serde_json::Value;
 pub type GenerateProjectEmojisResponse = serde_json::Value;
