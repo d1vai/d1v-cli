@@ -1,12 +1,13 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreateProject,
-    CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
+    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreatePayWebhook,
+    CreateProject, CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
     DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
     ImportFromGithub, ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions,
-    LocalImportFile, NeonUsageOptions, PayProductPaymentLinkOptions, ProjectDbColumn,
-    ProjectDbDataOptions, ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions,
-    ProjectTokenRequest, TransferProject, UpdateProject, UpdateProjectDbRows,
+    LocalImportFile, NeonUsageOptions, PayAnalyticsOptions, PayPaginatedTransactionsOptions,
+    PayProductPaymentLinkOptions, PayTransactionsOptions, ProjectDbColumn, ProjectDbDataOptions,
+    ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest,
+    TransferProject, UpdatePayWebhook, UpdateProject, UpdateProjectDbRows,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -1732,5 +1733,399 @@ async fn create_pay_payment_intent() {
         .unwrap();
 
     assert_eq!(intent["client_secret"], "pi_secret");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_transactions() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/transactions")
+            .query_param("created_after", "1700000000")
+            .query_param("status", "succeeded")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "items": [{
+                        "id": "txn_123",
+                        "status": "succeeded"
+                    }]
+                }
+            }));
+    });
+
+    let transactions = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .transactions(&PayTransactionsOptions {
+            created_after: Some(1_700_000_000),
+            status: Some("succeeded".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(transactions["items"][0]["id"], "txn_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_transactions_paginated() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/transactions/paginated")
+            .query_param("page", "2")
+            .query_param("pageSize", "25")
+            .query_param("created_after", "1700000000")
+            .query_param("status", "pending")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "page": 2,
+                    "pageSize": 25,
+                    "items": []
+                }
+            }));
+    });
+
+    let transactions = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .transactions_paginated(&PayPaginatedTransactionsOptions {
+            page: 2,
+            page_size: 25,
+            created_after: Some(1_700_000_000),
+            status: Some("pending".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(transactions["page"], 2);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_transaction_stats() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/transactions/stats")
+            .query_param("created_after", "1700000000")
+            .query_param("status", "succeeded")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "count": 3,
+                    "amount": 9900
+                }
+            }));
+    });
+
+    let stats = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .transaction_stats(&PayTransactionsOptions {
+            created_after: Some(1_700_000_000),
+            status: Some("succeeded".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(stats["count"], 3);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_dashboard_metrics() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/dashboard/metrics")
+            .query_param("days", "30")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "totalRevenue": 9900
+                }
+            }));
+    });
+
+    let metrics = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .dashboard_metrics(&PayAnalyticsOptions {
+            days: Some("30".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(metrics["totalRevenue"], 9900);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_revenue() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/revenue")
+            .query_param("days", "7")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "revenue": 1200
+                }
+            }));
+    });
+
+    let revenue = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .revenue(&PayAnalyticsOptions {
+            days: Some("7".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(revenue["revenue"], 1200);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_dashboard_revenue() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/dashboard/revenue")
+            .query_param("days", "7")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "revenue": 1200
+                }
+            }));
+    });
+
+    let revenue = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .dashboard_revenue(&PayAnalyticsOptions {
+            days: Some("7".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(revenue["revenue"], 1200);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_webhooks() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/webhooks")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "items": [{
+                        "id": "wh_123",
+                        "url": "https://example.com/webhook"
+                    }]
+                }
+            }));
+    });
+
+    let webhooks = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .webhooks()
+        .await
+        .unwrap();
+
+    assert_eq!(webhooks["items"][0]["id"], "wh_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_webhook() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/webhooks")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "name": "payments",
+                "url": "https://example.com/webhook",
+                "events": ["payment.succeeded"],
+                "isActive": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": "wh_123",
+                    "name": "payments"
+                }
+            }));
+    });
+
+    let webhook = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_webhook(&CreatePayWebhook {
+            name: "payments".to_string(),
+            url: "https://example.com/webhook".to_string(),
+            events: Some(vec!["payment.succeeded".to_string()]),
+            is_active: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(webhook["id"], "wh_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn update_pay_webhook() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PATCH)
+            .path("/api/projects/proj_123/pay/webhooks/wh_123")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "name": "updated",
+                "isActive": false
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": "wh_123",
+                    "name": "updated",
+                    "isActive": false
+                }
+            }));
+    });
+
+    let webhook = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .update_webhook(
+            "wh_123",
+            &UpdatePayWebhook {
+                name: Some("updated".to_string()),
+                is_active: Some(false),
+                ..UpdatePayWebhook::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(webhook["name"], "updated");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn regenerate_pay_webhook_secret() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/webhooks/wh_123/regenerate-secret")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "secret": "whsec_new"
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .regenerate_webhook_secret("wh_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["secret"], "whsec_new");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_pay_webhook() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/pay/webhooks/wh_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "deleted": true
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .delete_webhook("wh_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["deleted"], true);
     mock.assert();
 }

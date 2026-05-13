@@ -12,8 +12,12 @@ pub use db::{
     UpdateProjectDbRows,
 };
 pub use pay::{
-    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, PayPaymentIntent,
-    PayPaymentLink, PayProduct, PayProductPaymentLinkOptions, PayProducts, ProjectPay,
+    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreatePayWebhook,
+    DeletePayWebhookResponse, PayAnalyticsOptions, PayDashboardMetrics,
+    PayPaginatedTransactionsOptions, PayPaymentIntent, PayPaymentLink, PayProduct,
+    PayProductPaymentLinkOptions, PayProducts, PayRevenue, PayTransactionStats, PayTransactions,
+    PayTransactionsOptions, PayWebhook, PayWebhooks, ProjectPay,
+    RegeneratePayWebhookSecretResponse, UpdatePayWebhook,
 };
 pub use project::ProjectApi;
 pub use session::{
