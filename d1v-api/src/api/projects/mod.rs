@@ -12,8 +12,9 @@ pub use db::{
 };
 pub use project::ProjectApi;
 pub use session::{
-    CancelProjectSessionResponse, ExecuteProjectSession, ExecuteProjectSessionResponse,
-    ProjectChatHistory, ProjectHistoryOptions, ProjectRuntimeSession,
+    CancelProjectSessionResponse, ClaudeUserProject, ExecuteProjectSession,
+    ExecuteProjectSessionResponse, ProjectChatHistory, ProjectHistoryOptions,
+    ProjectRuntimeSession,
 };
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
@@ -161,6 +162,30 @@ impl ProjectsApi {
             .post(format!(
                 "/api/projects/sessions/{}/cancel",
                 session_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn execute_claude_session(
+        &self,
+        payload: &ExecuteProjectSession,
+    ) -> Result<ExecuteProjectSessionResponse, Error> {
+        self.client
+            .post("/api/projects/claude/execute")
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn claude_user_projects(
+        &self,
+        username: impl AsRef<str>,
+    ) -> Result<Vec<ClaudeUserProject>, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/api/claude/users/{}/projects",
+                username.as_ref()
             ))
             .ok()
             .await

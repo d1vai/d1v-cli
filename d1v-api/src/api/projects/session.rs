@@ -62,3 +62,12 @@ pub struct ProjectChatHistory {
 }
 
 pub type CancelProjectSessionResponse = serde_json::Value;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ClaudeUserProject {
+    pub id: String,
+    pub name: String,
+    pub path: Option<String>,
+    pub username: String,
+}

@@ -1431,3 +1431,96 @@ async fn cancel_project_session() {
     assert_eq!(response["cancelled"], true);
     mock.assert();
 }
+
+#[tokio::test]
+async fn execute_claude_session() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/claude/execute")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "prompt": "Continue the task",
+                "session_type": "continue",
+                "session_id": "sess_123",
+                "project_path": "/users/demo/projects/app",
+                "model": "claude-sonnet-4.6",
+                "engine": "claude"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "session_id": "sess_123",
+                    "websocket_url": "wss://example.com/ws/sess_123",
+                    "session": {
+                        "project_id": "proj_123",
+                        "opcode_project_path": "/users/demo/projects/app",
+                        "session_id": "sess_123",
+                        "model": "claude-sonnet-4.6",
+                        "status": "running"
+                    }
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .execute_claude_session(&ExecuteProjectSession {
+            prompt: "Continue the task".to_string(),
+            session_type: Some("continue".to_string()),
+            session_id: Some("sess_123".to_string()),
+            model: Some("claude-sonnet-4.6".to_string()),
+            engine: Some("claude".to_string()),
+            system_prompt: None,
+            project_path: Some("/users/demo/projects/app".to_string()),
+            auto_deploy: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.session_id, "sess_123");
+    assert_eq!(
+        response.session.opcode_project_path.as_deref(),
+        Some("/users/demo/projects/app")
+    );
+    mock.assert();
+}
+
+#[tokio::test]
+async fn claude_user_projects() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/api/claude/users/default/projects")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{
+                    "id": "opcode_123",
+                    "name": "demo",
+                    "path": "/users/demo/projects/app",
+                    "username": "demo"
+                }]
+            }));
+    });
+
+    let projects = authed_client(&server)
+        .projects()
+        .claude_user_projects("default")
+        .await
+        .unwrap();
+
+    assert_eq!(projects[0].id, "opcode_123");
+    assert_eq!(
+        projects[0].path.as_deref(),
+        Some("/users/demo/projects/app")
+    );
+    mock.assert();
+}
