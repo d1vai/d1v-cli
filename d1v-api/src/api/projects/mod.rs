@@ -1,5 +1,6 @@
 mod db;
 mod project;
+mod session;
 mod types;
 
 pub use db::{
@@ -10,6 +11,10 @@ pub use db::{
     UpdateProjectDbRows,
 };
 pub use project::ProjectApi;
+pub use session::{
+    CancelProjectSessionResponse, ExecuteProjectSession, ExecuteProjectSessionResponse,
+    ProjectChatHistory, ProjectHistoryOptions, ProjectRuntimeSession,
+};
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
     GenerateProjectEmojisResponse, GenerateProjectMeta, ImportFromGithub, ImportLocal,
@@ -136,7 +141,6 @@ impl ProjectsApi {
             .await
     }
 
-    
     pub fn project(&self, project_id: impl Into<String>) -> ProjectApi {
         ProjectApi::new(self.client.clone(), project_id.into())
     }
@@ -145,6 +149,19 @@ impl ProjectsApi {
         self.client
             .get("/api/projects/db/neon-usage")
             .query(options)
+            .ok()
+            .await
+    }
+
+    pub async fn cancel_session(
+        &self,
+        session_id: impl AsRef<str>,
+    ) -> Result<CancelProjectSessionResponse, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/sessions/{}/cancel",
+                session_id.as_ref()
+            ))
             .ok()
             .await
     }

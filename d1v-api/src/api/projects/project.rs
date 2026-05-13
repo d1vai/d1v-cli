@@ -1,6 +1,10 @@
 use crate::{Client, Error};
 
 use super::db::ProjectsDb;
+use super::session::{
+    ExecuteProjectSession, ExecuteProjectSessionResponse, ProjectChatHistory,
+    ProjectHistoryOptions, ProjectRuntimeSession,
+};
 use super::types::{
     Project, ProjectDatabase, ProjectDeployment, ProjectDeploymentOptions,
     ProjectGitMigrationStatus, ProjectToken, ProjectTokenRequest, PublishProjectResponse,
@@ -121,6 +125,48 @@ impl ProjectApi {
                 self.project_id
             ))
             .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn execute_session(
+        &self,
+        payload: &ExecuteProjectSession,
+    ) -> Result<ExecuteProjectSessionResponse, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/sessions/execute",
+                self.project_id
+            ))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn history(
+        &self,
+        options: &ProjectHistoryOptions,
+    ) -> Result<Vec<ProjectChatHistory>, Error> {
+        self.client
+            .get(format!("/api/projects/{}/history", self.project_id))
+            .query(options)
+            .ok()
+            .await
+    }
+
+    pub async fn active_session(&self) -> Result<Option<ProjectRuntimeSession>, Error> {
+        self.client
+            .get(format!("/api/projects/{}/sessions/active", self.project_id))
+            .ok()
+            .await
+    }
+
+    pub async fn history_detail(&self, history_id: i64) -> Result<ProjectChatHistory, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/history/{}",
+                self.project_id, history_id
+            ))
             .ok()
             .await
     }

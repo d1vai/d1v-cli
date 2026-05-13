@@ -1,11 +1,11 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     CreateProject, CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
-    DropProjectDbTableOptions, ExecuteProjectSql, GenerateProjectMeta, ImportFromGithub,
-    ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions, LocalImportFile,
-    NeonUsageOptions, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
-    ProjectDeploymentOptions, ProjectTokenRequest, TransferProject, UpdateProject,
-    UpdateProjectDbRows,
+    DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
+    ImportFromGithub, ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions,
+    LocalImportFile, NeonUsageOptions, ProjectDbColumn, ProjectDbDataOptions,
+    ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest,
+    TransferProject, UpdateProject, UpdateProjectDbRows,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -1206,5 +1206,228 @@ async fn refresh_project_token() {
         .unwrap();
 
     assert_eq!(token.project_token, "refreshed.jwt");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn execute_project_session() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/sessions/execute")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "prompt": "Build a todo app",
+                "session_type": "new",
+                "model": "gpt-5.4",
+                "engine": "codex",
+                "auto_deploy": false
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "session_id": "sess_123",
+                    "websocket_url": "wss://example.com/ws/sess_123",
+                    "session": {
+                        "project_id": "proj_123",
+                        "session_id": "sess_123",
+                        "model": "gpt-5.4",
+                        "status": "running",
+                        "websocket_url": "wss://example.com/ws/sess_123"
+                    }
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .execute_session(&ExecuteProjectSession {
+            prompt: "Build a todo app".to_string(),
+            session_type: Some("new".to_string()),
+            session_id: None,
+            model: Some("gpt-5.4".to_string()),
+            engine: Some("codex".to_string()),
+            system_prompt: None,
+            project_path: None,
+            auto_deploy: Some(false),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.session_id, "sess_123");
+    assert_eq!(response.session.status.as_deref(), Some("running"));
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_history() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/history")
+            .query_param("limit", "10")
+            .query_param("before_ts", "2026-05-02T00:00:00Z")
+            .query_param("before_id", "99")
+            .query_param("direction", "user")
+            .query_param("message_type", "prompt,result")
+            .query_param("include_payload", "false")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{
+                    "id": 1,
+                    "project_id": "proj_123",
+                    "direction": "user",
+                    "message_type": "prompt",
+                    "message_text": "Build a todo app",
+                    "payload": {},
+                    "created_at": "2026-05-01T00:00:00Z"
+                }]
+            }));
+    });
+
+    let history = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .history(&ProjectHistoryOptions {
+            limit: Some(10),
+            before_ts: Some("2026-05-02T00:00:00Z".parse().unwrap()),
+            before_id: Some(99),
+            direction: Some("user".to_string()),
+            message_type: Some("prompt,result".to_string()),
+            include_payload: Some(false),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(history[0].message_text.as_deref(), Some("Build a todo app"));
+    mock.assert();
+}
+
+#[tokio::test]
+async fn active_project_session() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/sessions/active")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project_id": "proj_123",
+                    "session_id": "sess_123",
+                    "model": "gpt-5.4",
+                    "status": "running"
+                }
+            }));
+    });
+
+    let session = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .active_session()
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(session.session_id, "sess_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn no_active_project_session() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/sessions/active")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": null }));
+    });
+
+    let session = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .active_session()
+        .await
+        .unwrap();
+
+    assert!(session.is_none());
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_history_detail() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/history/1")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": 1,
+                    "project_id": "proj_123",
+                    "direction": "assistant",
+                    "message_type": "result",
+                    "message_text": "Done",
+                    "payload": { "session_id": "sess_123" },
+                    "created_at": "2026-05-01T00:00:00Z"
+                }
+            }));
+    });
+
+    let detail = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .history_detail(1)
+        .await
+        .unwrap();
+
+    assert_eq!(detail.payload["session_id"], "sess_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn cancel_project_session() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/sessions/sess_123/cancel")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "session_id": "sess_123",
+                    "cancelled": true
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .cancel_session("sess_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["cancelled"], true);
     mock.assert();
 }
