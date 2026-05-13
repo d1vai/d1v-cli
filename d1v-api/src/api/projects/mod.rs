@@ -1,4 +1,5 @@
 mod db;
+mod pay;
 mod project;
 mod session;
 mod types;
@@ -9,6 +10,10 @@ pub use db::{
     NeonUsageOptions, ProjectDbBranch, ProjectDbColumn, ProjectDbData, ProjectDbDataOptions,
     ProjectDbMutation, ProjectDbRow, ProjectDbSchema, ProjectDbSchemaOptions, ProjectsDb,
     UpdateProjectDbRows,
+};
+pub use pay::{
+    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, PayPaymentIntent,
+    PayPaymentLink, PayProduct, PayProductPaymentLinkOptions, PayProducts, ProjectPay,
 };
 pub use project::ProjectApi;
 pub use session::{

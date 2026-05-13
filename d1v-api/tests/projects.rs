@@ -1,11 +1,12 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    CreateProject, CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
+    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreateProject,
+    CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
     DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
     ImportFromGithub, ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions,
-    LocalImportFile, NeonUsageOptions, ProjectDbColumn, ProjectDbDataOptions,
-    ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest,
-    TransferProject, UpdateProject, UpdateProjectDbRows,
+    LocalImportFile, NeonUsageOptions, PayProductPaymentLinkOptions, ProjectDbColumn,
+    ProjectDbDataOptions, ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions,
+    ProjectTokenRequest, TransferProject, UpdateProject, UpdateProjectDbRows,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -1522,5 +1523,214 @@ async fn claude_user_projects() {
         projects[0].path.as_deref(),
         Some("/users/demo/projects/app")
     );
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_products() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/products")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "items": [{
+                        "id": "prod_123",
+                        "name": "Pro Plan",
+                        "active": true
+                    }]
+                }
+            }));
+    });
+
+    let products = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .products()
+        .await
+        .unwrap();
+
+    assert_eq!(products["items"][0]["id"], "prod_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_product() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/products")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "userId": "pay_user_123",
+                "name": "Pro Plan",
+                "description": "Monthly plan",
+                "category": "subscription",
+                "active": true,
+                "platformFeePercentage": 2.5,
+                "price": {
+                    "amount": 9900,
+                    "currency": "usd"
+                }
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": "prod_123",
+                    "name": "Pro Plan"
+                }
+            }));
+    });
+
+    let product = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_product(&CreatePayProduct {
+            user_id: Some("pay_user_123".to_string()),
+            name: Some("Pro Plan".to_string()),
+            description: Some("Monthly plan".to_string()),
+            category: Some("subscription".to_string()),
+            active: Some(true),
+            platform_fee_percentage: Some(2.5),
+            price: Some(json!({
+                "amount": 9900,
+                "currency": "usd"
+            })),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(product["id"], "prod_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_product_payment_link() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/products/prod_123/payment-link")
+            .query_param("prefilled_email", "buyer@example.com")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "url": "https://pay.example.com/link"
+                }
+            }));
+    });
+
+    let link = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .product_payment_link(
+            "prod_123",
+            &PayProductPaymentLinkOptions {
+                prefilled_email: Some("buyer@example.com".to_string()),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(link["url"], "https://pay.example.com/link");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_payment_link() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/create-payment-link")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "productId": "prod_123",
+                "userId": "pay_user_123",
+                "successUrl": "https://example.com/success",
+                "cancelUrl": "https://example.com/cancel",
+                "customFields": {
+                    "source": "cli"
+                }
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "url": "https://pay.example.com/checkout"
+                }
+            }));
+    });
+
+    let link = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_payment_link(&CreatePayPaymentLink {
+            product_id: "prod_123".to_string(),
+            user_id: "pay_user_123".to_string(),
+            success_url: "https://example.com/success".to_string(),
+            cancel_url: "https://example.com/cancel".to_string(),
+            custom_fields: Some(json!({ "source": "cli" })),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(link["url"], "https://pay.example.com/checkout");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_payment_intent() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/create-payment-intent")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "priceId": "price_123",
+                "customerEmail": "buyer@example.com"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "client_secret": "pi_secret"
+                }
+            }));
+    });
+
+    let intent = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_payment_intent(&CreatePayPaymentIntent {
+            price_id: "price_123".to_string(),
+            customer_email: Some("buyer@example.com".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(intent["client_secret"], "pi_secret");
     mock.assert();
 }
