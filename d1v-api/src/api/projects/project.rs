@@ -1,6 +1,7 @@
 use crate::{Client, Error};
 
 use super::db::ProjectsDb;
+use super::env::ProjectEnv;
 use super::pay::ProjectPay;
 use super::session::{
     ExecuteProjectSession, ExecuteProjectSessionResponse, ProjectChatHistory,
@@ -28,6 +29,10 @@ impl ProjectApi {
 
     pub fn pay(&self) -> ProjectPay {
         ProjectPay::new(self.client.clone(), self.project_id.clone())
+    }
+
+    pub fn env(&self) -> ProjectEnv {
+        ProjectEnv::new(self.client.clone(), self.project_id.clone())
     }
 
     pub async fn get(&self, sync: Option<bool>) -> Result<Project, Error> {

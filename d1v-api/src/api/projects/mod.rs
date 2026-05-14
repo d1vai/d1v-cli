@@ -1,4 +1,5 @@
 mod db;
+mod env;
 mod pay;
 mod project;
 mod session;
@@ -10,6 +11,11 @@ pub use db::{
     NeonUsageOptions, ProjectDbBranch, ProjectDbColumn, ProjectDbData, ProjectDbDataOptions,
     ProjectDbMutation, ProjectDbRow, ProjectDbSchema, ProjectDbSchemaOptions, ProjectsDb,
     UpdateProjectDbRows,
+};
+pub use env::{
+    CreateProjectEnvVar, DeleteProjectEnvVarResponse, ExportProjectEnvVarsResponse,
+    ImportProjectEnvVars, ImportProjectEnvVarsResponse, ProjectEnv, ProjectEnvVar,
+    ProjectEnvVarsOptions, SyncProjectEnvVarsResponse, UpdateProjectEnvVar,
 };
 pub use pay::{
     CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,

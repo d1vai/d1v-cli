@@ -2,13 +2,15 @@ use d1v_api::Client;
 use d1v_api::api::projects::{
     CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,
     CreatePayToken, CreatePayWebhook, CreatePayWithdrawal, CreateProject, CreateProjectDbTable,
-    CreateProjectWithIntegrations, DeleteProjectDbRows, DropProjectDbTableOptions,
-    ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta, ImportFromGithub, ImportLocal,
-    ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions, LocalImportFile, NeonUsageOptions,
-    PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
-    PayTransactionsOptions, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
-    ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest, TransferProject,
+    CreateProjectEnvVar, CreateProjectWithIntegrations, DeleteProjectDbRows,
+    DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
+    ImportFromGithub, ImportLocal, ImportProjectEnvVars, ImportPublic, InsertProjectDbRow,
+    ListProjectDbRowsOptions, LocalImportFile, NeonUsageOptions, PayAnalyticsOptions,
+    PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions, PayTransactionsOptions,
+    ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions, ProjectDeploymentOptions,
+    ProjectEnvVarsOptions, ProjectHistoryOptions, ProjectTokenRequest, TransferProject,
     UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UpdateProjectDbRows,
+    UpdateProjectEnvVar,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -2559,5 +2561,245 @@ async fn delete_pay_token() {
         .unwrap();
 
     assert_eq!(response["deleted"], true);
+    mock.assert();
+}
+
+fn env_var_json() -> serde_json::Value {
+    json!({
+        "id": 1,
+        "key": "API_KEY",
+        "value": "***",
+        "value_preview": "sk-***123",
+        "description": "API key",
+        "is_sensitive": true,
+        "created_at": "2026-05-01T00:00:00Z",
+        "updated_at": "2026-05-02T00:00:00Z"
+    })
+}
+
+#[tokio::test]
+async fn project_env_vars() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/env-vars")
+            .query_param("show_values", "true")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": [env_var_json()] }));
+    });
+
+    let vars = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .vars(&ProjectEnvVarsOptions {
+            show_values: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(vars[0].key, "API_KEY");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_project_env_var() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/env-vars")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "key": "API_KEY",
+                "value": "sk-secret",
+                "description": "API key",
+                "is_sensitive": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": env_var_json() }));
+    });
+
+    let var = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .create_var(&CreateProjectEnvVar {
+            key: "API_KEY".to_string(),
+            value: "sk-secret".to_string(),
+            description: Some("API key".to_string()),
+            is_sensitive: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(var.value_preview, "sk-***123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn update_project_env_var() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PATCH)
+            .path("/api/projects/proj_123/env-vars/1")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "value": "sk-updated",
+                "is_sensitive": false
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": env_var_json() }));
+    });
+
+    let var = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .update_var(
+            1,
+            &UpdateProjectEnvVar {
+                value: Some("sk-updated".to_string()),
+                description: None,
+                is_sensitive: Some(false),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(var.id, 1);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_project_env_var() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/env-vars/1")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "message": "Environment variable 'API_KEY' deleted" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .delete_var(1)
+        .await
+        .unwrap();
+
+    assert_eq!(response.message, "Environment variable 'API_KEY' deleted");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn import_project_env_vars() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/env-vars/batch-import")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "env_content": "API_KEY=sk-secret",
+                "overwrite": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "message": "Import completed", "created": 1, "updated": 0, "skipped": 0, "total": 1 }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .import_vars(&ImportProjectEnvVars {
+            env_content: "API_KEY=sk-secret".to_string(),
+            overwrite: true,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response.total, 1);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn export_project_env_vars() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/env-vars/export")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "content": "API_KEY=sk-secret", "filename": "proj_123.env" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .export_vars()
+        .await
+        .unwrap();
+
+    assert_eq!(response.filename, "proj_123.env");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn sync_project_env_vars_to_vercel() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/env-vars/sync-vercel")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "message": "Vercel environment sync completed",
+                    "vercel_dev_project_id": "vercel_dev_1",
+                    "vercel_prod_project_id": "vercel_prod_1",
+                    "dev_local_env_count": 3,
+                    "prod_local_env_count": 2,
+                    "dev_up_to_date": true,
+                    "prod_up_to_date": true
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .env()
+        .sync_vercel()
+        .await
+        .unwrap();
+
+    assert_eq!(response.dev_up_to_date, true);
     mock.assert();
 }
