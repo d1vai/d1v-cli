@@ -156,9 +156,9 @@ mod tests {
     #[test]
     fn source_serializes_snake_case() {
         let json = serde_json::to_string(&BaseUrlSource::Cli).unwrap();
-        assert_eq!(json, "\"cli\"");
+        assert_eq!(json, r#""cli""#);
         let json = serde_json::to_string(&BaseUrlSource::Default).unwrap();
-        assert_eq!(json, "\"default\"");
+        assert_eq!(json, r#""default""#);
     }
 
     /// Guards the priority encoded by [`BaseUrlSource`] order.

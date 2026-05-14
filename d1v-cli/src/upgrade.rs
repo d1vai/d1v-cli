@@ -399,7 +399,7 @@ fn current_target() -> Result<String> {
 
 #[cfg(not(windows))]
 fn cleanup_path_entries(install_dir: &Path) -> Result<()> {
-    let line = format!("export PATH=\"{}:$PATH\"", install_dir.display());
+    let line = format!(r#"export PATH="{}:$PATH""#, install_dir.display());
     for rc_path in shell_rc_paths() {
         remove_line_if_present(&rc_path, &line)?;
     }

@@ -2991,10 +2991,10 @@ async fn upload_project_asset() {
             .path("/api/projects/proj_123/assets")
             .header("authorization", "Bearer token123")
             .header_exists("content-type")
-            .body_includes("name=\"path\"")
+            .body_includes(r#"name="path""#)
             .body_includes("images/logo.png")
-            .body_includes("name=\"file\"")
-            .body_includes("filename=\"logo.png\"");
+            .body_includes(r#"name="file""#)
+            .body_includes(r#"filename="logo.png""#);
         then.status(200)
             .header("content-type", "application/json")
             .json_body(json!({ "code": 0, "msg": "success", "data": asset_json() }));
@@ -3025,8 +3025,8 @@ async fn replace_project_asset() {
         when.method(PUT)
             .path("/api/projects/proj_123/assets/images/logo.png")
             .header("authorization", "Bearer token123")
-            .body_includes("name=\"file\"")
-            .body_includes("filename=\"logo.png\"");
+            .body_includes(r#"name="file""#)
+            .body_includes(r#"filename="logo.png""#);
         then.status(200)
             .header("content-type", "application/json")
             .json_body(json!({ "code": 0, "msg": "success", "data": asset_json() }));
