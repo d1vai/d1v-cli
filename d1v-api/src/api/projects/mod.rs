@@ -4,6 +4,7 @@ mod integrations;
 mod pay;
 mod project;
 mod session;
+mod storage;
 mod types;
 
 pub use db::{
@@ -34,6 +35,10 @@ pub use session::{
     CancelProjectSessionResponse, ClaudeUserProject, ExecuteProjectSession,
     ExecuteProjectSessionResponse, ProjectChatHistory, ProjectHistoryOptions,
     ProjectRuntimeSession,
+};
+pub use storage::{
+    ProjectAsset, ProjectAssetFile, ProjectStorage, ProjectStorageFile, ProjectStorageStructure,
+    ProjectStorageStructureOptions, UploadProjectAsset,
 };
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,

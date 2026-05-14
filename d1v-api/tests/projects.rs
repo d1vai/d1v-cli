@@ -7,10 +7,10 @@ use d1v_api::api::projects::{
     ImportFromGithub, ImportLocal, ImportProjectEnvVars, ImportPublic, InsertProjectDbRow,
     ListProjectDbRowsOptions, LocalImportFile, NeonUsageOptions, PayAnalyticsOptions,
     PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions, PayTransactionsOptions,
-    ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions, ProjectDeploymentOptions,
-    ProjectEnvVarsOptions, ProjectHistoryOptions, ProjectTokenRequest, TransferProject,
-    UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UpdateProjectDbRows,
-    UpdateProjectEnvVar,
+    ProjectAssetFile, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
+    ProjectDeploymentOptions, ProjectEnvVarsOptions, ProjectHistoryOptions,
+    ProjectStorageStructureOptions, ProjectTokenRequest, TransferProject, UpdatePayBankAccount,
+    UpdatePayWebhook, UpdateProject, UpdateProjectDbRows, UpdateProjectEnvVar, UploadProjectAsset,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -2906,5 +2906,196 @@ async fn activate_project_database_integration() {
         Some("db_456")
     );
     assert_eq!(response.message, "Database activated successfully");
+    mock.assert();
+}
+
+fn asset_json() -> serde_json::Value {
+    json!({
+        "provider": "s3",
+        "bucket_or_container": "assets",
+        "key": "proj_123/images/logo.png",
+        "path": "images/logo.png",
+        "url": "https://cdn.example.com/images/logo.png",
+        "etag": "etag123",
+        "size": 4,
+        "content_type": "image/png"
+    })
+}
+
+#[tokio::test]
+async fn project_storage_structure() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/storage/proj_123/structure")
+            .query_param("sub_path", "src")
+            .query_param("ext", "tsx")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "children": [{ "path": "src/app.tsx" }] }
+            }));
+    });
+
+    let structure = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .structure(&ProjectStorageStructureOptions {
+            sub_path: Some("src".to_string()),
+            ext: Some("tsx".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(structure["children"][0]["path"], "src/app.tsx");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn project_storage_file() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/storage/proj_123/files/src/app.tsx")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "path": "src/app.tsx", "content": "export default App" }
+            }));
+    });
+
+    let file = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .file("src/app.tsx")
+        .await
+        .unwrap();
+
+    assert_eq!(file["path"], "src/app.tsx");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn upload_project_asset() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/assets")
+            .header("authorization", "Bearer token123")
+            .header_exists("content-type")
+            .body_includes("name=\"path\"")
+            .body_includes("images/logo.png")
+            .body_includes("name=\"file\"")
+            .body_includes("filename=\"logo.png\"");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": asset_json() }));
+    });
+
+    let asset = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .upload_asset(UploadProjectAsset {
+            path: "images/logo.png".to_string(),
+            file: ProjectAssetFile {
+                path: "logo.png".to_string(),
+                bytes: b"logo".to_vec(),
+            },
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(asset.path, "images/logo.png");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn replace_project_asset() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PUT)
+            .path("/api/projects/proj_123/assets/images/logo.png")
+            .header("authorization", "Bearer token123")
+            .body_includes("name=\"file\"")
+            .body_includes("filename=\"logo.png\"");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": asset_json() }));
+    });
+
+    let asset = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .replace_asset(
+            "images/logo.png",
+            ProjectAssetFile {
+                path: "logo.png".to_string(),
+                bytes: b"logo".to_vec(),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(asset.key, "proj_123/images/logo.png");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn get_project_asset() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/assets/images/logo.png")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": asset_json() }));
+    });
+
+    let asset = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .asset("images/logo.png")
+        .await
+        .unwrap();
+
+    assert_eq!(asset.content_type.as_deref(), Some("image/png"));
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_project_asset() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/assets/images/logo.png")
+            .header("authorization", "Bearer token123");
+        let mut asset = asset_json();
+        asset["deleted"] = json!(true);
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": 0, "msg": "success", "data": asset }));
+    });
+
+    let asset = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .storage()
+        .delete_asset("images/logo.png")
+        .await
+        .unwrap();
+
+    assert_eq!(asset.deleted, Some(true));
     mock.assert();
 }

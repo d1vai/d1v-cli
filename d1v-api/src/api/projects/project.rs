@@ -8,6 +8,7 @@ use super::session::{
     ExecuteProjectSession, ExecuteProjectSessionResponse, ProjectChatHistory,
     ProjectHistoryOptions, ProjectRuntimeSession,
 };
+use super::storage::ProjectStorage;
 use super::types::{
     Project, ProjectDatabase, ProjectDeployment, ProjectDeploymentOptions,
     ProjectGitMigrationStatus, ProjectToken, ProjectTokenRequest, PublishProjectResponse,
@@ -38,6 +39,10 @@ impl ProjectApi {
 
     pub fn integrations(&self) -> ProjectIntegrations {
         ProjectIntegrations::new(self.client.clone(), self.project_id.clone())
+    }
+
+    pub fn storage(&self) -> ProjectStorage {
+        ProjectStorage::new(self.client.clone(), self.project_id.clone())
     }
 
     pub async fn get(&self, sync: Option<bool>) -> Result<Project, Error> {
