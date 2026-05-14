@@ -1,3 +1,4 @@
+use jiff::Timestamp;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
@@ -53,6 +54,14 @@ pub type PayWebhooks = serde_json::Value;
 pub type PayWebhook = serde_json::Value;
 pub type DeletePayWebhookResponse = serde_json::Value;
 pub type RegeneratePayWebhookSecretResponse = serde_json::Value;
+pub type PayBankAccounts = serde_json::Value;
+pub type PayBankAccount = serde_json::Value;
+pub type DeletePayBankAccountResponse = serde_json::Value;
+pub type PayWithdrawals = serde_json::Value;
+pub type PayWithdrawal = serde_json::Value;
+pub type PayTokens = serde_json::Value;
+pub type PayToken = serde_json::Value;
+pub type DeletePayTokenResponse = serde_json::Value;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
@@ -95,6 +104,54 @@ pub struct UpdatePayWebhook {
     pub url: Option<String>,
     pub events: Option<Vec<String>>,
     pub is_active: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePayBankAccount {
+    pub account_holder_name: String,
+    pub bank_name: String,
+    pub account_number: String,
+    pub routing_number: String,
+    pub account_type: String,
+    pub currency: String,
+    pub country: String,
+    pub is_default: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePayBankAccount {
+    pub account_holder_name: Option<String>,
+    pub bank_name: Option<String>,
+    pub account_number: Option<String>,
+    pub routing_number: Option<String>,
+    pub account_type: Option<String>,
+    pub currency: Option<String>,
+    pub country: Option<String>,
+    pub is_default: Option<bool>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePayWithdrawal {
+    pub amount: f64,
+    pub currency: String,
+    pub bank_account_id: String,
+    pub note: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePayToken {
+    pub name: String,
+    pub permissions: Option<Vec<String>>,
+    pub is_active: Option<bool>,
+    pub expires_at: Option<Timestamp>,
 }
 
 pub struct ProjectPay {
@@ -298,6 +355,156 @@ impl ProjectPay {
                 "/api/projects/{}/pay/webhooks/{}/regenerate-secret",
                 self.project_id,
                 webhook_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn bank_accounts(&self) -> Result<PayBankAccounts, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/pay/bank-accounts",
+                self.project_id
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn create_bank_account(
+        &self,
+        payload: &CreatePayBankAccount,
+    ) -> Result<PayBankAccount, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/pay/bank-accounts",
+                self.project_id
+            ))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn bank_account(&self, bank_id: impl AsRef<str>) -> Result<PayBankAccount, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/pay/bank-accounts/{}",
+                self.project_id,
+                bank_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn update_bank_account(
+        &self,
+        bank_id: impl AsRef<str>,
+        payload: &UpdatePayBankAccount,
+    ) -> Result<PayBankAccount, Error> {
+        self.client
+            .put(format!(
+                "/api/projects/{}/pay/bank-accounts/{}",
+                self.project_id,
+                bank_id.as_ref()
+            ))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn set_default_bank_account(
+        &self,
+        bank_id: impl AsRef<str>,
+    ) -> Result<PayBankAccount, Error> {
+        self.client
+            .put(format!(
+                "/api/projects/{}/pay/bank-accounts/{}/set-default",
+                self.project_id,
+                bank_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn delete_bank_account(
+        &self,
+        bank_id: impl AsRef<str>,
+    ) -> Result<DeletePayBankAccountResponse, Error> {
+        self.client
+            .delete(format!(
+                "/api/projects/{}/pay/bank-accounts/{}",
+                self.project_id,
+                bank_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn withdrawal_requests(&self) -> Result<PayWithdrawals, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/pay/withdrawal-requests",
+                self.project_id
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn create_withdrawal_request(
+        &self,
+        payload: &CreatePayWithdrawal,
+    ) -> Result<PayWithdrawal, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/pay/withdrawal-requests",
+                self.project_id
+            ))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn withdrawals(&self) -> Result<PayWithdrawals, Error> {
+        self.client
+            .get(format!("/api/projects/{}/pay/withdrawals", self.project_id))
+            .ok()
+            .await
+    }
+
+    pub async fn create_withdrawal(
+        &self,
+        payload: &CreatePayWithdrawal,
+    ) -> Result<PayWithdrawal, Error> {
+        self.client
+            .post(format!("/api/projects/{}/pay/withdrawals", self.project_id))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn tokens(&self) -> Result<PayTokens, Error> {
+        self.client
+            .get(format!("/api/projects/{}/pay/tokens", self.project_id))
+            .ok()
+            .await
+    }
+
+    pub async fn create_token(&self, payload: &CreatePayToken) -> Result<PayToken, Error> {
+        self.client
+            .post(format!("/api/projects/{}/pay/tokens", self.project_id))
+            .json(payload)
+            .ok()
+            .await
+    }
+
+    pub async fn delete_token(
+        &self,
+        token_id: impl AsRef<str>,
+    ) -> Result<DeletePayTokenResponse, Error> {
+        self.client
+            .delete(format!(
+                "/api/projects/{}/pay/tokens/{}",
+                self.project_id,
+                token_id.as_ref()
             ))
             .ok()
             .await

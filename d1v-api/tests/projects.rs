@@ -1,13 +1,14 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreatePayWebhook,
-    CreateProject, CreateProjectDbTable, CreateProjectWithIntegrations, DeleteProjectDbRows,
-    DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
-    ImportFromGithub, ImportLocal, ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions,
-    LocalImportFile, NeonUsageOptions, PayAnalyticsOptions, PayPaginatedTransactionsOptions,
-    PayProductPaymentLinkOptions, PayTransactionsOptions, ProjectDbColumn, ProjectDbDataOptions,
-    ProjectDbSchemaOptions, ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest,
-    TransferProject, UpdatePayWebhook, UpdateProject, UpdateProjectDbRows,
+    CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,
+    CreatePayToken, CreatePayWebhook, CreatePayWithdrawal, CreateProject, CreateProjectDbTable,
+    CreateProjectWithIntegrations, DeleteProjectDbRows, DropProjectDbTableOptions,
+    ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta, ImportFromGithub, ImportLocal,
+    ImportPublic, InsertProjectDbRow, ListProjectDbRowsOptions, LocalImportFile, NeonUsageOptions,
+    PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
+    PayTransactionsOptions, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
+    ProjectDeploymentOptions, ProjectHistoryOptions, ProjectTokenRequest, TransferProject,
+    UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UpdateProjectDbRows,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -2123,6 +2124,437 @@ async fn delete_pay_webhook() {
         .project("proj_123")
         .pay()
         .delete_webhook("wh_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["deleted"], true);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_bank_accounts() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/bank-accounts")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "items": [{ "id": "bank_123" }] }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .bank_accounts()
+        .await
+        .unwrap();
+
+    assert_eq!(response["items"][0]["id"], "bank_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_bank_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/bank-accounts")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "accountHolderName": "D1V",
+                "bankName": "Test Bank",
+                "accountNumber": "123456789",
+                "routingNumber": "021000021",
+                "accountType": "checking",
+                "currency": "USD",
+                "country": "US",
+                "isDefault": true
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "bank_123" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_bank_account(&CreatePayBankAccount {
+            account_holder_name: "D1V".to_string(),
+            bank_name: "Test Bank".to_string(),
+            account_number: "123456789".to_string(),
+            routing_number: "021000021".to_string(),
+            account_type: "checking".to_string(),
+            currency: "USD".to_string(),
+            country: "US".to_string(),
+            is_default: Some(true),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["id"], "bank_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_bank_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/bank-accounts/bank_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "bank_123" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .bank_account("bank_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["id"], "bank_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn update_pay_bank_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PUT)
+            .path("/api/projects/proj_123/pay/bank-accounts/bank_123")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "bankName": "Updated Bank",
+                "isDefault": false
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "bank_123", "bankName": "Updated Bank" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .update_bank_account(
+            "bank_123",
+            &UpdatePayBankAccount {
+                bank_name: Some("Updated Bank".to_string()),
+                is_default: Some(false),
+                ..UpdatePayBankAccount::default()
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response["bankName"], "Updated Bank");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn set_default_pay_bank_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(PUT)
+            .path("/api/projects/proj_123/pay/bank-accounts/bank_123/set-default")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "bank_123", "isDefault": true }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .set_default_bank_account("bank_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["isDefault"], true);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_pay_bank_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/pay/bank-accounts/bank_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "deleted": true }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .delete_bank_account("bank_123")
+        .await
+        .unwrap();
+
+    assert_eq!(response["deleted"], true);
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_withdrawal_requests() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/withdrawal-requests")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "items": [{ "id": "wd_123" }] }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .withdrawal_requests()
+        .await
+        .unwrap();
+
+    assert_eq!(response["items"][0]["id"], "wd_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_withdrawal_request() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/withdrawal-requests")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "amount": 100.5,
+                "currency": "USD",
+                "bankAccountId": "bank_123",
+                "note": "monthly"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "wd_123" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_withdrawal_request(&CreatePayWithdrawal {
+            amount: 100.5,
+            currency: "USD".to_string(),
+            bank_account_id: "bank_123".to_string(),
+            note: Some("monthly".to_string()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["id"], "wd_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_withdrawals_alias() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/withdrawals")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "items": [{ "id": "wd_123" }] }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .withdrawals()
+        .await
+        .unwrap();
+
+    assert_eq!(response["items"][0]["id"], "wd_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_withdrawal_alias() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/withdrawals")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "amount": 100.5,
+                "currency": "USD",
+                "bankAccountId": "bank_123"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "wd_123" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_withdrawal(&CreatePayWithdrawal {
+            amount: 100.5,
+            currency: "USD".to_string(),
+            bank_account_id: "bank_123".to_string(),
+            note: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["id"], "wd_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn pay_tokens() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123/pay/tokens")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "items": [{ "id": "tok_123" }] }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .tokens()
+        .await
+        .unwrap();
+
+    assert_eq!(response["items"][0]["id"], "tok_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_pay_token() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/pay/tokens")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "name": "cli",
+                "permissions": ["products:read"],
+                "isActive": true,
+                "expiresAt": "2026-05-01T00:00:00Z"
+            }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "id": "tok_123", "token": "pay_secret" }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .create_token(&CreatePayToken {
+            name: "cli".to_string(),
+            permissions: Some(vec!["products:read".to_string()]),
+            is_active: Some(true),
+            expires_at: Some("2026-05-01T00:00:00Z".parse().unwrap()),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(response["id"], "tok_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_pay_token() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/projects/proj_123/pay/tokens/tok_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": { "deleted": true }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .pay()
+        .delete_token("tok_123")
         .await
         .unwrap();
 
