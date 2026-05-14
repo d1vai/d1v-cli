@@ -1,5 +1,6 @@
 mod db;
 mod env;
+mod integrations;
 mod pay;
 mod project;
 mod session;
@@ -17,6 +18,7 @@ pub use env::{
     ImportProjectEnvVars, ImportProjectEnvVarsResponse, ProjectEnv, ProjectEnvVar,
     ProjectEnvVarsOptions, SyncProjectEnvVarsResponse, UpdateProjectEnvVar,
 };
+pub use integrations::{ProjectIntegrationResponse, ProjectIntegrations};
 pub use pay::{
     CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,
     CreatePayToken, CreatePayWebhook, CreatePayWithdrawal, DeletePayBankAccountResponse,

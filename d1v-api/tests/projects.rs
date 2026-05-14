@@ -2803,3 +2803,108 @@ async fn sync_project_env_vars_to_vercel() {
     assert_eq!(response.dev_up_to_date, true);
     mock.assert();
 }
+
+#[tokio::test]
+async fn activate_project_pay_integration() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/integrations/activate-pay")
+            .header("authorization", "Bearer token123");
+        let mut project = project_json();
+        project["project_pay_id"] = json!("pay_user_123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project": project,
+                    "message": "Pay activated successfully"
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .integrations()
+        .activate_pay()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.project.project_pay_id.as_deref(),
+        Some("pay_user_123")
+    );
+    assert_eq!(response.message, "Pay activated successfully");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn refresh_project_pay_token() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/integrations/refresh-pay-token")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project": project_json(),
+                    "message": "Pay token refreshed"
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .integrations()
+        .refresh_pay_token()
+        .await
+        .unwrap();
+
+    assert_eq!(response.message, "Pay token refreshed");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn activate_project_database_integration() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/integrations/activate-database")
+            .header("authorization", "Bearer token123");
+        let mut project = project_json();
+        project["project_database_id"] = json!("db_456");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "project": project,
+                    "message": "Database activated successfully"
+                }
+            }));
+    });
+
+    let response = authed_client(&server)
+        .projects()
+        .project("proj_123")
+        .integrations()
+        .activate_database()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        response.project.project_database_id.as_deref(),
+        Some("db_456")
+    );
+    assert_eq!(response.message, "Database activated successfully");
+    mock.assert();
+}
