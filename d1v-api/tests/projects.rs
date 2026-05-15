@@ -6,7 +6,7 @@ use d1v_api::api::projects::{
     DbDataOptions, DbSchemaOptions, DeleteDbRows, DeploymentEnvironment, DeploymentOptions,
     Direction, DropDbTableOptions, Engine, EnvVarsOptions, ExecuteSession, ExecuteSql,
     GenerateMeta, Granularity, HistoryOptions, ImportEnvVars, ImportFromGithub, ImportLocal,
-    ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, NeonUsageOptions,
+    ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, MessageType, NeonUsageOptions,
     PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
     PayTransactionsOptions, SessionType, StorageStructureOptions, TokenRequest, TransferProject,
     UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UploadAsset,
@@ -1306,7 +1306,7 @@ async fn project_history() {
             before_ts: Some("2026-05-02T00:00:00Z".parse().unwrap()),
             before_id: Some(99),
             direction: Some(Direction::User),
-            message_type: Some("prompt,result".to_string()),
+            message_type: Some(vec![MessageType::Prompt, MessageType::Result]),
             include_payload: Some(false),
         })
         .await

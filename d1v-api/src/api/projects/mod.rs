@@ -31,7 +31,7 @@ pub use pay::{
 pub use project::ProjectApi;
 pub use session::{
     CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSession,
-    ExecuteSessionResponse, HistoryOptions, RuntimeSession, SessionType,
+    ExecuteSessionResponse, HistoryOptions, MessageType, RuntimeSession, SessionType,
 };
 pub use storage::{
     Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, StorageStructureOptions,

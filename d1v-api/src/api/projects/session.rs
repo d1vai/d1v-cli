@@ -1,6 +1,10 @@
+use std::fmt::{self, Display};
+use std::str::FromStr;
+
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
+use serde_with::formats::CommaSeparator;
+use serde_with::{StringWithSeparator, serde_as, skip_serializing_none};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -24,6 +28,53 @@ pub enum Direction {
     User,
     Assistant,
     System,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MessageType {
+    Prompt,
+    #[serde(rename = "git_commit")]
+    GitCommit,
+    Result,
+    Complete,
+    Cancelled,
+    Error,
+}
+
+impl Display for MessageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl FromStr for MessageType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "prompt" => Ok(Self::Prompt),
+            "git_commit" => Ok(Self::GitCommit),
+            "result" => Ok(Self::Result),
+            "complete" => Ok(Self::Complete),
+            "cancelled" => Ok(Self::Cancelled),
+            "error" => Ok(Self::Error),
+            _ => Err(format!("unknown MessageType: {s}")),
+        }
+    }
+}
+
+impl MessageType {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Prompt => "prompt",
+            Self::GitCommit => "git_commit",
+            Self::Result => "result",
+            Self::Complete => "complete",
+            Self::Cancelled => "cancelled",
+            Self::Error => "error",
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -61,6 +112,7 @@ pub struct ExecuteSessionResponse {
     pub session: RuntimeSession,
 }
 
+#[serde_as]
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct HistoryOptions {
@@ -68,7 +120,8 @@ pub struct HistoryOptions {
     pub before_ts: Option<Timestamp>,
     pub before_id: Option<i64>,
     pub direction: Option<Direction>,
-    pub message_type: Option<String>,
+    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, MessageType>>")]
+    pub message_type: Option<Vec<MessageType>>,
     pub include_payload: Option<bool>,
 }
 
