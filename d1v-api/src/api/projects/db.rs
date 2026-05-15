@@ -6,7 +6,7 @@ use crate::{Client, Error};
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectDbSchemaOptions {
+pub struct DbSchemaOptions {
     pub branch: Option<String>,
     pub include_views: Option<bool>,
     pub with_row_counts: Option<bool>,
@@ -15,7 +15,7 @@ pub struct ProjectDbSchemaOptions {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectDbDataOptions {
+pub struct DbDataOptions {
     pub branch: Option<String>,
     pub limit_per_table: Option<u32>,
     pub include_views: Option<bool>,
@@ -30,14 +30,14 @@ pub struct NeonUsageOptions {
     pub granularity: Option<String>,
 }
 
-pub type ProjectDbSchema = serde_json::Value;
-pub type ProjectDbData = serde_json::Value;
-pub type ProjectDbBranch = serde_json::Value;
+pub type DbSchema = serde_json::Value;
+pub type DbData = serde_json::Value;
+pub type DbBranch = serde_json::Value;
 pub type NeonUsage = serde_json::Value;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectDbColumn {
+pub struct DbColumn {
     pub name: String,
     pub data_type: String,
     pub is_nullable: Option<bool>,
@@ -47,10 +47,10 @@ pub struct ProjectDbColumn {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CreateProjectDbTable {
+pub struct CreateDbTable {
     pub schema_name: Option<String>,
     pub table_name: String,
-    pub columns: Vec<ProjectDbColumn>,
+    pub columns: Vec<DbColumn>,
     pub primary_key: Option<Vec<String>>,
     pub branch: Option<String>,
     pub create_schema_if_missing: Option<bool>,
@@ -58,14 +58,14 @@ pub struct CreateProjectDbTable {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct DropProjectDbTableOptions {
+pub struct DropDbTableOptions {
     pub branch: Option<String>,
     pub cascade: Option<bool>,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ListProjectDbRowsOptions {
+pub struct ListDbRowsOptions {
     pub branch: Option<String>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -73,14 +73,14 @@ pub struct ListProjectDbRowsOptions {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct InsertProjectDbRow {
+pub struct InsertDbRow {
     pub values: serde_json::Map<String, serde_json::Value>,
     pub branch: Option<String>,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct UpdateProjectDbRows {
+pub struct UpdateDbRows {
     #[serde(rename = "where")]
     pub where_: serde_json::Map<String, serde_json::Value>,
     pub values: serde_json::Map<String, serde_json::Value>,
@@ -89,7 +89,7 @@ pub struct UpdateProjectDbRows {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DeleteProjectDbRows {
+pub struct DeleteDbRows {
     #[serde(rename = "where")]
     pub where_: serde_json::Map<String, serde_json::Value>,
     pub branch: Option<String>,
@@ -97,7 +97,7 @@ pub struct DeleteProjectDbRows {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ExecuteProjectSql {
+pub struct ExecuteSql {
     pub sql: String,
     pub branch: Option<String>,
     pub dry_run: Option<bool>,
@@ -106,9 +106,9 @@ pub struct ExecuteProjectSql {
     pub max_rows: Option<u32>,
 }
 
-pub type ProjectDbMutation = serde_json::Value;
-pub type ProjectDbRow = serde_json::Map<String, serde_json::Value>;
-pub type ExecuteProjectSqlResponse = serde_json::Value;
+pub type DbMutation = serde_json::Value;
+pub type DbRow = serde_json::Map<String, serde_json::Value>;
+pub type ExecuteSqlResponse = serde_json::Value;
 
 pub struct ProjectsDb {
     client: Client,
@@ -120,7 +120,7 @@ impl ProjectsDb {
         Self { client, project_id }
     }
 
-    pub async fn schema(&self, options: &ProjectDbSchemaOptions) -> Result<ProjectDbSchema, Error> {
+    pub async fn schema(&self, options: &DbSchemaOptions) -> Result<DbSchema, Error> {
         self.client
             .get(format!("/api/projects/{}/db/schema", self.project_id))
             .query(options)
@@ -128,7 +128,7 @@ impl ProjectsDb {
             .await
     }
 
-    pub async fn data(&self, options: &ProjectDbDataOptions) -> Result<ProjectDbData, Error> {
+    pub async fn data(&self, options: &DbDataOptions) -> Result<DbData, Error> {
         self.client
             .get(format!("/api/projects/{}/db/data", self.project_id))
             .query(options)
@@ -136,17 +136,14 @@ impl ProjectsDb {
             .await
     }
 
-    pub async fn branches(&self) -> Result<Vec<ProjectDbBranch>, Error> {
+    pub async fn branches(&self) -> Result<Vec<DbBranch>, Error> {
         self.client
             .get(format!("/api/projects/{}/db/branches", self.project_id))
             .ok()
             .await
     }
 
-    pub async fn create_table(
-        &self,
-        payload: &CreateProjectDbTable,
-    ) -> Result<ProjectDbMutation, Error> {
+    pub async fn create_table(&self, payload: &CreateDbTable) -> Result<DbMutation, Error> {
         self.client
             .post(format!("/api/projects/{}/db/tables", self.project_id))
             .json(payload)
@@ -158,8 +155,8 @@ impl ProjectsDb {
         &self,
         schema_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-        options: &DropProjectDbTableOptions,
-    ) -> Result<ProjectDbMutation, Error> {
+        options: &DropDbTableOptions,
+    ) -> Result<DbMutation, Error> {
         self.client
             .delete(format!(
                 "/api/projects/{}/db/tables/{}/{}",
@@ -176,8 +173,8 @@ impl ProjectsDb {
         &self,
         schema_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-        options: &ListProjectDbRowsOptions,
-    ) -> Result<Vec<ProjectDbRow>, Error> {
+        options: &ListDbRowsOptions,
+    ) -> Result<Vec<DbRow>, Error> {
         self.client
             .get(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
@@ -194,8 +191,8 @@ impl ProjectsDb {
         &self,
         schema_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-        payload: &InsertProjectDbRow,
-    ) -> Result<ProjectDbMutation, Error> {
+        payload: &InsertDbRow,
+    ) -> Result<DbMutation, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
@@ -212,8 +209,8 @@ impl ProjectsDb {
         &self,
         schema_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-        payload: &UpdateProjectDbRows,
-    ) -> Result<ProjectDbMutation, Error> {
+        payload: &UpdateDbRows,
+    ) -> Result<DbMutation, Error> {
         self.client
             .patch(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
@@ -230,8 +227,8 @@ impl ProjectsDb {
         &self,
         schema_name: impl AsRef<str>,
         table_name: impl AsRef<str>,
-        payload: &DeleteProjectDbRows,
-    ) -> Result<ProjectDbMutation, Error> {
+        payload: &DeleteDbRows,
+    ) -> Result<DbMutation, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows/delete",
@@ -244,10 +241,7 @@ impl ProjectsDb {
             .await
     }
 
-    pub async fn execute_sql(
-        &self,
-        payload: &ExecuteProjectSql,
-    ) -> Result<ExecuteProjectSqlResponse, Error> {
+    pub async fn execute_sql(&self, payload: &ExecuteSql) -> Result<ExecuteSqlResponse, Error> {
         self.client
             .post(format!("/api/projects/{}/db/sql", self.project_id))
             .json(payload)

@@ -5,14 +5,12 @@ use super::env::ProjectEnv;
 use super::integrations::ProjectIntegrations;
 use super::pay::ProjectPay;
 use super::session::{
-    ExecuteProjectSession, ExecuteProjectSessionResponse, ProjectChatHistory,
-    ProjectHistoryOptions, ProjectRuntimeSession,
+    ChatHistory, ExecuteSession, ExecuteSessionResponse, HistoryOptions, RuntimeSession,
 };
 use super::storage::ProjectStorage;
 use super::types::{
-    Project, ProjectDatabase, ProjectDeployment, ProjectDeploymentOptions,
-    ProjectGitMigrationStatus, ProjectToken, ProjectTokenRequest, PublishProjectResponse,
-    TransferProject, TransferProjectResponse, UpdateProject,
+    Database, Deployment, DeploymentOptions, GitMigrationStatus, Project, PublishResponse, Token,
+    TokenRequest, TransferProject, TransferResponse, UpdateProject,
 };
 
 pub struct ProjectApi {
@@ -68,14 +66,14 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn database(&self) -> Result<ProjectDatabase, Error> {
+    pub async fn database(&self) -> Result<Database, Error> {
         self.client
             .get(format!("/api/projects/database/{}", self.project_id))
             .ok()
             .await
     }
 
-    pub async fn github_migration_status(&self) -> Result<ProjectGitMigrationStatus, Error> {
+    pub async fn github_migration_status(&self) -> Result<GitMigrationStatus, Error> {
         self.client
             .get(format!(
                 "/api/projects/{}/github-migration-status",
@@ -95,17 +93,14 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn publish(&self) -> Result<PublishProjectResponse, Error> {
+    pub async fn publish(&self) -> Result<PublishResponse, Error> {
         self.client
             .post(format!("/api/projects/{}/publish", self.project_id))
             .ok()
             .await
     }
 
-    pub async fn deployments(
-        &self,
-        options: &ProjectDeploymentOptions,
-    ) -> Result<Vec<ProjectDeployment>, Error> {
+    pub async fn deployments(&self, options: &DeploymentOptions) -> Result<Vec<Deployment>, Error> {
         self.client
             .get(format!("/api/projects/{}/deployments", self.project_id))
             .query(options)
@@ -113,10 +108,7 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn transfer(
-        &self,
-        payload: &TransferProject,
-    ) -> Result<TransferProjectResponse, Error> {
+    pub async fn transfer(&self, payload: &TransferProject) -> Result<TransferResponse, Error> {
         self.client
             .post(format!("/api/projects/{}/transfer", self.project_id))
             .json(payload)
@@ -124,7 +116,7 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn issue_token(&self, payload: &ProjectTokenRequest) -> Result<ProjectToken, Error> {
+    pub async fn issue_token(&self, payload: &TokenRequest) -> Result<Token, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/project-token/issue",
@@ -135,10 +127,7 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn refresh_token(
-        &self,
-        payload: &ProjectTokenRequest,
-    ) -> Result<ProjectToken, Error> {
+    pub async fn refresh_token(&self, payload: &TokenRequest) -> Result<Token, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/project-token/refresh",
@@ -151,8 +140,8 @@ impl ProjectApi {
 
     pub async fn execute_session(
         &self,
-        payload: &ExecuteProjectSession,
-    ) -> Result<ExecuteProjectSessionResponse, Error> {
+        payload: &ExecuteSession,
+    ) -> Result<ExecuteSessionResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/sessions/execute",
@@ -163,10 +152,7 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn history(
-        &self,
-        options: &ProjectHistoryOptions,
-    ) -> Result<Vec<ProjectChatHistory>, Error> {
+    pub async fn history(&self, options: &HistoryOptions) -> Result<Vec<ChatHistory>, Error> {
         self.client
             .get(format!("/api/projects/{}/history", self.project_id))
             .query(options)
@@ -174,14 +160,14 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn active_session(&self) -> Result<Option<ProjectRuntimeSession>, Error> {
+    pub async fn active_session(&self) -> Result<Option<RuntimeSession>, Error> {
         self.client
             .get(format!("/api/projects/{}/sessions/active", self.project_id))
             .ok()
             .await
     }
 
-    pub async fn history_detail(&self, history_id: i64) -> Result<ProjectChatHistory, Error> {
+    pub async fn history_detail(&self, history_id: i64) -> Result<ChatHistory, Error> {
         self.client
             .get(format!(
                 "/api/projects/{}/history/{}",

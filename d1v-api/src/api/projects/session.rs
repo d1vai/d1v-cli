@@ -4,7 +4,7 @@ use serde_with::skip_serializing_none;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ExecuteProjectSession {
+pub struct ExecuteSession {
     pub prompt: String,
     pub session_type: Option<String>,
     pub session_id: Option<String>,
@@ -17,7 +17,7 @@ pub struct ExecuteProjectSession {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectRuntimeSession {
+pub struct RuntimeSession {
     pub id: Option<i64>,
     pub project_id: String,
     pub opcode_project_id: Option<String>,
@@ -31,15 +31,15 @@ pub struct ProjectRuntimeSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExecuteProjectSessionResponse {
+pub struct ExecuteSessionResponse {
     pub session_id: String,
     pub websocket_url: String,
-    pub session: ProjectRuntimeSession,
+    pub session: RuntimeSession,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectHistoryOptions {
+pub struct HistoryOptions {
     pub limit: Option<u32>,
     pub before_ts: Option<Timestamp>,
     pub before_id: Option<i64>,
@@ -50,7 +50,7 @@ pub struct ProjectHistoryOptions {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectChatHistory {
+pub struct ChatHistory {
     pub id: i64,
     pub project_id: String,
     pub direction: String,
@@ -61,11 +61,11 @@ pub struct ProjectChatHistory {
     pub created_at: Timestamp,
 }
 
-pub type CancelProjectSessionResponse = serde_json::Value;
+pub type CancelSessionResponse = serde_json::Value;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ClaudeUserProject {
+pub struct ClaudeProject {
     pub id: String,
     pub name: String,
     pub path: Option<String>,

@@ -1,16 +1,14 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,
-    CreatePayToken, CreatePayWebhook, CreatePayWithdrawal, CreateProject, CreateProjectDbTable,
-    CreateProjectEnvVar, CreateProjectWithIntegrations, DeleteProjectDbRows,
-    DropProjectDbTableOptions, ExecuteProjectSession, ExecuteProjectSql, GenerateProjectMeta,
-    ImportFromGithub, ImportLocal, ImportProjectEnvVars, ImportPublic, InsertProjectDbRow,
-    ListProjectDbRowsOptions, LocalImportFile, NeonUsageOptions, PayAnalyticsOptions,
-    PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions, PayTransactionsOptions,
-    ProjectAssetFile, ProjectDbColumn, ProjectDbDataOptions, ProjectDbSchemaOptions,
-    ProjectDeploymentOptions, ProjectEnvVarsOptions, ProjectHistoryOptions,
-    ProjectStorageStructureOptions, ProjectTokenRequest, TransferProject, UpdatePayBankAccount,
-    UpdatePayWebhook, UpdateProject, UpdateProjectDbRows, UpdateProjectEnvVar, UploadProjectAsset,
+    AssetFile, CreateDbTable, CreateEnvVar, CreatePayBankAccount, CreatePayPaymentIntent,
+    CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook, CreatePayWithdrawal,
+    CreateProject, CreateProjectWithIntegrations, DbColumn, DbDataOptions, DbSchemaOptions,
+    DeleteDbRows, DeploymentOptions, DropDbTableOptions, EnvVarsOptions, ExecuteSession,
+    ExecuteSql, GenerateMeta, HistoryOptions, ImportEnvVars, ImportFromGithub, ImportLocal,
+    ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, NeonUsageOptions,
+    PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
+    PayTransactionsOptions, StorageStructureOptions, TokenRequest, TransferProject, UpdateDbRows,
+    UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -344,7 +342,7 @@ async fn generate_meta() {
 
     let meta = authed_client(&server)
         .projects()
-        .generate_meta(&GenerateProjectMeta {
+        .generate_meta(&GenerateMeta {
             prompt: "Build a todo app".to_string(),
             max_desc_len: Some(120),
         })
@@ -608,7 +606,7 @@ async fn project_deployments() {
     let deployments = authed_client(&server)
         .projects()
         .project("proj_123")
-        .deployments(&ProjectDeploymentOptions {
+        .deployments(&DeploymentOptions {
             environment: Some("prod".to_string()),
             limit: Some(10),
         })
@@ -706,7 +704,7 @@ async fn project_db_schema() {
         .projects()
         .project("proj_123")
         .db()
-        .schema(&ProjectDbSchemaOptions {
+        .schema(&DbSchemaOptions {
             branch: Some("main".to_string()),
             include_views: Some(true),
             with_row_counts: Some(true),
@@ -749,7 +747,7 @@ async fn project_db_data() {
         .projects()
         .project("proj_123")
         .db()
-        .data(&ProjectDbDataOptions {
+        .data(&DbDataOptions {
             branch: Some("dev".to_string()),
             limit_per_table: Some(5),
             include_views: Some(false),
@@ -864,10 +862,10 @@ async fn create_db_table() {
         .projects()
         .project("proj_123")
         .db()
-        .create_table(&CreateProjectDbTable {
+        .create_table(&CreateDbTable {
             schema_name: Some("public".to_string()),
             table_name: "users".to_string(),
-            columns: vec![ProjectDbColumn {
+            columns: vec![DbColumn {
                 name: "id".to_string(),
                 data_type: "INTEGER".to_string(),
                 is_nullable: Some(false),
@@ -910,7 +908,7 @@ async fn drop_db_table() {
         .drop_table(
             "public",
             "users",
-            &DropProjectDbTableOptions {
+            &DropDbTableOptions {
                 branch: Some("main".to_string()),
                 cascade: Some(true),
             },
@@ -948,7 +946,7 @@ async fn list_db_table_rows() {
         .list_table_rows(
             "public",
             "users",
-            &ListProjectDbRowsOptions {
+            &ListDbRowsOptions {
                 branch: Some("dev".to_string()),
                 limit: Some(10),
                 offset: Some(20),
@@ -989,7 +987,7 @@ async fn insert_db_table_row() {
         .insert_table_row(
             "public",
             "users",
-            &InsertProjectDbRow {
+            &InsertDbRow {
                 values: serde_json::Map::from_iter([(
                     "email".to_string(),
                     json!("user@example.com"),
@@ -1033,7 +1031,7 @@ async fn update_db_table_rows() {
         .update_table_rows(
             "public",
             "users",
-            &UpdateProjectDbRows {
+            &UpdateDbRows {
                 where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
                 values: serde_json::Map::from_iter([(
                     "email".to_string(),
@@ -1077,7 +1075,7 @@ async fn delete_db_table_rows() {
         .delete_table_rows(
             "public",
             "users",
-            &DeleteProjectDbRows {
+            &DeleteDbRows {
                 where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
                 branch: Some("main".to_string()),
             },
@@ -1121,7 +1119,7 @@ async fn execute_db_sql() {
         .projects()
         .project("proj_123")
         .db()
-        .execute_sql(&ExecuteProjectSql {
+        .execute_sql(&ExecuteSql {
             sql: "select * from users".to_string(),
             branch: Some("main".to_string()),
             dry_run: Some(false),
@@ -1164,7 +1162,7 @@ async fn issue_project_token() {
     let token = authed_client(&server)
         .projects()
         .project("proj_123")
-        .issue_token(&ProjectTokenRequest {
+        .issue_token(&TokenRequest {
             scopes: Some(vec!["db:read".to_string(), "migrate".to_string()]),
             ttl_seconds: Some(900),
         })
@@ -1203,7 +1201,7 @@ async fn refresh_project_token() {
     let token = authed_client(&server)
         .projects()
         .project("proj_123")
-        .refresh_token(&ProjectTokenRequest {
+        .refresh_token(&TokenRequest {
             scopes: None,
             ttl_seconds: Some(1800),
         })
@@ -1251,7 +1249,7 @@ async fn execute_project_session() {
     let response = authed_client(&server)
         .projects()
         .project("proj_123")
-        .execute_session(&ExecuteProjectSession {
+        .execute_session(&ExecuteSession {
             prompt: "Build a todo app".to_string(),
             session_type: Some("new".to_string()),
             session_id: None,
@@ -1302,7 +1300,7 @@ async fn project_history() {
     let history = authed_client(&server)
         .projects()
         .project("proj_123")
-        .history(&ProjectHistoryOptions {
+        .history(&HistoryOptions {
             limit: Some(10),
             before_ts: Some("2026-05-02T00:00:00Z".parse().unwrap()),
             before_id: Some(99),
@@ -1474,7 +1472,7 @@ async fn execute_claude_session() {
 
     let response = authed_client(&server)
         .projects()
-        .execute_claude_session(&ExecuteProjectSession {
+        .execute_claude_session(&ExecuteSession {
             prompt: "Continue the task".to_string(),
             session_type: Some("continue".to_string()),
             session_id: Some("sess_123".to_string()),
@@ -2594,7 +2592,7 @@ async fn project_env_vars() {
         .projects()
         .project("proj_123")
         .env()
-        .vars(&ProjectEnvVarsOptions {
+        .vars(&EnvVarsOptions {
             show_values: Some(true),
         })
         .await
@@ -2627,7 +2625,7 @@ async fn create_project_env_var() {
         .projects()
         .project("proj_123")
         .env()
-        .create_var(&CreateProjectEnvVar {
+        .create_var(&CreateEnvVar {
             key: "API_KEY".to_string(),
             value: "sk-secret".to_string(),
             description: Some("API key".to_string()),
@@ -2663,7 +2661,7 @@ async fn update_project_env_var() {
         .env()
         .update_var(
             1,
-            &UpdateProjectEnvVar {
+            &UpdateEnvVar {
                 value: Some("sk-updated".to_string()),
                 description: None,
                 is_sensitive: Some(false),
@@ -2729,7 +2727,7 @@ async fn import_project_env_vars() {
         .projects()
         .project("proj_123")
         .env()
-        .import_vars(&ImportProjectEnvVars {
+        .import_vars(&ImportEnvVars {
             env_content: "API_KEY=sk-secret".to_string(),
             overwrite: true,
         })
@@ -2944,7 +2942,7 @@ async fn project_storage_structure() {
         .projects()
         .project("proj_123")
         .storage()
-        .structure(&ProjectStorageStructureOptions {
+        .structure(&StorageStructureOptions {
             sub_path: Some("src".to_string()),
             ext: Some("tsx".to_string()),
         })
@@ -3004,9 +3002,9 @@ async fn upload_project_asset() {
         .projects()
         .project("proj_123")
         .storage()
-        .upload_asset(UploadProjectAsset {
+        .upload_asset(UploadAsset {
             path: "images/logo.png".to_string(),
-            file: ProjectAssetFile {
+            file: AssetFile {
                 path: "logo.png".to_string(),
                 bytes: b"logo".to_vec(),
             },
@@ -3038,7 +3036,7 @@ async fn replace_project_asset() {
         .storage()
         .replace_asset(
             "images/logo.png",
-            ProjectAssetFile {
+            AssetFile {
                 path: "logo.png".to_string(),
                 bytes: b"logo".to_vec(),
             },

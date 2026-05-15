@@ -6,13 +6,13 @@ use crate::{Client, Error};
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectEnvVarsOptions {
+pub struct EnvVarsOptions {
     pub show_values: Option<bool>,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectEnvVar {
+pub struct EnvVar {
     pub id: i64,
     pub key: String,
     pub value: Option<String>,
@@ -25,7 +25,7 @@ pub struct ProjectEnvVar {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct CreateProjectEnvVar {
+pub struct CreateEnvVar {
     pub key: String,
     pub value: String,
     pub description: Option<String>,
@@ -34,25 +34,25 @@ pub struct CreateProjectEnvVar {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct UpdateProjectEnvVar {
+pub struct UpdateEnvVar {
     pub value: Option<String>,
     pub description: Option<String>,
     pub is_sensitive: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ImportProjectEnvVars {
+pub struct ImportEnvVars {
     pub env_content: String,
     pub overwrite: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeleteProjectEnvVarResponse {
+pub struct DeleteEnvVarResponse {
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ImportProjectEnvVarsResponse {
+pub struct ImportEnvVarsResponse {
     pub message: String,
     pub created: i64,
     pub updated: i64,
@@ -61,13 +61,13 @@ pub struct ImportProjectEnvVarsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExportProjectEnvVarsResponse {
+pub struct ExportEnvVarsResponse {
     pub content: String,
     pub filename: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncProjectEnvVarsResponse {
+pub struct SyncEnvVarsResponse {
     pub message: String,
     pub vercel_dev_project_id: String,
     pub vercel_prod_project_id: String,
@@ -87,7 +87,7 @@ impl ProjectEnv {
         Self { client, project_id }
     }
 
-    pub async fn vars(&self, options: &ProjectEnvVarsOptions) -> Result<Vec<ProjectEnvVar>, Error> {
+    pub async fn vars(&self, options: &EnvVarsOptions) -> Result<Vec<EnvVar>, Error> {
         self.client
             .get(format!("/api/projects/{}/env-vars", self.project_id))
             .query(options)
@@ -95,7 +95,7 @@ impl ProjectEnv {
             .await
     }
 
-    pub async fn create_var(&self, payload: &CreateProjectEnvVar) -> Result<ProjectEnvVar, Error> {
+    pub async fn create_var(&self, payload: &CreateEnvVar) -> Result<EnvVar, Error> {
         self.client
             .post(format!("/api/projects/{}/env-vars", self.project_id))
             .json(payload)
@@ -106,8 +106,8 @@ impl ProjectEnv {
     pub async fn update_var(
         &self,
         env_var_id: i64,
-        payload: &UpdateProjectEnvVar,
-    ) -> Result<ProjectEnvVar, Error> {
+        payload: &UpdateEnvVar,
+    ) -> Result<EnvVar, Error> {
         self.client
             .patch(format!(
                 "/api/projects/{}/env-vars/{}",
@@ -118,7 +118,7 @@ impl ProjectEnv {
             .await
     }
 
-    pub async fn delete_var(&self, env_var_id: i64) -> Result<DeleteProjectEnvVarResponse, Error> {
+    pub async fn delete_var(&self, env_var_id: i64) -> Result<DeleteEnvVarResponse, Error> {
         self.client
             .delete(format!(
                 "/api/projects/{}/env-vars/{}",
@@ -130,8 +130,8 @@ impl ProjectEnv {
 
     pub async fn import_vars(
         &self,
-        payload: &ImportProjectEnvVars,
-    ) -> Result<ImportProjectEnvVarsResponse, Error> {
+        payload: &ImportEnvVars,
+    ) -> Result<ImportEnvVarsResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/env-vars/batch-import",
@@ -142,14 +142,14 @@ impl ProjectEnv {
             .await
     }
 
-    pub async fn export_vars(&self) -> Result<ExportProjectEnvVarsResponse, Error> {
+    pub async fn export_vars(&self) -> Result<ExportEnvVarsResponse, Error> {
         self.client
             .get(format!("/api/projects/{}/env-vars/export", self.project_id))
             .ok()
             .await
     }
 
-    pub async fn sync_vercel(&self) -> Result<SyncProjectEnvVarsResponse, Error> {
+    pub async fn sync_vercel(&self) -> Result<SyncEnvVarsResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/env-vars/sync-vercel",

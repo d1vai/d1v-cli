@@ -41,16 +41,16 @@ pub struct UpdateProject {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct GenerateProjectMeta {
+pub struct GenerateMeta {
     pub prompt: String,
     pub max_desc_len: Option<u32>,
 }
 
-pub type ProjectMeta = serde_json::Value;
+pub type Meta = serde_json::Value;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectTemplate {
+pub struct Template {
     pub template_repo: String,
     pub name: String,
     pub description: String,
@@ -179,7 +179,7 @@ impl From<ImportLocal> for Form {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectGitMigrationStatus {
+pub struct GitMigrationStatus {
     pub required: bool,
     pub reason: Option<String>,
     pub source_repository_full_name: Option<String>,
@@ -194,7 +194,7 @@ pub struct ProjectGitMigrationStatus {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct PublishProjectResponse {
+pub struct PublishResponse {
     pub success: bool,
     pub commit_hash: Option<String>,
     pub message: String,
@@ -204,14 +204,14 @@ pub struct PublishProjectResponse {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectDeploymentOptions {
+pub struct DeploymentOptions {
     pub environment: Option<String>,
     pub limit: Option<u32>,
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectDeployment {
+pub struct Deployment {
     pub id: i64,
     pub project_id: String,
     pub environment: String,
@@ -243,21 +243,21 @@ pub struct TransferProject {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ProjectTokenRequest {
+pub struct TokenRequest {
     pub scopes: Option<Vec<String>>,
     pub ttl_seconds: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectToken {
+pub struct Token {
     pub project_token: String,
     pub expires_at: Timestamp,
     pub scopes: Vec<String>,
 }
 
-pub type ProjectDatabase = Vec<serde_json::Value>;
-pub type TransferProjectResponse = serde_json::Value;
-pub type GenerateProjectEmojisResponse = serde_json::Value;
+pub type Database = Vec<serde_json::Value>;
+pub type TransferResponse = serde_json::Value;
+pub type GenerateEmojisResponse = serde_json::Value;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -8,18 +8,15 @@ mod storage;
 mod types;
 
 pub use db::{
-    CreateProjectDbTable, DeleteProjectDbRows, DropProjectDbTableOptions, ExecuteProjectSql,
-    ExecuteProjectSqlResponse, InsertProjectDbRow, ListProjectDbRowsOptions, NeonUsage,
-    NeonUsageOptions, ProjectDbBranch, ProjectDbColumn, ProjectDbData, ProjectDbDataOptions,
-    ProjectDbMutation, ProjectDbRow, ProjectDbSchema, ProjectDbSchemaOptions, ProjectsDb,
-    UpdateProjectDbRows,
+    CreateDbTable, DbBranch, DbColumn, DbData, DbDataOptions, DbMutation, DbRow, DbSchema,
+    DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse, InsertDbRow,
+    ListDbRowsOptions, NeonUsage, NeonUsageOptions, ProjectsDb, UpdateDbRows,
 };
 pub use env::{
-    CreateProjectEnvVar, DeleteProjectEnvVarResponse, ExportProjectEnvVarsResponse,
-    ImportProjectEnvVars, ImportProjectEnvVarsResponse, ProjectEnv, ProjectEnvVar,
-    ProjectEnvVarsOptions, SyncProjectEnvVarsResponse, UpdateProjectEnvVar,
+    CreateEnvVar, DeleteEnvVarResponse, EnvVar, EnvVarsOptions, ExportEnvVarsResponse,
+    ImportEnvVars, ImportEnvVarsResponse, ProjectEnv, SyncEnvVarsResponse, UpdateEnvVar,
 };
-pub use integrations::{ProjectIntegrationResponse, ProjectIntegrations};
+pub use integrations::{IntegrationResponse, ProjectIntegrations};
 pub use pay::{
     CreatePayBankAccount, CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct,
     CreatePayToken, CreatePayWebhook, CreatePayWithdrawal, DeletePayBankAccountResponse,
@@ -32,21 +29,18 @@ pub use pay::{
 };
 pub use project::ProjectApi;
 pub use session::{
-    CancelProjectSessionResponse, ClaudeUserProject, ExecuteProjectSession,
-    ExecuteProjectSessionResponse, ProjectChatHistory, ProjectHistoryOptions,
-    ProjectRuntimeSession,
+    CancelSessionResponse, ChatHistory, ClaudeProject, ExecuteSession, ExecuteSessionResponse,
+    HistoryOptions, RuntimeSession,
 };
 pub use storage::{
-    ProjectAsset, ProjectAssetFile, ProjectStorage, ProjectStorageFile, ProjectStorageStructure,
-    ProjectStorageStructureOptions, UploadProjectAsset,
+    Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, StorageStructureOptions,
+    UploadAsset,
 };
 pub use types::{
-    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations,
-    GenerateProjectEmojisResponse, GenerateProjectMeta, ImportFromGithub, ImportLocal,
-    ImportPublic, LocalImportFile, Project, ProjectDatabase, ProjectDeployment,
-    ProjectDeploymentOptions, ProjectGitMigrationStatus, ProjectMeta, ProjectTemplate,
-    ProjectToken, ProjectTokenRequest, PublishProjectResponse, TransferProject,
-    TransferProjectResponse, UpdateProject,
+    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
+    DeploymentOptions, GenerateEmojisResponse, GenerateMeta, GitMigrationStatus, ImportFromGithub,
+    ImportLocal, ImportPublic, LocalImportFile, Meta, Project, PublishResponse, Template, Token,
+    TokenRequest, TransferProject, TransferResponse, UpdateProject,
 };
 
 use serde::Serialize;
@@ -75,11 +69,11 @@ impl ProjectsApi {
         self.client.post("/api/projects/").json(payload).ok().await
     }
 
-    pub async fn templates(&self) -> Result<Vec<ProjectTemplate>, Error> {
+    pub async fn templates(&self) -> Result<Vec<Template>, Error> {
         self.client.get("/api/projects/templates").ok().await
     }
 
-    pub async fn generate_meta(&self, payload: &GenerateProjectMeta) -> Result<ProjectMeta, Error> {
+    pub async fn generate_meta(&self, payload: &GenerateMeta) -> Result<Meta, Error> {
         self.client
             .post("/api/projects/ai/generate-meta")
             .json(payload)
@@ -159,7 +153,7 @@ impl ProjectsApi {
             .await
     }
 
-    pub async fn generate_emojis(&self) -> Result<GenerateProjectEmojisResponse, Error> {
+    pub async fn generate_emojis(&self) -> Result<GenerateEmojisResponse, Error> {
         self.client
             .post("/api/projects/admin/generate-emojis")
             .ok()
@@ -181,7 +175,7 @@ impl ProjectsApi {
     pub async fn cancel_session(
         &self,
         session_id: impl AsRef<str>,
-    ) -> Result<CancelProjectSessionResponse, Error> {
+    ) -> Result<CancelSessionResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/sessions/{}/cancel",
@@ -193,8 +187,8 @@ impl ProjectsApi {
 
     pub async fn execute_claude_session(
         &self,
-        payload: &ExecuteProjectSession,
-    ) -> Result<ExecuteProjectSessionResponse, Error> {
+        payload: &ExecuteSession,
+    ) -> Result<ExecuteSessionResponse, Error> {
         self.client
             .post("/api/projects/claude/execute")
             .json(payload)
@@ -205,7 +199,7 @@ impl ProjectsApi {
     pub async fn claude_user_projects(
         &self,
         username: impl AsRef<str>,
-    ) -> Result<Vec<ClaudeUserProject>, Error> {
+    ) -> Result<Vec<ClaudeProject>, Error> {
         self.client
             .get(format!(
                 "/api/projects/api/claude/users/{}/projects",

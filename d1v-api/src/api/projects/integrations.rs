@@ -5,7 +5,7 @@ use crate::{Client, Error};
 use super::types::Project;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectIntegrationResponse {
+pub struct IntegrationResponse {
     pub project: Project,
     pub message: String,
 }
@@ -20,7 +20,7 @@ impl ProjectIntegrations {
         Self { client, project_id }
     }
 
-    pub async fn activate_pay(&self) -> Result<ProjectIntegrationResponse, Error> {
+    pub async fn activate_pay(&self) -> Result<IntegrationResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/integrations/activate-pay",
@@ -30,7 +30,7 @@ impl ProjectIntegrations {
             .await
     }
 
-    pub async fn refresh_pay_token(&self) -> Result<ProjectIntegrationResponse, Error> {
+    pub async fn refresh_pay_token(&self) -> Result<IntegrationResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/integrations/refresh-pay-token",
@@ -40,7 +40,7 @@ impl ProjectIntegrations {
             .await
     }
 
-    pub async fn activate_database(&self) -> Result<ProjectIntegrationResponse, Error> {
+    pub async fn activate_database(&self) -> Result<IntegrationResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/integrations/activate-database",

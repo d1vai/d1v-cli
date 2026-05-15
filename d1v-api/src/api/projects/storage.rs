@@ -6,25 +6,25 @@ use crate::{Client, Error};
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct ProjectStorageStructureOptions {
+pub struct StorageStructureOptions {
     pub sub_path: Option<String>,
     pub ext: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ProjectAssetFile {
+pub struct AssetFile {
     pub path: String,
     pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
-pub struct UploadProjectAsset {
+pub struct UploadAsset {
     pub path: String,
-    pub file: ProjectAssetFile,
+    pub file: AssetFile,
 }
 
-impl From<UploadProjectAsset> for Form {
-    fn from(payload: UploadProjectAsset) -> Self {
+impl From<UploadAsset> for Form {
+    fn from(payload: UploadAsset) -> Self {
         Form::new().text("path", payload.path).part(
             "file",
             Part::bytes(payload.file.bytes).file_name(payload.file.path),
@@ -32,15 +32,15 @@ impl From<UploadProjectAsset> for Form {
     }
 }
 
-impl From<ProjectAssetFile> for Form {
-    fn from(file: ProjectAssetFile) -> Self {
+impl From<AssetFile> for Form {
+    fn from(file: AssetFile) -> Self {
         Form::new().part("file", Part::bytes(file.bytes).file_name(file.path))
     }
 }
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectAsset {
+pub struct Asset {
     pub provider: String,
     pub bucket_or_container: String,
     pub key: String,
@@ -52,8 +52,8 @@ pub struct ProjectAsset {
     pub deleted: Option<bool>,
 }
 
-pub type ProjectStorageStructure = serde_json::Value;
-pub type ProjectStorageFile = serde_json::Value;
+pub type StorageStructure = serde_json::Value;
+pub type StorageFile = serde_json::Value;
 
 pub struct ProjectStorage {
     client: Client,
@@ -67,8 +67,8 @@ impl ProjectStorage {
 
     pub async fn structure(
         &self,
-        options: &ProjectStorageStructureOptions,
-    ) -> Result<ProjectStorageStructure, Error> {
+        options: &StorageStructureOptions,
+    ) -> Result<StorageStructure, Error> {
         self.client
             .get(format!(
                 "/api/projects/storage/{}/structure",
@@ -79,7 +79,7 @@ impl ProjectStorage {
             .await
     }
 
-    pub async fn file(&self, file_path: impl AsRef<str>) -> Result<ProjectStorageFile, Error> {
+    pub async fn file(&self, file_path: impl AsRef<str>) -> Result<StorageFile, Error> {
         self.client
             .get(format!(
                 "/api/projects/storage/{}/files/{}",
@@ -90,7 +90,7 @@ impl ProjectStorage {
             .await
     }
 
-    pub async fn upload_asset(&self, payload: UploadProjectAsset) -> Result<ProjectAsset, Error> {
+    pub async fn upload_asset(&self, payload: UploadAsset) -> Result<Asset, Error> {
         self.client
             .post(format!("/api/projects/{}/assets", self.project_id))
             .multipart(payload.into())
@@ -101,8 +101,8 @@ impl ProjectStorage {
     pub async fn replace_asset(
         &self,
         object_path: impl AsRef<str>,
-        file: ProjectAssetFile,
-    ) -> Result<ProjectAsset, Error> {
+        file: AssetFile,
+    ) -> Result<Asset, Error> {
         self.client
             .put(format!(
                 "/api/projects/{}/assets/{}",
@@ -114,7 +114,7 @@ impl ProjectStorage {
             .await
     }
 
-    pub async fn asset(&self, object_path: impl AsRef<str>) -> Result<ProjectAsset, Error> {
+    pub async fn asset(&self, object_path: impl AsRef<str>) -> Result<Asset, Error> {
         self.client
             .get(format!(
                 "/api/projects/{}/assets/{}",
@@ -125,7 +125,7 @@ impl ProjectStorage {
             .await
     }
 
-    pub async fn delete_asset(&self, object_path: impl AsRef<str>) -> Result<ProjectAsset, Error> {
+    pub async fn delete_asset(&self, object_path: impl AsRef<str>) -> Result<Asset, Error> {
         self.client
             .delete(format!(
                 "/api/projects/{}/assets/{}",
