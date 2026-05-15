@@ -2,6 +2,7 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::encode::encode_segment;
 use crate::{Client, Error};
 
 #[derive(Debug, Clone, Copy, Default, Serialize)]
@@ -178,8 +179,8 @@ impl ProjectsDb {
             .delete(format!(
                 "/api/projects/{}/db/tables/{}/{}",
                 self.project_id,
-                schema_name.as_ref(),
-                table_name.as_ref()
+                encode_segment(schema_name),
+                encode_segment(table_name)
             ))
             .query(options)
             .ok()
@@ -196,8 +197,8 @@ impl ProjectsDb {
             .get(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                schema_name.as_ref(),
-                table_name.as_ref()
+                encode_segment(schema_name),
+                encode_segment(table_name)
             ))
             .query(options)
             .ok()
@@ -214,8 +215,8 @@ impl ProjectsDb {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                schema_name.as_ref(),
-                table_name.as_ref()
+                encode_segment(schema_name),
+                encode_segment(table_name)
             ))
             .json(payload)
             .ok()
@@ -232,8 +233,8 @@ impl ProjectsDb {
             .patch(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                schema_name.as_ref(),
-                table_name.as_ref()
+                encode_segment(schema_name),
+                encode_segment(table_name)
             ))
             .json(payload)
             .ok()
@@ -250,8 +251,8 @@ impl ProjectsDb {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows/delete",
                 self.project_id,
-                schema_name.as_ref(),
-                table_name.as_ref()
+                encode_segment(schema_name),
+                encode_segment(table_name)
             ))
             .json(payload)
             .ok()

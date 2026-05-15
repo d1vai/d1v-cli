@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::encode::encode_segment;
 use crate::{Client, Error};
 
 pub struct DbApi {
@@ -304,8 +305,8 @@ impl DbApi {
             .get(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .query(options)
             .ok()
@@ -336,8 +337,8 @@ impl DbApi {
             .delete(format!(
                 "/api/projects/{}/db/tables/{}/{}",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .query_if_some("branch", branch)
             .query_if_some("cascade", cascade)
@@ -356,8 +357,8 @@ impl DbApi {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rename",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .json(payload)
             .ok()
@@ -375,8 +376,8 @@ impl DbApi {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .json(payload)
             .ok()
@@ -402,8 +403,8 @@ impl DbApi {
             .patch(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .json(&Payload {
                 where_: &payload.where_,
@@ -432,8 +433,8 @@ impl DbApi {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows/delete",
                 project_id.as_ref(),
-                urlencoding::encode(schema.as_ref()),
-                urlencoding::encode(table.as_ref())
+                encode_segment(schema),
+                encode_segment(table)
             ))
             .json(&Payload {
                 where_: &payload.where_,

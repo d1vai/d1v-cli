@@ -2,6 +2,7 @@ use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use crate::encode::encode_path;
 use crate::{Client, Error};
 
 #[skip_serializing_none]
@@ -84,7 +85,7 @@ impl ProjectStorage {
             .get(format!(
                 "/api/projects/storage/{}/files/{}",
                 self.project_id,
-                encode_path(file_path.as_ref())
+                encode_path(file_path)
             ))
             .ok()
             .await
@@ -107,7 +108,7 @@ impl ProjectStorage {
             .put(format!(
                 "/api/projects/{}/assets/{}",
                 self.project_id,
-                encode_path(object_path.as_ref())
+                encode_path(object_path)
             ))
             .multipart(file.into())
             .ok()
@@ -119,7 +120,7 @@ impl ProjectStorage {
             .get(format!(
                 "/api/projects/{}/assets/{}",
                 self.project_id,
-                encode_path(object_path.as_ref())
+                encode_path(object_path)
             ))
             .ok()
             .await
@@ -130,16 +131,9 @@ impl ProjectStorage {
             .delete(format!(
                 "/api/projects/{}/assets/{}",
                 self.project_id,
-                encode_path(object_path.as_ref())
+                encode_path(object_path)
             ))
             .ok()
             .await
     }
-}
-
-fn encode_path(path: &str) -> String {
-    path.split('/')
-        .map(urlencoding::encode)
-        .collect::<Vec<_>>()
-        .join("/")
 }

@@ -1,5 +1,6 @@
 pub mod api;
 pub mod client;
+mod encode;
 pub mod error;
 pub mod jwt;
 pub mod locale;
