@@ -2,14 +2,38 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionType {
+    #[default]
+    New,
+    Continue,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Engine {
+    #[default]
+    Claude,
+    Codex,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Direction {
+    User,
+    Assistant,
+    System,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExecuteSession {
     pub prompt: String,
-    pub session_type: Option<String>,
+    pub session_type: Option<SessionType>,
     pub session_id: Option<String>,
     pub model: Option<String>,
-    pub engine: Option<String>,
+    pub engine: Option<Engine>,
     pub system_prompt: Option<String>,
     pub project_path: Option<String>,
     pub auto_deploy: Option<bool>,
@@ -43,7 +67,7 @@ pub struct HistoryOptions {
     pub limit: Option<u32>,
     pub before_ts: Option<Timestamp>,
     pub before_id: Option<i64>,
-    pub direction: Option<String>,
+    pub direction: Option<Direction>,
     pub message_type: Option<String>,
     pub include_payload: Option<bool>,
 }
@@ -53,7 +77,7 @@ pub struct HistoryOptions {
 pub struct ChatHistory {
     pub id: i64,
     pub project_id: String,
-    pub direction: String,
+    pub direction: Direction,
     pub message_type: Option<String>,
     pub message_text: Option<String>,
     #[serde(default)]

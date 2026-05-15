@@ -8,9 +8,10 @@ mod storage;
 mod types;
 
 pub use db::{
-    CreateDbTable, DbBranch, DbColumn, DbData, DbDataOptions, DbMutation, DbRow, DbSchema,
-    DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse, InsertDbRow,
-    ListDbRowsOptions, NeonUsage, NeonUsageOptions, ProjectsDb, UpdateDbRows,
+    ColumnIdentity, CreateDbTable, DbBranch, DbColumn, DbData, DbDataOptions, DbMutation, DbRow,
+    DbSchema, DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse,
+    Granularity, InsertDbRow, ListDbRowsOptions, NeonUsage, NeonUsageOptions, ProjectsDb,
+    UpdateDbRows,
 };
 pub use env::{
     CreateEnvVar, DeleteEnvVarResponse, EnvVar, EnvVarsOptions, ExportEnvVarsResponse,
@@ -29,8 +30,8 @@ pub use pay::{
 };
 pub use project::ProjectApi;
 pub use session::{
-    CancelSessionResponse, ChatHistory, ClaudeProject, ExecuteSession, ExecuteSessionResponse,
-    HistoryOptions, RuntimeSession,
+    CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSession,
+    ExecuteSessionResponse, HistoryOptions, RuntimeSession, SessionType,
 };
 pub use storage::{
     Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, StorageStructureOptions,
@@ -38,9 +39,10 @@ pub use storage::{
 };
 pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
-    DeploymentOptions, GenerateEmojisResponse, GenerateMeta, GitMigrationStatus, ImportFromGithub,
-    ImportLocal, ImportPublic, LocalImportFile, Meta, Project, PublishResponse, Template, Token,
-    TokenRequest, TransferProject, TransferResponse, UpdateProject,
+    DeploymentEnvironment, DeploymentOptions, GenerateEmojisResponse, GenerateMeta,
+    GitMigrationStatus, ImportFromGithub, ImportLocal, ImportPublic, LocalImportFile, Meta,
+    Project, PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferProject,
+    TransferResponse, UpdateProject,
 };
 
 use serde::Serialize;

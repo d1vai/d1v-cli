@@ -1,14 +1,15 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    AssetFile, CreateDbTable, CreateEnvVar, CreatePayBankAccount, CreatePayPaymentIntent,
-    CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook, CreatePayWithdrawal,
-    CreateProject, CreateProjectWithIntegrations, DbColumn, DbDataOptions, DbSchemaOptions,
-    DeleteDbRows, DeploymentOptions, DropDbTableOptions, EnvVarsOptions, ExecuteSession,
-    ExecuteSql, GenerateMeta, HistoryOptions, ImportEnvVars, ImportFromGithub, ImportLocal,
+    AssetFile, ColumnIdentity, CreateDbTable, CreateEnvVar, CreatePayBankAccount,
+    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreatePayToken,
+    CreatePayWebhook, CreatePayWithdrawal, CreateProject, CreateProjectWithIntegrations, DbColumn,
+    DbDataOptions, DbSchemaOptions, DeleteDbRows, DeploymentEnvironment, DeploymentOptions,
+    Direction, DropDbTableOptions, Engine, EnvVarsOptions, ExecuteSession, ExecuteSql,
+    GenerateMeta, Granularity, HistoryOptions, ImportEnvVars, ImportFromGithub, ImportLocal,
     ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, NeonUsageOptions,
     PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
-    PayTransactionsOptions, StorageStructureOptions, TokenRequest, TransferProject, UpdateDbRows,
-    UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UploadAsset,
+    PayTransactionsOptions, SessionType, StorageStructureOptions, TokenRequest, TransferProject,
+    UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -607,7 +608,7 @@ async fn project_deployments() {
         .projects()
         .project("proj_123")
         .deployments(&DeploymentOptions {
-            environment: Some("prod".to_string()),
+            environment: Some(DeploymentEnvironment::Prod),
             limit: Some(10),
         })
         .await
@@ -800,7 +801,7 @@ async fn neon_usage() {
             .path("/api/projects/db/neon-usage")
             .query_param("from_iso", "2026-05-01T00:00:00Z")
             .query_param("to_iso", "2026-05-02T00:00:00Z")
-            .query_param("granularity", "hour")
+            .query_param("granularity", "hourly")
             .header("authorization", "Bearer token123");
         then.status(200)
             .header("content-type", "application/json")
@@ -808,7 +809,7 @@ async fn neon_usage() {
                 "code": 0,
                 "msg": "success",
                 "data": {
-                    "granularity": "hour",
+                    "granularity": "hourly",
                     "projects": []
                 }
             }));
@@ -819,12 +820,12 @@ async fn neon_usage() {
         .neon_usage(&NeonUsageOptions {
             from_iso: Some("2026-05-01T00:00:00Z".parse().unwrap()),
             to_iso: Some("2026-05-02T00:00:00Z".parse().unwrap()),
-            granularity: Some("hour".to_string()),
+            granularity: Some(Granularity::Hourly),
         })
         .await
         .unwrap();
 
-    assert_eq!(usage["granularity"], "hour");
+    assert_eq!(usage["granularity"], "hourly");
     mock.assert();
 }
 
@@ -870,7 +871,7 @@ async fn create_db_table() {
                 data_type: "INTEGER".to_string(),
                 is_nullable: Some(false),
                 default_expr: None,
-                identity: Some("by_default".to_string()),
+                identity: Some(ColumnIdentity::ByDefault),
             }],
             primary_key: Some(vec!["id".to_string()]),
             branch: Some("main".to_string()),
@@ -1251,10 +1252,10 @@ async fn execute_project_session() {
         .project("proj_123")
         .execute_session(&ExecuteSession {
             prompt: "Build a todo app".to_string(),
-            session_type: Some("new".to_string()),
+            session_type: Some(SessionType::New),
             session_id: None,
             model: Some("gpt-5.4".to_string()),
-            engine: Some("codex".to_string()),
+            engine: Some(Engine::Codex),
             system_prompt: None,
             project_path: None,
             auto_deploy: Some(false),
@@ -1304,7 +1305,7 @@ async fn project_history() {
             limit: Some(10),
             before_ts: Some("2026-05-02T00:00:00Z".parse().unwrap()),
             before_id: Some(99),
-            direction: Some("user".to_string()),
+            direction: Some(Direction::User),
             message_type: Some("prompt,result".to_string()),
             include_payload: Some(false),
         })
@@ -1474,10 +1475,10 @@ async fn execute_claude_session() {
         .projects()
         .execute_claude_session(&ExecuteSession {
             prompt: "Continue the task".to_string(),
-            session_type: Some("continue".to_string()),
+            session_type: Some(SessionType::Continue),
             session_id: Some("sess_123".to_string()),
             model: Some("claude-sonnet-4.6".to_string()),
-            engine: Some("claude".to_string()),
+            engine: Some(Engine::Claude),
             system_prompt: None,
             project_path: Some("/users/demo/projects/app".to_string()),
             auto_deploy: None,

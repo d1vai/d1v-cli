@@ -48,6 +48,23 @@ pub struct GenerateMeta {
 
 pub type Meta = serde_json::Value;
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RepositoryMode {
+    #[default]
+    Direct,
+    Forked,
+    Mirrored,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentEnvironment {
+    #[default]
+    Dev,
+    Prod,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Template {
@@ -103,7 +120,7 @@ pub struct ImportFromGithub {
     pub default_branch: Option<String>,
     pub is_private: Option<bool>,
     pub primary_language: Option<String>,
-    pub repository_mode: Option<String>,
+    pub repository_mode: Option<RepositoryMode>,
     pub source_repository_full_name: Option<String>,
     pub source_repository_url: Option<String>,
     pub platform_managed_repository: Option<bool>,
@@ -185,7 +202,7 @@ pub struct GitMigrationStatus {
     pub source_repository_full_name: Option<String>,
     pub source_repository_url: Option<String>,
     pub target_repository_full_name: Option<String>,
-    pub repository_mode: Option<String>,
+    pub repository_mode: Option<RepositoryMode>,
     pub platform_managed_repository: bool,
     pub has_direct_write_access: bool,
     pub can_migrate_to_platform: bool,
@@ -205,7 +222,7 @@ pub struct PublishResponse {
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DeploymentOptions {
-    pub environment: Option<String>,
+    pub environment: Option<DeploymentEnvironment>,
     pub limit: Option<u32>,
 }
 
@@ -214,7 +231,7 @@ pub struct DeploymentOptions {
 pub struct Deployment {
     pub id: i64,
     pub project_id: String,
-    pub environment: String,
+    pub environment: DeploymentEnvironment,
     pub status: String,
     pub vercel_deployment_id: Option<String>,
     pub vercel_deployment_url: Option<String>,
@@ -272,7 +289,7 @@ pub struct Project {
     pub project_pay_id: Option<String>,
     pub project_database_id: Option<String>,
     pub repository_platform: Option<String>,
-    pub repository_mode: Option<String>,
+    pub repository_mode: Option<RepositoryMode>,
     pub repository_full_name: Option<String>,
     pub repository_id: Option<String>,
     pub repository_owner: Option<String>,

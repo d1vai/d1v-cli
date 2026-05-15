@@ -12,3 +12,7 @@
 ## Datetime fields
 
 - Map API `datetime` fields to `jiff::Timestamp`, not `String`.
+
+## Constrained string fields
+
+- Use enums instead of `String` when a field has a fixed set of values.

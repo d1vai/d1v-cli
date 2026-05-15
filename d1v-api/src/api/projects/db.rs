@@ -4,6 +4,15 @@ use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Granularity {
+    #[default]
+    Daily,
+    Hourly,
+    Monthly,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DbSchemaOptions {
@@ -27,13 +36,21 @@ pub struct DbDataOptions {
 pub struct NeonUsageOptions {
     pub from_iso: Option<Timestamp>,
     pub to_iso: Option<Timestamp>,
-    pub granularity: Option<String>,
+    pub granularity: Option<Granularity>,
 }
 
 pub type DbSchema = serde_json::Value;
 pub type DbData = serde_json::Value;
 pub type DbBranch = serde_json::Value;
 pub type NeonUsage = serde_json::Value;
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnIdentity {
+    #[default]
+    ByDefault,
+    Always,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -42,7 +59,7 @@ pub struct DbColumn {
     pub data_type: String,
     pub is_nullable: Option<bool>,
     pub default_expr: Option<String>,
-    pub identity: Option<String>,
+    pub identity: Option<ColumnIdentity>,
 }
 
 #[skip_serializing_none]
