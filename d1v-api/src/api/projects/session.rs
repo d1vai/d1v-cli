@@ -1,10 +1,7 @@
-use std::fmt::{self, Display};
-use std::str::FromStr;
-
+use itertools::Itertools;
 use jiff::Timestamp;
-use serde::{Deserialize, Serialize};
-use serde_with::formats::CommaSeparator;
-use serde_with::{StringWithSeparator, serde_as, skip_serializing_none};
+use serde::{Deserialize, Serialize, Serializer};
+use serde_with::{SerializeAs, serde_as, skip_serializing_none};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -42,28 +39,6 @@ pub enum MessageType {
     Error,
 }
 
-impl Display for MessageType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for MessageType {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "prompt" => Ok(Self::Prompt),
-            "git_commit" => Ok(Self::GitCommit),
-            "result" => Ok(Self::Result),
-            "complete" => Ok(Self::Complete),
-            "cancelled" => Ok(Self::Cancelled),
-            "error" => Ok(Self::Error),
-            _ => Err(format!("unknown MessageType: {s}")),
-        }
-    }
-}
-
 impl MessageType {
     fn as_str(&self) -> &'static str {
         match self {
@@ -74,6 +49,18 @@ impl MessageType {
             Self::Cancelled => "cancelled",
             Self::Error => "error",
         }
+    }
+}
+
+struct CommaSeparated;
+
+impl SerializeAs<Vec<MessageType>> for CommaSeparated {
+    fn serialize_as<S: Serializer>(
+        source: &Vec<MessageType>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let s = source.iter().map(MessageType::as_str).join(",");
+        serializer.serialize_str(&s)
     }
 }
 
@@ -120,7 +107,7 @@ pub struct HistoryOptions {
     pub before_ts: Option<Timestamp>,
     pub before_id: Option<i64>,
     pub direction: Option<Direction>,
-    #[serde_as(as = "Option<StringWithSeparator::<CommaSeparator, MessageType>>")]
+    #[serde_as(as = "Option<CommaSeparated>")]
     pub message_type: Option<Vec<MessageType>>,
     pub include_payload: Option<bool>,
 }
