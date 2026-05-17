@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 use crate::{Client, Error};
 
 use super::db::ProjectsDb;
@@ -10,7 +12,7 @@ use super::session::{
 use super::storage::ProjectStorage;
 use super::types::{
     Database, Deployment, DeploymentOptions, GitMigrationStatus, Project, PublishResponse, Token,
-    TokenRequest, TransferProject, TransferResponse, UpdateProject,
+    TokenRequest, TransferResponse, UpdateProject,
 };
 
 pub struct ProjectApi {
@@ -108,10 +110,17 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn transfer(&self, payload: &TransferProject) -> Result<TransferResponse, Error> {
+    pub async fn transfer(&self, target_email: impl AsRef<str>) -> Result<TransferResponse, Error> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            target_email: &'a str,
+        }
+
         self.client
             .post(format!("/api/projects/{}/transfer", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                target_email: target_email.as_ref(),
+            })
             .ok()
             .await
     }

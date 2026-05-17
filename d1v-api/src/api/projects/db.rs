@@ -1,3 +1,4 @@
+use bon::Builder;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -15,8 +16,9 @@ pub enum Granularity {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct DbSchemaOptions {
+    #[builder(into)]
     pub branch: Option<String>,
     pub include_views: Option<bool>,
     pub with_row_counts: Option<bool>,
@@ -24,8 +26,9 @@ pub struct DbSchemaOptions {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct DbDataOptions {
+    #[builder(into)]
     pub branch: Option<String>,
     pub limit_per_table: Option<u32>,
     pub include_views: Option<bool>,
@@ -33,7 +36,7 @@ pub struct DbDataOptions {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct NeonUsageOptions {
     pub from_iso: Option<Timestamp>,
     pub to_iso: Option<Timestamp>,
@@ -92,22 +95,28 @@ pub enum ColumnIdentity {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct DbColumn {
+    #[builder(into)]
     pub name: String,
+    #[builder(into)]
     pub data_type: String,
     pub is_nullable: Option<bool>,
+    #[builder(into)]
     pub default_expr: Option<String>,
     pub identity: Option<ColumnIdentity>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct CreateDbTable {
+    #[builder(into)]
     pub schema_name: Option<String>,
+    #[builder(into)]
     pub table_name: String,
     pub columns: Vec<DbColumn>,
     pub primary_key: Option<Vec<String>>,
+    #[builder(into)]
     pub branch: Option<String>,
     pub create_schema_if_missing: Option<bool>,
 }
@@ -120,8 +129,9 @@ pub struct DropDbTableOptions {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct ListDbRowsOptions {
+    #[builder(into)]
     pub branch: Option<String>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
@@ -152,12 +162,15 @@ pub struct DeleteDbRows {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct ExecuteSql {
+    #[builder(into)]
     pub sql: String,
+    #[builder(into)]
     pub branch: Option<String>,
     pub dry_run: Option<bool>,
     pub read_only: Option<bool>,
+    #[builder(into)]
     pub approval_token: Option<String>,
     pub max_rows: Option<u32>,
 }

@@ -40,8 +40,8 @@ pub use types::{
     CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
     DeploymentEnvironment, DeploymentOptions, GenerateEmojisResponse, GenerateMeta,
     GitMigrationStatus, ImportFromGithub, ImportLocal, ImportPublic, LocalImportFile, Meta,
-    Project, PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferProject,
-    TransferResponse, UpdateProject,
+    Project, PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferResponse,
+    UpdateProject,
 };
 
 use serde::Serialize;

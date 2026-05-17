@@ -1,3 +1,4 @@
+use bon::Builder;
 use jiff::Timestamp;
 use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
@@ -7,9 +8,11 @@ use super::super::session::ProjectSession;
 use crate::multipart::FormExt;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct CreateProject {
+    #[builder(into)]
     pub project_name: String,
+    #[builder(into)]
     pub project_description: String,
     pub enable_pay: Option<bool>,
     pub enable_database: Option<bool>,
@@ -17,24 +20,39 @@ pub struct CreateProject {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct UpdateProject {
+    #[builder(into)]
     pub project_name: Option<String>,
+    #[builder(into)]
     pub project_description: Option<String>,
+    #[builder(into)]
     pub emoji: Option<String>,
     pub auto_deploy_on_execute: Option<bool>,
+    #[builder(into)]
     pub super_admin_email: Option<String>,
+    #[builder(into)]
     pub project_secret: Option<String>,
+    #[builder(into)]
     pub repository_platform: Option<String>,
+    #[builder(into)]
     pub repository_full_name: Option<String>,
+    #[builder(into)]
     pub repository_id: Option<String>,
+    #[builder(into)]
     pub repository_owner: Option<String>,
+    #[builder(into)]
     pub repository_name: Option<String>,
+    #[builder(into)]
     pub repository_clone_url: Option<String>,
+    #[builder(into)]
     pub repository_ssh_url: Option<String>,
+    #[builder(into)]
     pub repository_default_branch: Option<String>,
     pub repository_is_private: Option<bool>,
+    #[builder(into)]
     pub repository_description: Option<String>,
+    #[builder(into)]
     pub repository_language: Option<String>,
     pub repository_metadata: Option<serde_json::Value>,
 }
@@ -86,51 +104,75 @@ pub struct CreateProjectResponse {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct CreateProjectWithIntegrations {
+    #[builder(into)]
     pub prompt: String,
     pub max_desc_len: Option<u32>,
+    #[builder(into)]
     pub template_repo: Option<String>,
     pub auto_deploy_on_execute: Option<bool>,
     pub enable_pay: Option<bool>,
     pub enable_database: Option<bool>,
     pub enable_resend: Option<bool>,
+    #[builder(into)]
     pub repository_platform: Option<String>,
+    #[builder(into)]
     pub repository_full_name: Option<String>,
+    #[builder(into)]
     pub repository_id: Option<String>,
+    #[builder(into)]
     pub repository_owner: Option<String>,
+    #[builder(into)]
     pub repository_name: Option<String>,
+    #[builder(into)]
     pub repository_clone_url: Option<String>,
+    #[builder(into)]
     pub repository_ssh_url: Option<String>,
+    #[builder(into)]
     pub repository_default_branch: Option<String>,
     pub repository_is_private: Option<bool>,
+    #[builder(into)]
     pub repository_description: Option<String>,
+    #[builder(into)]
     pub repository_language: Option<String>,
     pub repository_metadata: Option<serde_json::Value>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct ImportFromGithub {
+    #[builder(into)]
     pub project_name: Option<String>,
+    #[builder(into)]
     pub project_description: Option<String>,
+    #[builder(into)]
     pub repository_full_name: String,
+    #[builder(into)]
     pub repository_url: Option<String>,
+    #[builder(into)]
     pub repository_ssh_url: Option<String>,
+    #[builder(into)]
     pub default_branch: Option<String>,
     pub is_private: Option<bool>,
+    #[builder(into)]
     pub primary_language: Option<String>,
     pub repository_mode: Option<RepositoryMode>,
+    #[builder(into)]
     pub source_repository_full_name: Option<String>,
+    #[builder(into)]
     pub source_repository_url: Option<String>,
     pub platform_managed_repository: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct ImportPublic {
+    #[builder(into)]
     pub source_url: String,
+    #[builder(into)]
     pub project_name: String,
+    #[builder(into)]
     pub project_description: Option<String>,
     pub private: Option<bool>,
 }
@@ -251,11 +293,6 @@ pub struct Deployment {
     pub error_message: Option<String>,
     pub created_at: Option<Timestamp>,
     pub updated_at: Option<Timestamp>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct TransferProject {
-    pub target_email: String,
 }
 
 #[skip_serializing_none]

@@ -1,3 +1,4 @@
+use bon::Builder;
 use itertools::Itertools;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize, Serializer};
@@ -65,14 +66,19 @@ impl SerializeAs<Vec<MessageType>> for CommaSeparated {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct ExecuteSession {
+    #[builder(into)]
     pub prompt: String,
     pub session_type: Option<SessionType>,
+    #[builder(into)]
     pub session_id: Option<String>,
+    #[builder(into)]
     pub model: Option<String>,
     pub engine: Option<Engine>,
+    #[builder(into)]
     pub system_prompt: Option<String>,
+    #[builder(into)]
     pub project_path: Option<String>,
     pub auto_deploy: Option<bool>,
 }
@@ -101,7 +107,7 @@ pub struct ExecuteSessionResponse {
 
 #[serde_as]
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct HistoryOptions {
     pub limit: Option<u32>,
     pub before_ts: Option<Timestamp>,

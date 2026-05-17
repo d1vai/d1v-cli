@@ -1,3 +1,4 @@
+use bon::Builder;
 use jiff::Timestamp;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
@@ -5,12 +6,16 @@ use serde_with::skip_serializing_none;
 use crate::{Client, Error};
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayProduct {
+    #[builder(into)]
     pub user_id: Option<String>,
+    #[builder(into)]
     pub name: Option<String>,
+    #[builder(into)]
     pub description: Option<String>,
+    #[builder(into)]
     pub category: Option<String>,
     pub active: Option<bool>,
     pub platform_fee_percentage: Option<f64>,
@@ -18,12 +23,16 @@ pub struct CreatePayProduct {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayPaymentLink {
+    #[builder(into)]
     pub product_id: String,
+    #[builder(into)]
     pub user_id: String,
+    #[builder(into)]
     pub success_url: String,
+    #[builder(into)]
     pub cancel_url: String,
     pub custom_fields: Option<serde_json::Value>,
 }
@@ -50,78 +59,101 @@ pub type PayToken = serde_json::Value;
 pub type DeletePayTokenResponse = serde_json::Value;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Builder)]
 pub struct PayPaginatedTransactionsOptions {
     pub page: u32,
     #[serde(rename = "pageSize")]
     pub page_size: u32,
     #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
     pub created_after: Option<Timestamp>,
+    #[builder(into)]
     pub status: Option<String>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayWebhook {
+    #[builder(into)]
     pub name: String,
+    #[builder(into)]
     pub url: String,
     pub events: Option<Vec<String>>,
     pub is_active: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePayWebhook {
+    #[builder(into)]
     pub name: Option<String>,
+    #[builder(into)]
     pub url: Option<String>,
     pub events: Option<Vec<String>>,
     pub is_active: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayBankAccount {
+    #[builder(into)]
     pub account_holder_name: String,
+    #[builder(into)]
     pub bank_name: String,
+    #[builder(into)]
     pub account_number: String,
+    #[builder(into)]
     pub routing_number: String,
+    #[builder(into)]
     pub account_type: String,
+    #[builder(into)]
     pub currency: String,
+    #[builder(into)]
     pub country: String,
     pub is_default: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePayBankAccount {
+    #[builder(into)]
     pub account_holder_name: Option<String>,
+    #[builder(into)]
     pub bank_name: Option<String>,
+    #[builder(into)]
     pub account_number: Option<String>,
+    #[builder(into)]
     pub routing_number: Option<String>,
+    #[builder(into)]
     pub account_type: Option<String>,
+    #[builder(into)]
     pub currency: Option<String>,
+    #[builder(into)]
     pub country: Option<String>,
     pub is_default: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayWithdrawal {
     pub amount: f64,
+    #[builder(into)]
     pub currency: String,
+    #[builder(into)]
     pub bank_account_id: String,
+    #[builder(into)]
     pub note: Option<String>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayToken {
+    #[builder(into)]
     pub name: String,
     pub permissions: Option<Vec<String>>,
     pub is_active: Option<bool>,

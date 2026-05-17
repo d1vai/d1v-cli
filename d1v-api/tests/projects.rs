@@ -7,8 +7,8 @@ use d1v_api::api::projects::{
     ExecuteSession, ExecuteSql, GenerateMeta, Granularity, HistoryOptions, ImportFromGithub,
     ImportLocal, ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, MessageType,
     NeonUsageOptions, PayPaginatedTransactionsOptions, SessionType, StorageStructureOptions,
-    TokenRequest, TransferProject, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount,
-    UpdatePayWebhook, UpdateProject, UploadAsset,
+    TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook,
+    UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -639,9 +639,7 @@ async fn transfer_project() {
     let response = authed_client(&server)
         .projects()
         .project("proj_123")
-        .transfer(&TransferProject {
-            target_email: "target@example.com".to_string(),
-        })
+        .transfer("target@example.com")
         .await
         .unwrap();
 
@@ -1254,16 +1252,15 @@ async fn execute_project_session() {
     let response = authed_client(&server)
         .projects()
         .project("proj_123")
-        .execute_session(&ExecuteSession {
-            prompt: "Build a todo app".to_string(),
-            session_type: Some(SessionType::New),
-            session_id: None,
-            model: Some("gpt-5.4".to_string()),
-            engine: Some(Engine::Codex),
-            system_prompt: None,
-            project_path: None,
-            auto_deploy: Some(false),
-        })
+        .execute_session(
+            &ExecuteSession::builder()
+                .prompt("Build a todo app")
+                .session_type(SessionType::New)
+                .model("gpt-5.4")
+                .engine(Engine::Codex)
+                .auto_deploy(false)
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -1305,14 +1302,16 @@ async fn project_history() {
     let history = authed_client(&server)
         .projects()
         .project("proj_123")
-        .history(&HistoryOptions {
-            limit: Some(10),
-            before_ts: Some("2026-05-02T00:00:00Z".parse().unwrap()),
-            before_id: Some(99),
-            direction: Some(Direction::User),
-            message_type: Some(vec![MessageType::Prompt, MessageType::Result]),
-            include_payload: Some(false),
-        })
+        .history(
+            &HistoryOptions::builder()
+                .limit(10)
+                .before_ts("2026-05-02T00:00:00Z".parse().unwrap())
+                .before_id(99)
+                .direction(Direction::User)
+                .message_type(vec![MessageType::Prompt, MessageType::Result])
+                .include_payload(false)
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -1477,16 +1476,16 @@ async fn execute_claude_session() {
 
     let response = authed_client(&server)
         .projects()
-        .execute_claude_session(&ExecuteSession {
-            prompt: "Continue the task".to_string(),
-            session_type: Some(SessionType::Continue),
-            session_id: Some("sess_123".to_string()),
-            model: Some("claude-sonnet-4.6".to_string()),
-            engine: Some(Engine::Claude),
-            system_prompt: None,
-            project_path: Some("/users/demo/projects/app".to_string()),
-            auto_deploy: None,
-        })
+        .execute_claude_session(
+            &ExecuteSession::builder()
+                .prompt("Continue the task")
+                .session_type(SessionType::Continue)
+                .session_id("sess_123")
+                .model("claude-sonnet-4.6")
+                .engine(Engine::Claude)
+                .project_path("/users/demo/projects/app")
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -1603,18 +1602,17 @@ async fn create_pay_product() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_product(&CreatePayProduct {
-            user_id: Some("pay_user_123".to_string()),
-            name: Some("Pro Plan".to_string()),
-            description: Some("Monthly plan".to_string()),
-            category: Some("subscription".to_string()),
-            active: Some(true),
-            platform_fee_percentage: Some(2.5),
-            price: Some(json!({
-                "amount": 9900,
-                "currency": "usd"
-            })),
-        })
+        .create_product(
+            &CreatePayProduct::builder()
+                .user_id("pay_user_123")
+                .name("Pro Plan")
+                .description("Monthly plan")
+                .category("subscription")
+                .active(true)
+                .platform_fee_percentage(2.5)
+                .price(json!({"amount": 9900, "currency": "usd"}))
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -1685,13 +1683,15 @@ async fn create_pay_payment_link() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_payment_link(&CreatePayPaymentLink {
-            product_id: "prod_123".to_string(),
-            user_id: "pay_user_123".to_string(),
-            success_url: "https://example.com/success".to_string(),
-            cancel_url: "https://example.com/cancel".to_string(),
-            custom_fields: Some(json!({ "source": "cli" })),
-        })
+        .create_payment_link(
+            &CreatePayPaymentLink::builder()
+                .product_id("prod_123")
+                .user_id("pay_user_123")
+                .success_url("https://example.com/success")
+                .cancel_url("https://example.com/cancel")
+                .custom_fields(json!({ "source": "cli" }))
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -1800,12 +1800,14 @@ async fn pay_transactions_paginated() {
         .projects()
         .project("proj_123")
         .pay()
-        .transactions_paginated(&PayPaginatedTransactionsOptions {
-            page: 2,
-            page_size: 25,
-            created_after: Some(Timestamp::from_second(1_700_000_000).unwrap()),
-            status: Some("pending".to_string()),
-        })
+        .transactions_paginated(
+            &PayPaginatedTransactionsOptions::builder()
+                .page(2)
+                .page_size(25)
+                .created_after(Timestamp::from_second(1_700_000_000).unwrap())
+                .status("pending")
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2005,12 +2007,14 @@ async fn create_pay_webhook() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_webhook(&CreatePayWebhook {
-            name: "payments".to_string(),
-            url: "https://example.com/webhook".to_string(),
-            events: Some(vec!["payment.succeeded".to_string()]),
-            is_active: Some(true),
-        })
+        .create_webhook(
+            &CreatePayWebhook::builder()
+                .name("payments")
+                .url("https://example.com/webhook")
+                .events(vec!["payment.succeeded".to_string()])
+                .is_active(true)
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2049,11 +2053,10 @@ async fn update_pay_webhook() {
         .pay()
         .update_webhook(
             "wh_123",
-            &UpdatePayWebhook {
-                name: Some("updated".to_string()),
-                is_active: Some(false),
-                ..UpdatePayWebhook::default()
-            },
+            &UpdatePayWebhook::builder()
+                .name("updated")
+                .is_active(false)
+                .build(),
         )
         .await
         .unwrap();
@@ -2181,16 +2184,18 @@ async fn create_pay_bank_account() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_bank_account(&CreatePayBankAccount {
-            account_holder_name: "D1V".to_string(),
-            bank_name: "Test Bank".to_string(),
-            account_number: "123456789".to_string(),
-            routing_number: "021000021".to_string(),
-            account_type: "checking".to_string(),
-            currency: "USD".to_string(),
-            country: "US".to_string(),
-            is_default: Some(true),
-        })
+        .create_bank_account(
+            &CreatePayBankAccount::builder()
+                .account_holder_name("D1V")
+                .bank_name("Test Bank")
+                .account_number("123456789")
+                .routing_number("021000021")
+                .account_type("checking")
+                .currency("USD")
+                .country("US")
+                .is_default(true)
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2253,11 +2258,10 @@ async fn update_pay_bank_account() {
         .pay()
         .update_bank_account(
             "bank_123",
-            &UpdatePayBankAccount {
-                bank_name: Some("Updated Bank".to_string()),
-                is_default: Some(false),
-                ..UpdatePayBankAccount::default()
-            },
+            &UpdatePayBankAccount::builder()
+                .bank_name("Updated Bank")
+                .is_default(false)
+                .build(),
         )
         .await
         .unwrap();
@@ -2377,12 +2381,14 @@ async fn create_pay_withdrawal_request() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal_request(&CreatePayWithdrawal {
-            amount: 100.5,
-            currency: "USD".to_string(),
-            bank_account_id: "bank_123".to_string(),
-            note: Some("monthly".to_string()),
-        })
+        .create_withdrawal_request(
+            &CreatePayWithdrawal::builder()
+                .amount(100.5)
+                .currency("USD")
+                .bank_account_id("bank_123")
+                .note("monthly")
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2444,12 +2450,13 @@ async fn create_pay_withdrawal_alias() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal(&CreatePayWithdrawal {
-            amount: 100.5,
-            currency: "USD".to_string(),
-            bank_account_id: "bank_123".to_string(),
-            note: None,
-        })
+        .create_withdrawal(
+            &CreatePayWithdrawal::builder()
+                .amount(100.5)
+                .currency("USD")
+                .bank_account_id("bank_123")
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2512,12 +2519,14 @@ async fn create_pay_token() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_token(&CreatePayToken {
-            name: "cli".to_string(),
-            permissions: Some(vec!["products:read".to_string()]),
-            is_active: Some(true),
-            expires_at: Some("2026-05-01T00:00:00Z".parse().unwrap()),
-        })
+        .create_token(
+            &CreatePayToken::builder()
+                .name("cli")
+                .permissions(vec!["products:read".to_string()])
+                .is_active(true)
+                .expires_at("2026-05-01T00:00:00Z".parse().unwrap())
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2614,12 +2623,14 @@ async fn create_project_env_var() {
         .projects()
         .project("proj_123")
         .env()
-        .create_var(&CreateEnvVar {
-            key: "API_KEY".to_string(),
-            value: "sk-secret".to_string(),
-            description: Some("API key".to_string()),
-            is_sensitive: Some(true),
-        })
+        .create_var(
+            &CreateEnvVar::builder()
+                .key("API_KEY")
+                .value("sk-secret")
+                .description("API key")
+                .is_sensitive(true)
+                .build(),
+        )
         .await
         .unwrap();
 
@@ -2650,11 +2661,10 @@ async fn update_project_env_var() {
         .env()
         .update_var(
             1,
-            &UpdateEnvVar {
-                value: Some("sk-updated".to_string()),
-                description: None,
-                is_sensitive: Some(false),
-            },
+            &UpdateEnvVar::builder()
+                .value("sk-updated")
+                .is_sensitive(false)
+                .build(),
         )
         .await
         .unwrap();

@@ -1,3 +1,4 @@
+use bon::Builder;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -18,18 +19,23 @@ pub struct EnvVar {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct CreateEnvVar {
+    #[builder(into)]
     pub key: String,
+    #[builder(into)]
     pub value: String,
+    #[builder(into)]
     pub description: Option<String>,
     pub is_sensitive: Option<bool>,
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, Builder)]
 pub struct UpdateEnvVar {
+    #[builder(into)]
     pub value: Option<String>,
+    #[builder(into)]
     pub description: Option<String>,
     pub is_sensitive: Option<bool>,
 }
