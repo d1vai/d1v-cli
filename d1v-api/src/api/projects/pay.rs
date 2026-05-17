@@ -55,7 +55,8 @@ pub struct PayPaginatedTransactionsOptions {
     pub page: u32,
     #[serde(rename = "pageSize")]
     pub page_size: u32,
-    pub created_after: Option<i64>,
+    #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
+    pub created_after: Option<Timestamp>,
     pub status: Option<String>,
 }
 
@@ -216,13 +217,14 @@ impl ProjectPay {
 
     pub async fn transactions(
         &self,
-        created_after: Option<i64>,
+        created_after: Option<Timestamp>,
         status: Option<&str>,
     ) -> Result<PayTransactions, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
         struct Query<'a> {
-            created_after: Option<i64>,
+            #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
+            created_after: Option<Timestamp>,
             status: Option<&'a str>,
         }
 
@@ -255,13 +257,14 @@ impl ProjectPay {
 
     pub async fn transaction_stats(
         &self,
-        created_after: Option<i64>,
+        created_after: Option<Timestamp>,
         status: Option<&str>,
     ) -> Result<PayTransactionStats, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
         struct Query<'a> {
-            created_after: Option<i64>,
+            #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
+            created_after: Option<Timestamp>,
             status: Option<&'a str>,
         }
 
@@ -278,14 +281,11 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn dashboard_metrics(
-        &self,
-        days: Option<&str>,
-    ) -> Result<PayDashboardMetrics, Error> {
+    pub async fn dashboard_metrics(&self, days: Option<u32>) -> Result<PayDashboardMetrics, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
-        struct Query<'a> {
-            days: Option<&'a str>,
+        struct Query {
+            days: Option<u32>,
         }
 
         self.client
@@ -298,11 +298,11 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn revenue(&self, days: Option<&str>) -> Result<PayRevenue, Error> {
+    pub async fn revenue(&self, days: Option<u32>) -> Result<PayRevenue, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
-        struct Query<'a> {
-            days: Option<&'a str>,
+        struct Query {
+            days: Option<u32>,
         }
 
         self.client
@@ -312,11 +312,11 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn dashboard_revenue(&self, days: Option<&str>) -> Result<PayRevenue, Error> {
+    pub async fn dashboard_revenue(&self, days: Option<u32>) -> Result<PayRevenue, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
-        struct Query<'a> {
-            days: Option<&'a str>,
+        struct Query {
+            days: Option<u32>,
         }
 
         self.client

@@ -11,6 +11,7 @@ use d1v_api::api::projects::{
     UpdatePayWebhook, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
+use jiff::Timestamp;
 use serde_json::json;
 
 fn authed_client(server: &MockServer) -> Client {
@@ -1760,7 +1761,10 @@ async fn pay_transactions() {
         .projects()
         .project("proj_123")
         .pay()
-        .transactions(Some(1_700_000_000), Some("succeeded"))
+        .transactions(
+            Some(Timestamp::from_second(1_700_000_000).unwrap()),
+            Some("succeeded"),
+        )
         .await
         .unwrap();
 
@@ -1799,7 +1803,7 @@ async fn pay_transactions_paginated() {
         .transactions_paginated(&PayPaginatedTransactionsOptions {
             page: 2,
             page_size: 25,
-            created_after: Some(1_700_000_000),
+            created_after: Some(Timestamp::from_second(1_700_000_000).unwrap()),
             status: Some("pending".to_string()),
         })
         .await
@@ -1834,7 +1838,10 @@ async fn pay_transaction_stats() {
         .projects()
         .project("proj_123")
         .pay()
-        .transaction_stats(Some(1_700_000_000), Some("succeeded"))
+        .transaction_stats(
+            Some(Timestamp::from_second(1_700_000_000).unwrap()),
+            Some("succeeded"),
+        )
         .await
         .unwrap();
 
@@ -1865,7 +1872,7 @@ async fn pay_dashboard_metrics() {
         .projects()
         .project("proj_123")
         .pay()
-        .dashboard_metrics(Some("30"))
+        .dashboard_metrics(Some(30))
         .await
         .unwrap();
 
@@ -1896,7 +1903,7 @@ async fn pay_revenue() {
         .projects()
         .project("proj_123")
         .pay()
-        .revenue(Some("7"))
+        .revenue(Some(7))
         .await
         .unwrap();
 
@@ -1927,7 +1934,7 @@ async fn pay_dashboard_revenue() {
         .projects()
         .project("proj_123")
         .pay()
-        .dashboard_revenue(Some("7"))
+        .dashboard_revenue(Some(7))
         .await
         .unwrap();
 
