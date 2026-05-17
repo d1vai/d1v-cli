@@ -1,15 +1,14 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreateDbTable, CreateEnvVar, CreatePayBankAccount,
-    CreatePayPaymentIntent, CreatePayPaymentLink, CreatePayProduct, CreatePayToken,
-    CreatePayWebhook, CreatePayWithdrawal, CreateProject, CreateProjectWithIntegrations, DbColumn,
-    DbDataOptions, DbSchemaOptions, DeleteDbRows, DeploymentEnvironment, DeploymentOptions,
-    Direction, DropDbTableOptions, Engine, EnvVarsOptions, ExecuteSession, ExecuteSql,
-    GenerateMeta, Granularity, HistoryOptions, ImportEnvVars, ImportFromGithub, ImportLocal,
-    ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, MessageType, NeonUsageOptions,
-    PayAnalyticsOptions, PayPaginatedTransactionsOptions, PayProductPaymentLinkOptions,
-    PayTransactionsOptions, SessionType, StorageStructureOptions, TokenRequest, TransferProject,
-    UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook, UpdateProject, UploadAsset,
+    CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook, CreatePayWithdrawal,
+    CreateProject, CreateProjectWithIntegrations, DbColumn, DbDataOptions, DbSchemaOptions,
+    DeleteDbRows, DeploymentEnvironment, DeploymentOptions, Direction, DropDbTableOptions, Engine,
+    ExecuteSession, ExecuteSql, GenerateMeta, Granularity, HistoryOptions, ImportFromGithub,
+    ImportLocal, ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, MessageType,
+    NeonUsageOptions, PayPaginatedTransactionsOptions, SessionType, StorageStructureOptions,
+    TokenRequest, TransferProject, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount,
+    UpdatePayWebhook, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use serde_json::json;
@@ -1645,12 +1644,7 @@ async fn pay_product_payment_link() {
         .projects()
         .project("proj_123")
         .pay()
-        .product_payment_link(
-            "prod_123",
-            &PayProductPaymentLinkOptions {
-                prefilled_email: Some("buyer@example.com".to_string()),
-            },
-        )
+        .product_payment_link("prod_123", Some("buyer@example.com"))
         .await
         .unwrap();
 
@@ -1731,10 +1725,7 @@ async fn create_pay_payment_intent() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_payment_intent(&CreatePayPaymentIntent {
-            price_id: "price_123".to_string(),
-            customer_email: Some("buyer@example.com".to_string()),
-        })
+        .create_payment_intent("price_123", Some("buyer@example.com"))
         .await
         .unwrap();
 
@@ -1769,10 +1760,7 @@ async fn pay_transactions() {
         .projects()
         .project("proj_123")
         .pay()
-        .transactions(&PayTransactionsOptions {
-            created_after: Some(1_700_000_000),
-            status: Some("succeeded".to_string()),
-        })
+        .transactions(Some(1_700_000_000), Some("succeeded"))
         .await
         .unwrap();
 
@@ -1846,10 +1834,7 @@ async fn pay_transaction_stats() {
         .projects()
         .project("proj_123")
         .pay()
-        .transaction_stats(&PayTransactionsOptions {
-            created_after: Some(1_700_000_000),
-            status: Some("succeeded".to_string()),
-        })
+        .transaction_stats(Some(1_700_000_000), Some("succeeded"))
         .await
         .unwrap();
 
@@ -1880,9 +1865,7 @@ async fn pay_dashboard_metrics() {
         .projects()
         .project("proj_123")
         .pay()
-        .dashboard_metrics(&PayAnalyticsOptions {
-            days: Some("30".to_string()),
-        })
+        .dashboard_metrics(Some("30"))
         .await
         .unwrap();
 
@@ -1913,9 +1896,7 @@ async fn pay_revenue() {
         .projects()
         .project("proj_123")
         .pay()
-        .revenue(&PayAnalyticsOptions {
-            days: Some("7".to_string()),
-        })
+        .revenue(Some("7"))
         .await
         .unwrap();
 
@@ -1946,9 +1927,7 @@ async fn pay_dashboard_revenue() {
         .projects()
         .project("proj_123")
         .pay()
-        .dashboard_revenue(&PayAnalyticsOptions {
-            days: Some("7".to_string()),
-        })
+        .dashboard_revenue(Some("7"))
         .await
         .unwrap();
 
@@ -2597,9 +2576,7 @@ async fn project_env_vars() {
         .projects()
         .project("proj_123")
         .env()
-        .vars(&EnvVarsOptions {
-            show_values: Some(true),
-        })
+        .vars(true)
         .await
         .unwrap();
 
@@ -2703,7 +2680,7 @@ async fn delete_project_env_var() {
         .await
         .unwrap();
 
-    assert_eq!(response.message, "Environment variable 'API_KEY' deleted");
+    assert_eq!(response, "Environment variable 'API_KEY' deleted");
     mock.assert();
 }
 
@@ -2732,10 +2709,7 @@ async fn import_project_env_vars() {
         .projects()
         .project("proj_123")
         .env()
-        .import_vars(&ImportEnvVars {
-            env_content: "API_KEY=sk-secret".to_string(),
-            overwrite: true,
-        })
+        .import_vars("API_KEY=sk-secret", true)
         .await
         .unwrap();
 

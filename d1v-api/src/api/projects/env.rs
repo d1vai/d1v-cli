@@ -5,12 +5,6 @@ use serde_with::skip_serializing_none;
 use crate::{Client, Error};
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct EnvVarsOptions {
-    pub show_values: Option<bool>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EnvVar {
     pub id: i64,
@@ -38,17 +32,6 @@ pub struct UpdateEnvVar {
     pub value: Option<String>,
     pub description: Option<String>,
     pub is_sensitive: Option<bool>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ImportEnvVars {
-    pub env_content: String,
-    pub overwrite: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeleteEnvVarResponse {
-    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,10 +70,15 @@ impl ProjectEnv {
         Self { client, project_id }
     }
 
-    pub async fn vars(&self, options: &EnvVarsOptions) -> Result<Vec<EnvVar>, Error> {
+    pub async fn vars(&self, show_values: bool) -> Result<Vec<EnvVar>, Error> {
+        #[derive(Serialize)]
+        struct Query {
+            show_values: bool,
+        }
+
         self.client
             .get(format!("/api/projects/{}/env-vars", self.project_id))
-            .query(options)
+            .query(&Query { show_values })
             .ok()
             .await
     }
@@ -118,26 +106,43 @@ impl ProjectEnv {
             .await
     }
 
-    pub async fn delete_var(&self, env_var_id: i64) -> Result<DeleteEnvVarResponse, Error> {
+    /// Deletes an environment variable. Returns the server message.
+    pub async fn delete_var(&self, env_var_id: i64) -> Result<String, Error> {
+        #[derive(Deserialize)]
+        struct MsgResult {
+            message: String,
+        }
+
         self.client
             .delete(format!(
                 "/api/projects/{}/env-vars/{}",
                 self.project_id, env_var_id
             ))
-            .ok()
+            .ok::<MsgResult>()
             .await
+            .map(|r| r.message)
     }
 
     pub async fn import_vars(
         &self,
-        payload: &ImportEnvVars,
+        env_content: impl AsRef<str>,
+        overwrite: bool,
     ) -> Result<ImportEnvVarsResponse, Error> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            env_content: &'a str,
+            overwrite: bool,
+        }
+
         self.client
             .post(format!(
                 "/api/projects/{}/env-vars/batch-import",
                 self.project_id
             ))
-            .json(payload)
+            .json(&Payload {
+                env_content: env_content.as_ref(),
+                overwrite,
+            })
             .ok()
             .await
     }

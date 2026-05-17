@@ -19,12 +19,6 @@ pub struct CreatePayProduct {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
-pub struct PayProductPaymentLinkOptions {
-    pub prefilled_email: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayPaymentLink {
     pub product_id: String,
@@ -32,14 +26,6 @@ pub struct CreatePayPaymentLink {
     pub success_url: String,
     pub cancel_url: String,
     pub custom_fields: Option<serde_json::Value>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayPaymentIntent {
-    pub price_id: String,
-    pub customer_email: Option<String>,
 }
 
 pub type PayProducts = serde_json::Value;
@@ -64,13 +50,6 @@ pub type PayToken = serde_json::Value;
 pub type DeletePayTokenResponse = serde_json::Value;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct PayTransactionsOptions {
-    pub created_after: Option<i64>,
-    pub status: Option<String>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize)]
 pub struct PayPaginatedTransactionsOptions {
     pub page: u32,
@@ -78,12 +57,6 @@ pub struct PayPaginatedTransactionsOptions {
     pub page_size: u32,
     pub created_after: Option<i64>,
     pub status: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct PayAnalyticsOptions {
-    pub days: Option<String>,
 }
 
 #[skip_serializing_none]
@@ -182,15 +155,21 @@ impl ProjectPay {
     pub async fn product_payment_link(
         &self,
         product_id: impl AsRef<str>,
-        options: &PayProductPaymentLinkOptions,
+        prefilled_email: Option<&str>,
     ) -> Result<PayPaymentLink, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            prefilled_email: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/products/{}/payment-link",
                 self.project_id,
                 product_id.as_ref()
             ))
-            .query(options)
+            .query(&Query { prefilled_email })
             .ok()
             .await
     }
@@ -211,28 +190,51 @@ impl ProjectPay {
 
     pub async fn create_payment_intent(
         &self,
-        payload: &CreatePayPaymentIntent,
+        price_id: impl AsRef<str>,
+        customer_email: Option<&str>,
     ) -> Result<PayPaymentIntent, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            price_id: &'a str,
+            customer_email: Option<&'a str>,
+        }
+
         self.client
             .post(format!(
                 "/api/projects/{}/pay/create-payment-intent",
                 self.project_id
             ))
-            .json(payload)
+            .json(&Payload {
+                price_id: price_id.as_ref(),
+                customer_email,
+            })
             .ok()
             .await
     }
 
     pub async fn transactions(
         &self,
-        options: &PayTransactionsOptions,
+        created_after: Option<i64>,
+        status: Option<&str>,
     ) -> Result<PayTransactions, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            created_after: Option<i64>,
+            status: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/transactions",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query {
+                created_after,
+                status,
+            })
             .ok()
             .await
     }
@@ -253,50 +255,76 @@ impl ProjectPay {
 
     pub async fn transaction_stats(
         &self,
-        options: &PayTransactionsOptions,
+        created_after: Option<i64>,
+        status: Option<&str>,
     ) -> Result<PayTransactionStats, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            created_after: Option<i64>,
+            status: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/transactions/stats",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query {
+                created_after,
+                status,
+            })
             .ok()
             .await
     }
 
     pub async fn dashboard_metrics(
         &self,
-        options: &PayAnalyticsOptions,
+        days: Option<&str>,
     ) -> Result<PayDashboardMetrics, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            days: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/dashboard/metrics",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query { days })
             .ok()
             .await
     }
 
-    pub async fn revenue(&self, options: &PayAnalyticsOptions) -> Result<PayRevenue, Error> {
+    pub async fn revenue(&self, days: Option<&str>) -> Result<PayRevenue, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            days: Option<&'a str>,
+        }
+
         self.client
             .get(format!("/api/projects/{}/pay/revenue", self.project_id))
-            .query(options)
+            .query(&Query { days })
             .ok()
             .await
     }
 
-    pub async fn dashboard_revenue(
-        &self,
-        options: &PayAnalyticsOptions,
-    ) -> Result<PayRevenue, Error> {
+    pub async fn dashboard_revenue(&self, days: Option<&str>) -> Result<PayRevenue, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            days: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/dashboard/revenue",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query { days })
             .ok()
             .await
     }
