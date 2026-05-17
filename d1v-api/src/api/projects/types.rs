@@ -238,13 +238,6 @@ pub struct PublishResponse {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct DeploymentOptions {
-    pub environment: Option<DeploymentEnvironment>,
-    pub limit: Option<u32>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Deployment {
     pub id: i64,

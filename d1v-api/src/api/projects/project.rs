@@ -1,4 +1,8 @@
+use bon::bon;
+use jiff::Timestamp;
 use serde::Serialize;
+use serde_with::serde_as;
+use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
@@ -7,12 +11,13 @@ use super::env::ProjectEnv;
 use super::integrations::ProjectIntegrations;
 use super::pay::ProjectPay;
 use super::session::{
-    ChatHistory, ExecuteSession, ExecuteSessionResponse, HistoryOptions, RuntimeSession,
+    ChatHistory, CommaSeparated, Direction, ExecuteSession, ExecuteSessionResponse, MessageType,
+    RuntimeSession,
 };
 use super::storage::ProjectStorage;
 use super::types::{
-    Database, Deployment, DeploymentOptions, GitMigrationStatus, Project, PublishResponse, Token,
-    TokenRequest, TransferResponse, UpdateProject,
+    Database, Deployment, DeploymentEnvironment, GitMigrationStatus, Project, PublishResponse,
+    Token, TokenRequest, TransferResponse, UpdateProject,
 };
 
 pub struct ProjectApi {
@@ -20,6 +25,7 @@ pub struct ProjectApi {
     project_id: String,
 }
 
+#[bon]
 impl ProjectApi {
     pub fn new(client: Client, project_id: String) -> Self {
         Self { client, project_id }
@@ -102,10 +108,22 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn deployments(&self, options: &DeploymentOptions) -> Result<Vec<Deployment>, Error> {
+    #[builder]
+    pub async fn deployments(
+        &self,
+        environment: Option<DeploymentEnvironment>,
+        limit: Option<u32>,
+    ) -> Result<Vec<Deployment>, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query {
+            environment: Option<DeploymentEnvironment>,
+            limit: Option<u32>,
+        }
+
         self.client
             .get(format!("/api/projects/{}/deployments", self.project_id))
-            .query(options)
+            .query(&Query { environment, limit })
             .ok()
             .await
     }
@@ -161,10 +179,39 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn history(&self, options: &HistoryOptions) -> Result<Vec<ChatHistory>, Error> {
+    #[builder]
+    pub async fn history(
+        &self,
+        limit: Option<u32>,
+        before_ts: Option<Timestamp>,
+        before_id: Option<i64>,
+        direction: Option<Direction>,
+        message_type: Option<Vec<MessageType>>,
+        include_payload: Option<bool>,
+    ) -> Result<Vec<ChatHistory>, Error> {
+        #[serde_as]
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query {
+            limit: Option<u32>,
+            before_ts: Option<Timestamp>,
+            before_id: Option<i64>,
+            direction: Option<Direction>,
+            #[serde_as(as = "Option<CommaSeparated>")]
+            message_type: Option<Vec<MessageType>>,
+            include_payload: Option<bool>,
+        }
+
         self.client
             .get(format!("/api/projects/{}/history", self.project_id))
-            .query(options)
+            .query(&Query {
+                limit,
+                before_ts,
+                before_id,
+                direction,
+                message_type,
+                include_payload,
+            })
             .ok()
             .await
     }

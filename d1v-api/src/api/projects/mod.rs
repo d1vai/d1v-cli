@@ -9,8 +9,8 @@ mod types;
 
 pub use db::{
     ColumnIdentity, ColumnSchema, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow, DeleteDbRows,
-    DropDbTableOptions, ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, NeonUsage,
-    ProjectsDb, TableSchema, UpdateDbRows,
+    ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, NeonUsage, ProjectsDb,
+    TableSchema, UpdateDbRows,
 };
 pub use env::{
     EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv, SyncEnvVarsResponse,
@@ -20,26 +20,21 @@ pub use integrations::{IntegrationResponse, ProjectIntegrations};
 pub use pay::{
     CreatePayBankAccount, DeletePayBankAccountResponse, DeletePayTokenResponse,
     DeletePayWebhookResponse, PayBankAccount, PayBankAccounts, PayDashboardMetrics,
-    PayPaginatedTransactionsOptions, PayPaymentIntent, PayPaymentLink, PayProduct, PayProducts,
-    PayRevenue, PayToken, PayTokens, PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks,
-    PayWithdrawal, PayWithdrawals, ProjectPay, RegeneratePayWebhookSecretResponse,
-    UpdatePayBankAccount,
+    PayPaymentIntent, PayPaymentLink, PayProduct, PayProducts, PayRevenue, PayToken, PayTokens,
+    PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks, PayWithdrawal, PayWithdrawals,
+    ProjectPay, RegeneratePayWebhookSecretResponse, UpdatePayBankAccount,
 };
 pub use project::ProjectApi;
 pub use session::{
     CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSession,
-    ExecuteSessionResponse, HistoryOptions, MessageType, RuntimeSession, SessionType,
+    ExecuteSessionResponse, MessageType, RuntimeSession, SessionType,
 };
-pub use storage::{
-    Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, StorageStructureOptions,
-    UploadAsset,
-};
+pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{
     CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
-    DeploymentEnvironment, DeploymentOptions, GenerateEmojisResponse, GenerateMeta,
-    GitMigrationStatus, ImportFromGithub, ImportLocal, LocalImportFile, Meta, Project,
-    PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferResponse,
-    UpdateProject,
+    DeploymentEnvironment, GenerateEmojisResponse, GenerateMeta, GitMigrationStatus,
+    ImportFromGithub, ImportLocal, LocalImportFile, Meta, Project, PublishResponse, RepositoryMode,
+    Template, Token, TokenRequest, TransferResponse, UpdateProject,
 };
 
 use bon::bon;

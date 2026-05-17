@@ -79,13 +79,6 @@ pub struct DbColumn {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct DropDbTableOptions {
-    pub branch: Option<String>,
-    pub cascade: Option<bool>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InsertDbRow {
     pub values: serde_json::Map<String, serde_json::Value>,
@@ -232,12 +225,21 @@ impl ProjectsDb {
     }
 
     /// Drops a table. Returns the server message.
+    #[builder]
     pub async fn drop_table(
         &self,
-        schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
-        options: &DropDbTableOptions,
+        #[builder(start_fn)] schema_name: &str,
+        #[builder(start_fn)] table_name: &str,
+        branch: Option<&str>,
+        cascade: Option<bool>,
     ) -> Result<String, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            branch: Option<&'a str>,
+            cascade: Option<bool>,
+        }
+
         #[derive(Deserialize)]
         struct MsgResult {
             message: String,
@@ -250,7 +252,7 @@ impl ProjectsDb {
                 encode_segment(schema_name),
                 encode_segment(table_name)
             ))
-            .query(options)
+            .query(&Query { branch, cascade })
             .ok::<MsgResult>()
             .await
             .map(|r| r.message)

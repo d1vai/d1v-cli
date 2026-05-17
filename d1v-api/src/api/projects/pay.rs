@@ -27,18 +27,6 @@ pub type PayToken = serde_json::Value;
 pub type DeletePayTokenResponse = serde_json::Value;
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Builder)]
-pub struct PayPaginatedTransactionsOptions {
-    pub page: u32,
-    #[serde(rename = "pageSize")]
-    pub page_size: u32,
-    #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
-    pub created_after: Option<Timestamp>,
-    #[builder(into)]
-    pub status: Option<String>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Builder)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePayBankAccount {
@@ -256,16 +244,36 @@ impl ProjectPay {
             .await
     }
 
+    #[builder]
     pub async fn transactions_paginated(
         &self,
-        options: &PayPaginatedTransactionsOptions,
+        #[builder(start_fn)] page: u32,
+        #[builder(start_fn)] page_size: u32,
+        created_after: Option<Timestamp>,
+        status: Option<&str>,
     ) -> Result<PayTransactions, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            page: u32,
+            #[serde(rename = "pageSize")]
+            page_size: u32,
+            #[serde(with = "jiff::fmt::serde::timestamp::second::optional")]
+            created_after: Option<Timestamp>,
+            status: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/pay/transactions/paginated",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query {
+                page,
+                page_size,
+                created_after,
+                status,
+            })
             .ok()
             .await
     }

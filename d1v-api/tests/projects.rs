@@ -1,11 +1,10 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
-    DeleteDbRows, DeploymentEnvironment, DeploymentOptions, Direction, DropDbTableOptions, Engine,
-    ExecuteSession, GenerateMeta, Granularity, HistoryOptions, ImportFromGithub, ImportLocal,
-    InsertDbRow, LocalImportFile, MessageType, PayPaginatedTransactionsOptions, SessionType,
-    StorageStructureOptions, TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount,
-    UpdateProject, UploadAsset,
+    DeleteDbRows, DeploymentEnvironment, Direction, Engine, ExecuteSession, GenerateMeta,
+    Granularity, ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType,
+    SessionType, TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject,
+    UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -598,10 +597,10 @@ async fn project_deployments() {
     let deployments = authed_client(&server)
         .projects()
         .project("proj_123")
-        .deployments(&DeploymentOptions {
-            environment: Some(DeploymentEnvironment::Prod),
-            limit: Some(10),
-        })
+        .deployments()
+        .environment(DeploymentEnvironment::Prod)
+        .limit(10)
+        .call()
         .await
         .unwrap();
 
@@ -898,14 +897,10 @@ async fn drop_db_table() {
         .projects()
         .project("proj_123")
         .db()
-        .drop_table(
-            "public",
-            "users",
-            &DropDbTableOptions {
-                branch: Some("main".to_string()),
-                cascade: Some(true),
-            },
-        )
+        .drop_table("public", "users")
+        .branch("main")
+        .cascade(true)
+        .call()
         .await
         .unwrap();
 
@@ -1286,16 +1281,14 @@ async fn project_history() {
     let history = authed_client(&server)
         .projects()
         .project("proj_123")
-        .history(
-            &HistoryOptions::builder()
-                .limit(10)
-                .before_ts("2026-05-02T00:00:00Z".parse().unwrap())
-                .before_id(99)
-                .direction(Direction::User)
-                .message_type(vec![MessageType::Prompt, MessageType::Result])
-                .include_payload(false)
-                .build(),
-        )
+        .history()
+        .limit(10)
+        .before_ts("2026-05-02T00:00:00Z".parse().unwrap())
+        .before_id(99)
+        .direction(Direction::User)
+        .message_type(vec![MessageType::Prompt, MessageType::Result])
+        .include_payload(false)
+        .call()
         .await
         .unwrap();
 
@@ -1778,14 +1771,10 @@ async fn pay_transactions_paginated() {
         .projects()
         .project("proj_123")
         .pay()
-        .transactions_paginated(
-            &PayPaginatedTransactionsOptions::builder()
-                .page(2)
-                .page_size(25)
-                .created_after(Timestamp::from_second(1_700_000_000).unwrap())
-                .status("pending")
-                .build(),
-        )
+        .transactions_paginated(2, 25)
+        .created_after(Timestamp::from_second(1_700_000_000).unwrap())
+        .status("pending")
+        .call()
         .await
         .unwrap();
 
@@ -2889,10 +2878,10 @@ async fn project_storage_structure() {
         .projects()
         .project("proj_123")
         .storage()
-        .structure(&StorageStructureOptions {
-            sub_path: Some("src".to_string()),
-            ext: Some("tsx".to_string()),
-        })
+        .structure()
+        .sub_path("src")
+        .ext("tsx")
+        .call()
         .await
         .unwrap();
 

@@ -2,7 +2,7 @@ use bon::Builder;
 use itertools::Itertools;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize, Serializer};
-use serde_with::{SerializeAs, serde_as, skip_serializing_none};
+use serde_with::{SerializeAs, skip_serializing_none};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -53,7 +53,7 @@ impl MessageType {
     }
 }
 
-struct CommaSeparated;
+pub(crate) struct CommaSeparated;
 
 impl SerializeAs<Vec<MessageType>> for CommaSeparated {
     fn serialize_as<S: Serializer>(
@@ -103,19 +103,6 @@ pub struct ExecuteSessionResponse {
     pub session_id: String,
     pub websocket_url: String,
     pub session: RuntimeSession,
-}
-
-#[serde_as]
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct HistoryOptions {
-    pub limit: Option<u32>,
-    pub before_ts: Option<Timestamp>,
-    pub before_id: Option<i64>,
-    pub direction: Option<Direction>,
-    #[serde_as(as = "Option<CommaSeparated>")]
-    pub message_type: Option<Vec<MessageType>>,
-    pub include_payload: Option<bool>,
 }
 
 #[skip_serializing_none]

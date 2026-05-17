@@ -1,16 +1,10 @@
+use bon::bon;
 use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::encode::encode_path;
 use crate::{Client, Error};
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct StorageStructureOptions {
-    pub sub_path: Option<String>,
-    pub ext: Option<String>,
-}
 
 #[derive(Debug, Clone)]
 pub struct AssetFile {
@@ -61,21 +55,31 @@ pub struct ProjectStorage {
     project_id: String,
 }
 
+#[bon]
 impl ProjectStorage {
     pub fn new(client: Client, project_id: String) -> Self {
         Self { client, project_id }
     }
 
+    #[builder]
     pub async fn structure(
         &self,
-        options: &StorageStructureOptions,
+        sub_path: Option<&str>,
+        ext: Option<&str>,
     ) -> Result<StorageStructure, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            sub_path: Option<&'a str>,
+            ext: Option<&'a str>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/storage/{}/structure",
                 self.project_id
             ))
-            .query(options)
+            .query(&Query { sub_path, ext })
             .ok()
             .await
     }
