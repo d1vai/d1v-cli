@@ -80,6 +80,16 @@ pub struct UpdatePayBankAccount {
     pub is_default: Option<bool>,
 }
 
+#[skip_serializing_none]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WithdrawalPayload<'a> {
+    amount: f64,
+    currency: &'a str,
+    bank_account_id: &'a str,
+    note: Option<&'a str>,
+}
+
 pub struct ProjectPay {
     client: Client,
     project_id: String,
@@ -159,13 +169,12 @@ impl ProjectPay {
             .await
     }
 
-    #[builder]
     pub async fn create_payment_link(
         &self,
-        #[builder(start_fn)] product_id: &str,
-        #[builder(start_fn)] user_id: &str,
-        #[builder(start_fn)] success_url: &str,
-        #[builder(start_fn)] cancel_url: &str,
+        product_id: &str,
+        user_id: &str,
+        success_url: &str,
+        cancel_url: &str,
         custom_fields: Option<&serde_json::Value>,
     ) -> Result<PayPaymentLink, Error> {
         #[skip_serializing_none]
@@ -523,30 +532,19 @@ impl ProjectPay {
             .await
     }
 
-    #[builder]
     pub async fn create_withdrawal_request(
         &self,
-        #[builder(start_fn)] amount: f64,
-        #[builder(start_fn)] currency: &str,
-        #[builder(start_fn)] bank_account_id: &str,
+        amount: f64,
+        currency: &str,
+        bank_account_id: &str,
         note: Option<&str>,
     ) -> Result<PayWithdrawal, Error> {
-        #[skip_serializing_none]
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Payload<'a> {
-            amount: f64,
-            currency: &'a str,
-            bank_account_id: &'a str,
-            note: Option<&'a str>,
-        }
-
         self.client
             .post(format!(
                 "/api/projects/{}/pay/withdrawal-requests",
                 self.project_id
             ))
-            .json(&Payload {
+            .json(&WithdrawalPayload {
                 amount,
                 currency,
                 bank_account_id,
@@ -563,27 +561,16 @@ impl ProjectPay {
             .await
     }
 
-    #[builder]
     pub async fn create_withdrawal(
         &self,
-        #[builder(start_fn)] amount: f64,
-        #[builder(start_fn)] currency: &str,
-        #[builder(start_fn)] bank_account_id: &str,
+        amount: f64,
+        currency: &str,
+        bank_account_id: &str,
         note: Option<&str>,
     ) -> Result<PayWithdrawal, Error> {
-        #[skip_serializing_none]
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Payload<'a> {
-            amount: f64,
-            currency: &'a str,
-            bank_account_id: &'a str,
-            note: Option<&'a str>,
-        }
-
         self.client
             .post(format!("/api/projects/{}/pay/withdrawals", self.project_id))
-            .json(&Payload {
+            .json(&WithdrawalPayload {
                 amount,
                 currency,
                 bank_account_id,

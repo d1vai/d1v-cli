@@ -1670,9 +1670,8 @@ async fn create_pay_payment_link() {
             "pay_user_123",
             "https://example.com/success",
             "https://example.com/cancel",
+            Some(&json!({ "source": "cli" })),
         )
-        .custom_fields(&json!({ "source": "cli" }))
-        .call()
         .await
         .unwrap();
 
@@ -2355,9 +2354,7 @@ async fn create_pay_withdrawal_request() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal_request(100.5, "USD", "bank_123")
-        .note("monthly")
-        .call()
+        .create_withdrawal_request(100.5, "USD", "bank_123", Some("monthly"))
         .await
         .unwrap();
 
@@ -2419,8 +2416,7 @@ async fn create_pay_withdrawal_alias() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal(100.5, "USD", "bank_123")
-        .call()
+        .create_withdrawal(100.5, "USD", "bank_123", None)
         .await
         .unwrap();
 
