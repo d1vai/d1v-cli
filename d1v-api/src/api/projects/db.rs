@@ -79,20 +79,6 @@ pub struct DbColumn {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
-pub struct CreateDbTable {
-    #[builder(into)]
-    pub schema_name: Option<String>,
-    #[builder(into)]
-    pub table_name: String,
-    pub columns: Vec<DbColumn>,
-    pub primary_key: Option<Vec<String>>,
-    #[builder(into)]
-    pub branch: Option<String>,
-    pub create_schema_if_missing: Option<bool>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DropDbTableOptions {
     pub branch: Option<String>,
@@ -121,20 +107,6 @@ pub struct DeleteDbRows {
     #[serde(rename = "where")]
     pub where_: serde_json::Map<String, serde_json::Value>,
     pub branch: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
-pub struct ExecuteSql {
-    #[builder(into)]
-    pub sql: String,
-    #[builder(into)]
-    pub branch: Option<String>,
-    pub dry_run: Option<bool>,
-    pub read_only: Option<bool>,
-    #[builder(into)]
-    pub approval_token: Option<String>,
-    pub max_rows: Option<u32>,
 }
 
 pub type DbRow = serde_json::Map<String, serde_json::Value>;
@@ -218,15 +190,42 @@ impl ProjectsDb {
     }
 
     /// Creates a table. Returns the server message.
-    pub async fn create_table(&self, payload: &CreateDbTable) -> Result<String, Error> {
+    #[builder]
+    pub async fn create_table(
+        &self,
+        #[builder(start_fn)] table_name: &str,
+        columns: Vec<DbColumn>,
+        schema_name: Option<&str>,
+        primary_key: Option<Vec<String>>,
+        branch: Option<&str>,
+        create_schema_if_missing: Option<bool>,
+    ) -> Result<String, Error> {
         #[derive(Deserialize)]
         struct MsgResult {
             message: String,
         }
 
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            table_name: &'a str,
+            columns: &'a [DbColumn],
+            schema_name: Option<&'a str>,
+            primary_key: Option<Vec<String>>,
+            branch: Option<&'a str>,
+            create_schema_if_missing: Option<bool>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/db/tables", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                table_name,
+                columns: &columns,
+                schema_name,
+                primary_key,
+                branch,
+                create_schema_if_missing,
+            })
             .ok::<MsgResult>()
             .await
             .map(|r| r.message)
@@ -365,10 +364,37 @@ impl ProjectsDb {
             .map(|r| r.affected)
     }
 
-    pub async fn execute_sql(&self, payload: &ExecuteSql) -> Result<ExecuteSqlResponse, Error> {
+    #[builder]
+    pub async fn execute_sql(
+        &self,
+        #[builder(start_fn)] sql: &str,
+        branch: Option<&str>,
+        dry_run: Option<bool>,
+        read_only: Option<bool>,
+        approval_token: Option<&str>,
+        max_rows: Option<u32>,
+    ) -> Result<ExecuteSqlResponse, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            sql: &'a str,
+            branch: Option<&'a str>,
+            dry_run: Option<bool>,
+            read_only: Option<bool>,
+            approval_token: Option<&'a str>,
+            max_rows: Option<u32>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/db/sql", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                sql,
+                branch,
+                dry_run,
+                read_only,
+                approval_token,
+                max_rows,
+            })
             .ok()
             .await
     }

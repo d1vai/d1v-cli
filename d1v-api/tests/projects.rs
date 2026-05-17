@@ -1,13 +1,11 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    AssetFile, ColumnIdentity, CreateDbTable, CreateEnvVar, CreatePayBankAccount,
-    CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook, CreatePayWithdrawal,
-    CreateProject, CreateProjectWithIntegrations, DbColumn, DeleteDbRows, DeploymentEnvironment,
-    DeploymentOptions, Direction, DropDbTableOptions, Engine, ExecuteSession, ExecuteSql,
-    GenerateMeta, Granularity, HistoryOptions, ImportFromGithub, ImportLocal, ImportPublic,
+    AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
+    DeleteDbRows, DeploymentEnvironment, DeploymentOptions, Direction, DropDbTableOptions, Engine,
+    ExecuteSession, GenerateMeta, Granularity, HistoryOptions, ImportFromGithub, ImportLocal,
     InsertDbRow, LocalImportFile, MessageType, PayPaginatedTransactionsOptions, SessionType,
     StorageStructureOptions, TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount,
-    UpdatePayWebhook, UpdateProject, UploadAsset,
+    UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -101,13 +99,10 @@ async fn create_project() {
 
     let response = authed_client(&server)
         .projects()
-        .create(&CreateProject {
-            project_name: "demo".to_string(),
-            project_description: "Demo project".to_string(),
-            enable_database: Some(true),
-            enable_pay: Some(false),
-            enable_resend: None,
-        })
+        .create("demo", "Demo project")
+        .enable_database(true)
+        .enable_pay(false)
+        .call()
         .await
         .unwrap();
 
@@ -211,12 +206,9 @@ async fn import_public_to_org() {
 
     let response = authed_client(&server)
         .projects()
-        .import_public_to_org(&ImportPublic {
-            source_url: "https://github.com/d1v/public-demo.git".to_string(),
-            project_name: "public-demo".to_string(),
-            project_description: None,
-            private: Some(true),
-        })
+        .import_public_to_org("https://github.com/d1v/public-demo.git", "public-demo")
+        .private(true)
+        .call()
         .await
         .unwrap();
 
@@ -864,20 +856,19 @@ async fn create_db_table() {
         .projects()
         .project("proj_123")
         .db()
-        .create_table(&CreateDbTable {
-            schema_name: Some("public".to_string()),
-            table_name: "users".to_string(),
-            columns: vec![DbColumn {
-                name: "id".to_string(),
-                data_type: "INTEGER".to_string(),
-                is_nullable: Some(false),
-                default_expr: None,
-                identity: Some(ColumnIdentity::ByDefault),
-            }],
-            primary_key: Some(vec!["id".to_string()]),
-            branch: Some("main".to_string()),
-            create_schema_if_missing: Some(true),
-        })
+        .create_table("users")
+        .columns(vec![DbColumn {
+            name: "id".to_string(),
+            data_type: "INTEGER".to_string(),
+            is_nullable: Some(false),
+            default_expr: None,
+            identity: Some(ColumnIdentity::ByDefault),
+        }])
+        .schema_name("public")
+        .primary_key(vec!["id".to_string()])
+        .branch("main")
+        .create_schema_if_missing(true)
+        .call()
         .await
         .unwrap();
 
@@ -1117,14 +1108,12 @@ async fn execute_db_sql() {
         .projects()
         .project("proj_123")
         .db()
-        .execute_sql(&ExecuteSql {
-            sql: "select * from users".to_string(),
-            branch: Some("main".to_string()),
-            dry_run: Some(false),
-            read_only: Some(true),
-            approval_token: None,
-            max_rows: Some(50),
-        })
+        .execute_sql("select * from users")
+        .branch("main")
+        .dry_run(false)
+        .read_only(true)
+        .max_rows(50)
+        .call()
         .await
         .unwrap();
 
@@ -1597,17 +1586,15 @@ async fn create_pay_product() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_product(
-            &CreatePayProduct::builder()
-                .user_id("pay_user_123")
-                .name("Pro Plan")
-                .description("Monthly plan")
-                .category("subscription")
-                .active(true)
-                .platform_fee_percentage(2.5)
-                .price(json!({"amount": 9900, "currency": "usd"}))
-                .build(),
-        )
+        .create_product()
+        .user_id("pay_user_123")
+        .name("Pro Plan")
+        .description("Monthly plan")
+        .category("subscription")
+        .active(true)
+        .platform_fee_percentage(2.5)
+        .price(&json!({"amount": 9900, "currency": "usd"}))
+        .call()
         .await
         .unwrap();
 
@@ -1679,14 +1666,13 @@ async fn create_pay_payment_link() {
         .project("proj_123")
         .pay()
         .create_payment_link(
-            &CreatePayPaymentLink::builder()
-                .product_id("prod_123")
-                .user_id("pay_user_123")
-                .success_url("https://example.com/success")
-                .cancel_url("https://example.com/cancel")
-                .custom_fields(json!({ "source": "cli" }))
-                .build(),
+            "prod_123",
+            "pay_user_123",
+            "https://example.com/success",
+            "https://example.com/cancel",
         )
+        .custom_fields(&json!({ "source": "cli" }))
+        .call()
         .await
         .unwrap();
 
@@ -2002,14 +1988,10 @@ async fn create_pay_webhook() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_webhook(
-            &CreatePayWebhook::builder()
-                .name("payments")
-                .url("https://example.com/webhook")
-                .events(vec!["payment.succeeded".to_string()])
-                .is_active(true)
-                .build(),
-        )
+        .create_webhook("payments", "https://example.com/webhook")
+        .events(vec!["payment.succeeded".to_string()])
+        .is_active(true)
+        .call()
         .await
         .unwrap();
 
@@ -2046,13 +2028,10 @@ async fn update_pay_webhook() {
         .projects()
         .project("proj_123")
         .pay()
-        .update_webhook(
-            "wh_123",
-            &UpdatePayWebhook::builder()
-                .name("updated")
-                .is_active(false)
-                .build(),
-        )
+        .update_webhook("wh_123")
+        .name("updated")
+        .is_active(false)
+        .call()
         .await
         .unwrap();
 
@@ -2376,14 +2355,9 @@ async fn create_pay_withdrawal_request() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal_request(
-            &CreatePayWithdrawal::builder()
-                .amount(100.5)
-                .currency("USD")
-                .bank_account_id("bank_123")
-                .note("monthly")
-                .build(),
-        )
+        .create_withdrawal_request(100.5, "USD", "bank_123")
+        .note("monthly")
+        .call()
         .await
         .unwrap();
 
@@ -2445,13 +2419,8 @@ async fn create_pay_withdrawal_alias() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_withdrawal(
-            &CreatePayWithdrawal::builder()
-                .amount(100.5)
-                .currency("USD")
-                .bank_account_id("bank_123")
-                .build(),
-        )
+        .create_withdrawal(100.5, "USD", "bank_123")
+        .call()
         .await
         .unwrap();
 
@@ -2514,14 +2483,11 @@ async fn create_pay_token() {
         .projects()
         .project("proj_123")
         .pay()
-        .create_token(
-            &CreatePayToken::builder()
-                .name("cli")
-                .permissions(vec!["products:read".to_string()])
-                .is_active(true)
-                .expires_at("2026-05-01T00:00:00Z".parse().unwrap())
-                .build(),
-        )
+        .create_token("cli")
+        .permissions(vec!["products:read".to_string()])
+        .is_active(true)
+        .expires_at("2026-05-01T00:00:00Z".parse().unwrap())
+        .call()
         .await
         .unwrap();
 
@@ -2618,14 +2584,10 @@ async fn create_project_env_var() {
         .projects()
         .project("proj_123")
         .env()
-        .create_var(
-            &CreateEnvVar::builder()
-                .key("API_KEY")
-                .value("sk-secret")
-                .description("API key")
-                .is_sensitive(true)
-                .build(),
-        )
+        .create_var("API_KEY", "sk-secret")
+        .description("API key")
+        .is_sensitive(true)
+        .call()
         .await
         .unwrap();
 

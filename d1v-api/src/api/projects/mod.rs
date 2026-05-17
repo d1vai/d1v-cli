@@ -8,23 +8,22 @@ mod storage;
 mod types;
 
 pub use db::{
-    ColumnIdentity, ColumnSchema, CreateDbTable, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow,
-    DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse, ForeignKeySchema,
-    Granularity, InsertDbRow, NeonUsage, ProjectsDb, TableSchema, UpdateDbRows,
+    ColumnIdentity, ColumnSchema, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow, DeleteDbRows,
+    DropDbTableOptions, ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, NeonUsage,
+    ProjectsDb, TableSchema, UpdateDbRows,
 };
 pub use env::{
-    CreateEnvVar, EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv,
-    SyncEnvVarsResponse, UpdateEnvVar,
+    EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv, SyncEnvVarsResponse,
+    UpdateEnvVar,
 };
 pub use integrations::{IntegrationResponse, ProjectIntegrations};
 pub use pay::{
-    CreatePayBankAccount, CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook,
-    CreatePayWithdrawal, DeletePayBankAccountResponse, DeletePayTokenResponse,
+    CreatePayBankAccount, DeletePayBankAccountResponse, DeletePayTokenResponse,
     DeletePayWebhookResponse, PayBankAccount, PayBankAccounts, PayDashboardMetrics,
     PayPaginatedTransactionsOptions, PayPaymentIntent, PayPaymentLink, PayProduct, PayProducts,
     PayRevenue, PayToken, PayTokens, PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks,
     PayWithdrawal, PayWithdrawals, ProjectPay, RegeneratePayWebhookSecretResponse,
-    UpdatePayBankAccount, UpdatePayWebhook,
+    UpdatePayBankAccount,
 };
 pub use project::ProjectApi;
 pub use session::{
@@ -36,10 +35,10 @@ pub use storage::{
     UploadAsset,
 };
 pub use types::{
-    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
+    CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
     DeploymentEnvironment, DeploymentOptions, GenerateEmojisResponse, GenerateMeta,
-    GitMigrationStatus, ImportFromGithub, ImportLocal, ImportPublic, LocalImportFile, Meta,
-    Project, PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferResponse,
+    GitMigrationStatus, ImportFromGithub, ImportLocal, LocalImportFile, Meta, Project,
+    PublishResponse, RepositoryMode, Template, Token, TokenRequest, TransferResponse,
     UpdateProject,
 };
 
@@ -69,8 +68,36 @@ impl ProjectsApi {
         self.client.get("/api/projects/").ok().await
     }
 
-    pub async fn create(&self, payload: &CreateProject) -> Result<CreateProjectResponse, Error> {
-        self.client.post("/api/projects/").json(payload).ok().await
+    #[builder]
+    pub async fn create(
+        &self,
+        #[builder(start_fn)] project_name: &str,
+        #[builder(start_fn)] project_description: &str,
+        enable_pay: Option<bool>,
+        enable_database: Option<bool>,
+        enable_resend: Option<bool>,
+    ) -> Result<CreateProjectResponse, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            project_name: &'a str,
+            project_description: &'a str,
+            enable_pay: Option<bool>,
+            enable_database: Option<bool>,
+            enable_resend: Option<bool>,
+        }
+
+        self.client
+            .post("/api/projects/")
+            .json(&Payload {
+                project_name,
+                project_description,
+                enable_pay,
+                enable_database,
+                enable_resend,
+            })
+            .ok()
+            .await
     }
 
     pub async fn templates(&self) -> Result<Vec<Template>, Error> {
@@ -124,13 +151,31 @@ impl ProjectsApi {
             .await
     }
 
+    #[builder]
     pub async fn import_public_to_org(
         &self,
-        payload: &ImportPublic,
+        #[builder(start_fn)] source_url: &str,
+        #[builder(start_fn)] project_name: &str,
+        project_description: Option<&str>,
+        private: Option<bool>,
     ) -> Result<CreateProjectResponse, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            source_url: &'a str,
+            project_name: &'a str,
+            project_description: Option<&'a str>,
+            private: Option<bool>,
+        }
+
         self.client
             .post("/api/projects/import-public-to-org")
-            .json(payload)
+            .json(&Payload {
+                source_url,
+                project_name,
+                project_description,
+                private,
+            })
             .ok()
             .await
     }

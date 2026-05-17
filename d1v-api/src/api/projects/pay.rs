@@ -1,41 +1,9 @@
-use bon::Builder;
+use bon::{Builder, bon};
 use jiff::Timestamp;
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayProduct {
-    #[builder(into)]
-    pub user_id: Option<String>,
-    #[builder(into)]
-    pub name: Option<String>,
-    #[builder(into)]
-    pub description: Option<String>,
-    #[builder(into)]
-    pub category: Option<String>,
-    pub active: Option<bool>,
-    pub platform_fee_percentage: Option<f64>,
-    pub price: Option<serde_json::Value>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayPaymentLink {
-    #[builder(into)]
-    pub product_id: String,
-    #[builder(into)]
-    pub user_id: String,
-    #[builder(into)]
-    pub success_url: String,
-    #[builder(into)]
-    pub cancel_url: String,
-    pub custom_fields: Option<serde_json::Value>,
-}
 
 pub type PayProducts = serde_json::Value;
 pub type PayProduct = serde_json::Value;
@@ -68,30 +36,6 @@ pub struct PayPaginatedTransactionsOptions {
     pub created_after: Option<Timestamp>,
     #[builder(into)]
     pub status: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayWebhook {
-    #[builder(into)]
-    pub name: String,
-    #[builder(into)]
-    pub url: String,
-    pub events: Option<Vec<String>>,
-    pub is_active: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdatePayWebhook {
-    #[builder(into)]
-    pub name: Option<String>,
-    #[builder(into)]
-    pub url: Option<String>,
-    pub events: Option<Vec<String>>,
-    pub is_active: Option<bool>,
 }
 
 #[skip_serializing_none]
@@ -136,35 +80,12 @@ pub struct UpdatePayBankAccount {
     pub is_default: Option<bool>,
 }
 
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayWithdrawal {
-    pub amount: f64,
-    #[builder(into)]
-    pub currency: String,
-    #[builder(into)]
-    pub bank_account_id: String,
-    #[builder(into)]
-    pub note: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct CreatePayToken {
-    #[builder(into)]
-    pub name: String,
-    pub permissions: Option<Vec<String>>,
-    pub is_active: Option<bool>,
-    pub expires_at: Option<Timestamp>,
-}
-
 pub struct ProjectPay {
     client: Client,
     project_id: String,
 }
 
+#[bon]
 impl ProjectPay {
     pub fn new(client: Client, project_id: String) -> Self {
         Self { client, project_id }
@@ -177,10 +98,41 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn create_product(&self, payload: &CreatePayProduct) -> Result<PayProduct, Error> {
+    #[builder]
+    pub async fn create_product(
+        &self,
+        user_id: Option<&str>,
+        name: Option<&str>,
+        description: Option<&str>,
+        category: Option<&str>,
+        active: Option<bool>,
+        platform_fee_percentage: Option<f64>,
+        price: Option<&serde_json::Value>,
+    ) -> Result<PayProduct, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            user_id: Option<&'a str>,
+            name: Option<&'a str>,
+            description: Option<&'a str>,
+            category: Option<&'a str>,
+            active: Option<bool>,
+            platform_fee_percentage: Option<f64>,
+            price: Option<&'a serde_json::Value>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/pay/products", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                user_id,
+                name,
+                description,
+                category,
+                active,
+                platform_fee_percentage,
+                price,
+            })
             .ok()
             .await
     }
@@ -207,16 +159,38 @@ impl ProjectPay {
             .await
     }
 
+    #[builder]
     pub async fn create_payment_link(
         &self,
-        payload: &CreatePayPaymentLink,
+        #[builder(start_fn)] product_id: &str,
+        #[builder(start_fn)] user_id: &str,
+        #[builder(start_fn)] success_url: &str,
+        #[builder(start_fn)] cancel_url: &str,
+        custom_fields: Option<&serde_json::Value>,
     ) -> Result<PayPaymentLink, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            product_id: &'a str,
+            user_id: &'a str,
+            success_url: &'a str,
+            cancel_url: &'a str,
+            custom_fields: Option<&'a serde_json::Value>,
+        }
+
         self.client
             .post(format!(
                 "/api/projects/{}/pay/create-payment-link",
                 self.project_id
             ))
-            .json(payload)
+            .json(&Payload {
+                product_id,
+                user_id,
+                success_url,
+                cancel_url,
+                custom_fields,
+            })
             .ok()
             .await
     }
@@ -368,26 +342,66 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn create_webhook(&self, payload: &CreatePayWebhook) -> Result<PayWebhook, Error> {
+    #[builder]
+    pub async fn create_webhook(
+        &self,
+        #[builder(start_fn)] name: &str,
+        #[builder(start_fn)] url: &str,
+        events: Option<Vec<String>>,
+        is_active: Option<bool>,
+    ) -> Result<PayWebhook, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            name: &'a str,
+            url: &'a str,
+            events: Option<Vec<String>>,
+            is_active: Option<bool>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/pay/webhooks", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                name,
+                url,
+                events,
+                is_active,
+            })
             .ok()
             .await
     }
 
+    #[builder]
     pub async fn update_webhook(
         &self,
-        webhook_id: impl AsRef<str>,
-        payload: &UpdatePayWebhook,
+        #[builder(start_fn)] webhook_id: &str,
+        name: Option<&str>,
+        url: Option<&str>,
+        events: Option<Vec<String>>,
+        is_active: Option<bool>,
     ) -> Result<PayWebhook, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            name: Option<&'a str>,
+            url: Option<&'a str>,
+            events: Option<Vec<String>>,
+            is_active: Option<bool>,
+        }
+
         self.client
             .patch(format!(
                 "/api/projects/{}/pay/webhooks/{}",
-                self.project_id,
-                webhook_id.as_ref()
+                self.project_id, webhook_id
             ))
-            .json(payload)
+            .json(&Payload {
+                name,
+                url,
+                events,
+                is_active,
+            })
             .ok()
             .await
     }
@@ -509,16 +523,35 @@ impl ProjectPay {
             .await
     }
 
+    #[builder]
     pub async fn create_withdrawal_request(
         &self,
-        payload: &CreatePayWithdrawal,
+        #[builder(start_fn)] amount: f64,
+        #[builder(start_fn)] currency: &str,
+        #[builder(start_fn)] bank_account_id: &str,
+        note: Option<&str>,
     ) -> Result<PayWithdrawal, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            amount: f64,
+            currency: &'a str,
+            bank_account_id: &'a str,
+            note: Option<&'a str>,
+        }
+
         self.client
             .post(format!(
                 "/api/projects/{}/pay/withdrawal-requests",
                 self.project_id
             ))
-            .json(payload)
+            .json(&Payload {
+                amount,
+                currency,
+                bank_account_id,
+                note,
+            })
             .ok()
             .await
     }
@@ -530,13 +563,32 @@ impl ProjectPay {
             .await
     }
 
+    #[builder]
     pub async fn create_withdrawal(
         &self,
-        payload: &CreatePayWithdrawal,
+        #[builder(start_fn)] amount: f64,
+        #[builder(start_fn)] currency: &str,
+        #[builder(start_fn)] bank_account_id: &str,
+        note: Option<&str>,
     ) -> Result<PayWithdrawal, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            amount: f64,
+            currency: &'a str,
+            bank_account_id: &'a str,
+            note: Option<&'a str>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/pay/withdrawals", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                amount,
+                currency,
+                bank_account_id,
+                note,
+            })
             .ok()
             .await
     }
@@ -548,10 +600,32 @@ impl ProjectPay {
             .await
     }
 
-    pub async fn create_token(&self, payload: &CreatePayToken) -> Result<PayToken, Error> {
+    #[builder]
+    pub async fn create_token(
+        &self,
+        #[builder(start_fn)] name: &str,
+        permissions: Option<Vec<String>>,
+        is_active: Option<bool>,
+        expires_at: Option<Timestamp>,
+    ) -> Result<PayToken, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            name: &'a str,
+            permissions: Option<Vec<String>>,
+            is_active: Option<bool>,
+            expires_at: Option<Timestamp>,
+        }
+
         self.client
             .post(format!("/api/projects/{}/pay/tokens", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                name,
+                permissions,
+                is_active,
+                expires_at,
+            })
             .ok()
             .await
     }

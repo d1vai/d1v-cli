@@ -9,18 +9,6 @@ use crate::multipart::FormExt;
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
-pub struct CreateProject {
-    #[builder(into)]
-    pub project_name: String,
-    #[builder(into)]
-    pub project_description: String,
-    pub enable_pay: Option<bool>,
-    pub enable_database: Option<bool>,
-    pub enable_resend: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
 pub struct UpdateProject {
     #[builder(into)]
     pub project_name: Option<String>,
@@ -163,18 +151,6 @@ pub struct ImportFromGithub {
     #[builder(into)]
     pub source_repository_url: Option<String>,
     pub platform_managed_repository: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize, Builder)]
-pub struct ImportPublic {
-    #[builder(into)]
-    pub source_url: String,
-    #[builder(into)]
-    pub project_name: String,
-    #[builder(into)]
-    pub project_description: Option<String>,
-    pub private: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -368,27 +344,4 @@ pub struct Project {
     pub updated_at: Option<Timestamp>,
     #[serde(default)]
     pub sessions: Vec<ProjectSession>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn create_omits_unset_flags() {
-        let payload = CreateProject {
-            project_name: "demo".to_string(),
-            project_description: "Demo project".to_string(),
-            ..CreateProject::default()
-        };
-
-        assert_eq!(
-            serde_json::to_value(payload).unwrap(),
-            json!({
-                "project_name": "demo",
-                "project_description": "Demo project"
-            })
-        );
-    }
 }
