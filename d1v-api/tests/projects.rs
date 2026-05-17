@@ -3,8 +3,7 @@ use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
     DeleteDbRows, DeploymentEnvironment, Direction, Engine, ExecuteSession, GenerateMeta,
     Granularity, ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType,
-    SessionType, TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject,
-    UploadAsset,
+    SessionType, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -1144,10 +1143,10 @@ async fn issue_project_token() {
     let token = authed_client(&server)
         .projects()
         .project("proj_123")
-        .issue_token(&TokenRequest {
-            scopes: Some(vec!["db:read".to_string(), "migrate".to_string()]),
-            ttl_seconds: Some(900),
-        })
+        .issue_token()
+        .scopes(vec!["db:read".to_string(), "migrate".to_string()])
+        .ttl_seconds(900)
+        .call()
         .await
         .unwrap();
 
@@ -1183,10 +1182,9 @@ async fn refresh_project_token() {
     let token = authed_client(&server)
         .projects()
         .project("proj_123")
-        .refresh_token(&TokenRequest {
-            scopes: None,
-            ttl_seconds: Some(1800),
-        })
+        .refresh_token()
+        .ttl_seconds(1800)
+        .call()
         .await
         .unwrap();
 

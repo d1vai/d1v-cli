@@ -17,8 +17,15 @@ use super::session::{
 use super::storage::ProjectStorage;
 use super::types::{
     Database, Deployment, DeploymentEnvironment, GitMigrationStatus, Project, PublishResponse,
-    Token, TokenRequest, TransferResponse, UpdateProject,
+    Token, TransferResponse, UpdateProject,
 };
+
+#[skip_serializing_none]
+#[derive(Serialize)]
+struct TokenPayload {
+    scopes: Option<Vec<String>>,
+    ttl_seconds: Option<u32>,
+}
 
 pub struct ProjectApi {
     client: Client,
@@ -143,24 +150,40 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn issue_token(&self, payload: &TokenRequest) -> Result<Token, Error> {
+    #[builder]
+    pub async fn issue_token(
+        &self,
+        scopes: Option<Vec<String>>,
+        ttl_seconds: Option<u32>,
+    ) -> Result<Token, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/project-token/issue",
                 self.project_id
             ))
-            .json(payload)
+            .json(&TokenPayload {
+                scopes,
+                ttl_seconds,
+            })
             .ok()
             .await
     }
 
-    pub async fn refresh_token(&self, payload: &TokenRequest) -> Result<Token, Error> {
+    #[builder]
+    pub async fn refresh_token(
+        &self,
+        scopes: Option<Vec<String>>,
+        ttl_seconds: Option<u32>,
+    ) -> Result<Token, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/project-token/refresh",
                 self.project_id
             ))
-            .json(payload)
+            .json(&TokenPayload {
+                scopes,
+                ttl_seconds,
+            })
             .ok()
             .await
     }

@@ -34,7 +34,7 @@ pub use types::{
     CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
     DeploymentEnvironment, GenerateEmojisResponse, GenerateMeta, GitMigrationStatus,
     ImportFromGithub, ImportLocal, LocalImportFile, Meta, Project, PublishResponse, RepositoryMode,
-    Template, Token, TokenRequest, TransferResponse, UpdateProject,
+    Template, Token, TransferResponse, UpdateProject,
 };
 
 use bon::bon;

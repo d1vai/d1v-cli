@@ -264,13 +264,6 @@ pub struct Deployment {
     pub updated_at: Option<Timestamp>,
 }
 
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct TokenRequest {
-    pub scopes: Option<Vec<String>>,
-    pub ttl_seconds: Option<u32>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Token {
     pub project_token: String,
