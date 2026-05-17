@@ -21,7 +21,7 @@ pub use crate::locale::{IntoLocale, Locale, ParseLocaleError};
 pub use crate::response::Response;
 pub use crate::user_agent::UserAgent;
 
-pub use crate::api::user::{DailyCount, PromptDailyActivity, UpdateUser, User};
+pub use crate::api::user::{DailyCount, PromptDailyActivity, User};
 pub use crate::api::{
     db::{
         DbAffectedResponse, DbBranch, DbColumnSchema, DbCreateTableRequest, DbDataOptions,

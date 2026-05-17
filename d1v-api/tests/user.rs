@@ -1,7 +1,7 @@
 mod common;
 
 use crate::common::test_client;
-use d1v_api::{Client, UpdateUser};
+use d1v_api::Client;
 use httpmock::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::json;
@@ -242,11 +242,13 @@ async fn update_info() {
         .token("token123")
         .build()
         .unwrap();
-    let update = UpdateUser {
-        industry: Some("tech".into()),
-        ..Default::default()
-    };
-    let user = client.user().update_info(&update).await.unwrap();
+    let user = client
+        .user()
+        .update_info()
+        .industry("tech")
+        .call()
+        .await
+        .unwrap();
     assert_eq!(user.id, 1);
 
     mock.assert();

@@ -1,5 +1,5 @@
 use colorgrad::{GradientBuilder, LinearGradient};
-use d1v_api::{UpdateUser, User};
+use d1v_api::User;
 use std::sync::LazyLock;
 use tracing::debug;
 
@@ -68,18 +68,6 @@ impl UserListView<'_> {
             Line::styled(user.slug.clone(), theme::ansi::plain()),
             Line::styled(user.email.clone().unwrap_or_default(), theme::ansi::plain()),
         ])
-    }
-}
-
-impl From<UpdateArgs> for UpdateUser {
-    fn from(args: UpdateArgs) -> Self {
-        Self {
-            company_name: args.company_name,
-            company_website: args.company_website,
-            picture: args.picture,
-            industry: args.industry,
-            referral_code: args.referral_code,
-        }
     }
 }
 
@@ -176,7 +164,18 @@ pub async fn info(ctx: &Context) -> Result<()> {
 
 pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
     debug!("updating user info");
-    let user = ctx.client.user().update_info(&args.into()).await?;
+    let user = ctx
+        .client
+        .user()
+        .update_info()
+        .maybe_company_name(args.company_name.as_deref())
+        .maybe_company_website(args.company_website.as_deref())
+        .maybe_picture(args.picture.as_deref())
+        .maybe_industry(args.industry.as_deref())
+        .maybe_referral_code(args.referral_code.as_deref())
+        .call()
+        .await?;
+
     ctx.success(t!("user-info-updated"));
     ctx.present(UserDetailView(&user), &user)
 }
@@ -223,17 +222,16 @@ pub async fn update_interactive(ctx: &Context) -> Result<()> {
 
     let value = Text::new(format!("{label}:")).prompt()?;
 
-    let mut update = UpdateUser::default();
-    match field {
-        UpdateField::CompanyName => update.company_name = Some(value),
-        UpdateField::CompanyWebsite => update.company_website = Some(value),
-        UpdateField::Picture => update.picture = Some(value),
-        UpdateField::Industry => update.industry = Some(value),
-        UpdateField::ReferralCode => update.referral_code = Some(value),
-    }
-
     debug!("updating user info (interactive)");
-    let user = ctx.client.user().update_info(&update).await?;
+    let user = ctx.client.user();
+    let user = match field {
+        UpdateField::CompanyName => user.update_info().company_name(&value).call().await?,
+        UpdateField::CompanyWebsite => user.update_info().company_website(&value).call().await?,
+        UpdateField::Picture => user.update_info().picture(&value).call().await?,
+        UpdateField::Industry => user.update_info().industry(&value).call().await?,
+        UpdateField::ReferralCode => user.update_info().referral_code(&value).call().await?,
+    };
+
     ctx.success(t!("user-info-updated"));
     ctx.present(UserDetailView(&user), &user)
 }

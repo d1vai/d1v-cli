@@ -1,13 +1,15 @@
 mod types;
 
-pub use types::{DailyCount, PromptDailyActivity, UpdateUser, User};
-
+use bon::bon;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
+use serde_with::skip_serializing_none;
+use url::Url;
 
 use crate::locale::{IntoLocale, Locale};
 use crate::validate::{Code, Email, Validate};
-use crate::{Client, Error};
+use crate::{Client, Error, UrlError};
+pub use types::{DailyCount, PromptDailyActivity, User};
 
 pub struct UserApi {
     client: Client,
@@ -161,13 +163,6 @@ impl UserApi {
     /// Returns the current user's info.
     pub async fn info(&self) -> Result<User, Error> {
         self.client.get("/api/user/info").ok().await
-    }
-
-    /// Updates the current user's info.
-    pub async fn update_info(&self, update: &UpdateUser) -> Result<User, Error> {
-        update.validate()?;
-
-        self.client.put("/api/user/info").json(update).ok().await
     }
 
     /// Returns a public user by ID.
@@ -440,6 +435,51 @@ impl UserApi {
         self.client
             .get(format!("/api/user/activity/prompt-daily/user/{user_id}"))
             .query_if_some("days", days)
+            .ok()
+            .await
+    }
+}
+
+#[bon]
+impl UserApi {
+    /// Updates the current user's info.
+    #[builder]
+    pub async fn update_info(
+        &self,
+        company_name: Option<&str>,
+        company_website: Option<&str>,
+        picture: Option<&str>,
+        industry: Option<&str>,
+        referral_code: Option<&str>,
+    ) -> Result<User, Error> {
+        // Note: do not add `is_company` here. The server ignores it.
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            pub company_name: Option<&'a str>,
+            pub company_website: Option<&'a str>,
+            /// `None` leaves the picture unchanged; `Some("")` clears it on the server.
+            pub picture: Option<&'a str>,
+            pub industry: Option<&'a str>,
+            pub referral_code: Option<&'a str>,
+        }
+
+        if let Some(url) = company_website {
+            Url::parse(url).map_err(|_| UrlError::Invalid)?;
+        }
+        if let Some(url) = picture {
+            Url::parse(url).map_err(|_| UrlError::Invalid)?;
+        }
+
+        self.client
+            .put("/api/user/info")
+            .json(&Payload {
+                company_name,
+                company_website,
+                picture,
+                industry,
+                referral_code,
+            })
             .ok()
             .await
     }
