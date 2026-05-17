@@ -1,11 +1,13 @@
 use colorgrad::{GradientBuilder, LinearGradient};
 use d1v_api::User;
 use std::sync::LazyLock;
+use strum::{EnumIter, IntoEnumIterator};
 use tracing::debug;
 
 use super::{GetArgs, UpdateArgs};
 use crate::Context;
 use crate::error::Result;
+use crate::localize::Localize;
 use crate::text::{
     Field, Fields, Line, Render, RenderContext, Span, Table, TableRow, Text as TextBlock,
 };
@@ -180,57 +182,59 @@ pub async fn update(ctx: &Context, args: UpdateArgs) -> Result<()> {
     ctx.present(UserDetailView(&user), &user)
 }
 
-pub async fn update_interactive(ctx: &Context) -> Result<()> {
-    enum UpdateField {
-        CompanyName,
-        CompanyWebsite,
-        Picture,
-        Industry,
-        ReferralCode,
-    }
+#[derive(Debug, Copy, Clone, EnumIter)]
+enum UpdateField {
+    CompanyName,
+    CompanyWebsite,
+    Picture,
+    Industry,
+    ReferralCode,
+}
 
+impl Localize for UpdateField {
+    fn localize(&self) -> String {
+        match self {
+            UpdateField::CompanyName => t!("user-update-field-company-name"),
+            UpdateField::CompanyWebsite => t!("user-update-field-company-website"),
+            UpdateField::Picture => t!("user-update-field-picture"),
+            UpdateField::Industry => t!("user-update-field-industry"),
+            UpdateField::ReferralCode => t!("user-update-field-referral-code"),
+        }
+    }
+}
+
+impl From<UpdateField> for SelectOption<UpdateField> {
+    fn from(field: UpdateField) -> Self {
+        SelectOption::new(field, field.localize())
+    }
+}
+
+impl UpdateField {
+    async fn apply(&self, ctx: &Context, value: impl AsRef<str>) -> Result<User> {
+        let user = ctx.client.user();
+        let value = value.as_ref();
+
+        let user = match self {
+            UpdateField::CompanyName => user.update_info().company_name(value).call().await,
+            UpdateField::CompanyWebsite => user.update_info().company_website(value).call().await,
+            UpdateField::Picture => user.update_info().picture(value).call().await,
+            UpdateField::Industry => user.update_info().industry(value).call().await,
+            UpdateField::ReferralCode => user.update_info().referral_code(value).call().await,
+        }?;
+
+        Ok(user)
+    }
+}
+
+pub async fn update_interactive(ctx: &Context) -> Result<()> {
     let field = Select::new(t!("user-update-field-prompt"))
-        .option(SelectOption::new(
-            UpdateField::CompanyName,
-            t!("user-update-field-company-name"),
-        ))
-        .option(SelectOption::new(
-            UpdateField::CompanyWebsite,
-            t!("user-update-field-company-website"),
-        ))
-        .option(SelectOption::new(
-            UpdateField::Picture,
-            t!("user-update-field-picture"),
-        ))
-        .option(SelectOption::new(
-            UpdateField::Industry,
-            t!("user-update-field-industry"),
-        ))
-        .option(SelectOption::new(
-            UpdateField::ReferralCode,
-            t!("user-update-field-referral-code"),
-        ))
+        .options(UpdateField::iter().map(Into::into))
         .prompt()?;
 
-    let label = match field {
-        UpdateField::CompanyName => t!("user-update-field-company-name"),
-        UpdateField::CompanyWebsite => t!("user-update-field-company-website"),
-        UpdateField::Picture => t!("user-update-field-picture"),
-        UpdateField::Industry => t!("user-update-field-industry"),
-        UpdateField::ReferralCode => t!("user-update-field-referral-code"),
-    };
-
-    let value = Text::new(format!("{label}:")).prompt()?;
+    let value = Text::new(format!("{}:", field.localize())).prompt()?;
 
     debug!("updating user info (interactive)");
-    let user = ctx.client.user();
-    let user = match field {
-        UpdateField::CompanyName => user.update_info().company_name(&value).call().await?,
-        UpdateField::CompanyWebsite => user.update_info().company_website(&value).call().await?,
-        UpdateField::Picture => user.update_info().picture(&value).call().await?,
-        UpdateField::Industry => user.update_info().industry(&value).call().await?,
-        UpdateField::ReferralCode => user.update_info().referral_code(&value).call().await?,
-    };
+    let user = field.apply(ctx, value).await?;
 
     ctx.success(t!("user-info-updated"));
     ctx.present(UserDetailView(&user), &user)
