@@ -111,8 +111,8 @@ impl ProjectPay {
     #[builder]
     pub async fn create_product(
         &self,
-        user_id: Option<&str>,
-        name: Option<&str>,
+        #[builder(start_fn)] user_id: &str,
+        #[builder(start_fn)] name: &str,
         description: Option<&str>,
         category: Option<&str>,
         active: Option<bool>,
@@ -123,8 +123,8 @@ impl ProjectPay {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct Payload<'a> {
-            user_id: Option<&'a str>,
-            name: Option<&'a str>,
+            user_id: &'a str,
+            name: &'a str,
             description: Option<&'a str>,
             category: Option<&'a str>,
             active: Option<bool>,
