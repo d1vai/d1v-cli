@@ -8,10 +8,9 @@ mod storage;
 mod types;
 
 pub use db::{
-    ColumnIdentity, ColumnSchema, CreateDbTable, DatabaseSchema, DbBranch, DbColumn, DbData,
-    DbDataOptions, DbRow, DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql,
-    ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, ListDbRowsOptions, NeonUsage,
-    NeonUsageOptions, ProjectsDb, TableSchema, UpdateDbRows,
+    ColumnIdentity, ColumnSchema, CreateDbTable, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow,
+    DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse, ForeignKeySchema,
+    Granularity, InsertDbRow, NeonUsage, ProjectsDb, TableSchema, UpdateDbRows,
 };
 pub use env::{
     CreateEnvVar, EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv,
@@ -44,7 +43,10 @@ pub use types::{
     UpdateProject,
 };
 
+use bon::bon;
+use jiff::Timestamp;
 use serde::Serialize;
+use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
@@ -61,6 +63,7 @@ impl Client {
     }
 }
 
+#[bon]
 impl ProjectsApi {
     pub async fn list(&self) -> Result<Vec<Project>, Error> {
         self.client.get("/api/projects/").ok().await
@@ -165,10 +168,28 @@ impl ProjectsApi {
         ProjectApi::new(self.client.clone(), project_id.into())
     }
 
-    pub async fn neon_usage(&self, options: &NeonUsageOptions) -> Result<NeonUsage, Error> {
+    #[builder]
+    pub async fn neon_usage(
+        &self,
+        from_iso: Option<Timestamp>,
+        to_iso: Option<Timestamp>,
+        granularity: Option<Granularity>,
+    ) -> Result<NeonUsage, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query {
+            from_iso: Option<Timestamp>,
+            to_iso: Option<Timestamp>,
+            granularity: Option<Granularity>,
+        }
+
         self.client
             .get("/api/projects/db/neon-usage")
-            .query(options)
+            .query(&Query {
+                from_iso,
+                to_iso,
+                granularity,
+            })
             .ok()
             .await
     }

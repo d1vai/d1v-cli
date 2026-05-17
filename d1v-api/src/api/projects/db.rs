@@ -1,5 +1,4 @@
-use bon::Builder;
-use jiff::Timestamp;
+use bon::{Builder, bon};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -13,34 +12,6 @@ pub enum Granularity {
     Daily,
     Hourly,
     Monthly,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct DbSchemaOptions {
-    #[builder(into)]
-    pub branch: Option<String>,
-    pub include_views: Option<bool>,
-    pub with_row_counts: Option<bool>,
-    pub include_system_schemas: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct DbDataOptions {
-    #[builder(into)]
-    pub branch: Option<String>,
-    pub limit_per_table: Option<u32>,
-    pub include_views: Option<bool>,
-    pub include_system_schemas: Option<bool>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct NeonUsageOptions {
-    pub from_iso: Option<Timestamp>,
-    pub to_iso: Option<Timestamp>,
-    pub granularity: Option<Granularity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,15 +100,6 @@ pub struct DropDbTableOptions {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct ListDbRowsOptions {
-    #[builder(into)]
-    pub branch: Option<String>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-}
-
-#[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InsertDbRow {
     pub values: serde_json::Map<String, serde_json::Value>,
@@ -183,24 +145,67 @@ pub struct ProjectsDb {
     project_id: String,
 }
 
+#[bon]
 impl ProjectsDb {
     pub fn new(client: Client, project_id: String) -> Self {
         Self { client, project_id }
     }
 
     /// Returns the database schema (tables, columns, keys).
-    pub async fn schema(&self, options: &DbSchemaOptions) -> Result<DatabaseSchema, Error> {
+    #[builder]
+    pub async fn schema(
+        &self,
+        branch: Option<&str>,
+        include_views: Option<bool>,
+        with_row_counts: Option<bool>,
+        include_system_schemas: Option<bool>,
+    ) -> Result<DatabaseSchema, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            branch: Option<&'a str>,
+            include_views: Option<bool>,
+            with_row_counts: Option<bool>,
+            include_system_schemas: Option<bool>,
+        }
+
         self.client
             .get(format!("/api/projects/{}/db/schema", self.project_id))
-            .query(options)
+            .query(&Query {
+                branch,
+                include_views,
+                with_row_counts,
+                include_system_schemas,
+            })
             .ok()
             .await
     }
 
-    pub async fn data(&self, options: &DbDataOptions) -> Result<DbData, Error> {
+    #[builder]
+    pub async fn data(
+        &self,
+        branch: Option<&str>,
+        limit_per_table: Option<u32>,
+        include_views: Option<bool>,
+        include_system_schemas: Option<bool>,
+    ) -> Result<DbData, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            branch: Option<&'a str>,
+            limit_per_table: Option<u32>,
+            include_views: Option<bool>,
+            include_system_schemas: Option<bool>,
+        }
+
         self.client
             .get(format!("/api/projects/{}/db/data", self.project_id))
-            .query(options)
+            .query(&Query {
+                branch,
+                limit_per_table,
+                include_views,
+                include_system_schemas,
+            })
             .ok()
             .await
     }
@@ -252,12 +257,23 @@ impl ProjectsDb {
             .map(|r| r.message)
     }
 
+    #[builder]
     pub async fn list_table_rows(
         &self,
-        schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
-        options: &ListDbRowsOptions,
+        #[builder(start_fn)] schema_name: &str,
+        #[builder(start_fn)] table_name: &str,
+        branch: Option<&str>,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<DbRow>, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Query<'a> {
+            branch: Option<&'a str>,
+            limit: Option<u32>,
+            offset: Option<u32>,
+        }
+
         self.client
             .get(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
@@ -265,7 +281,11 @@ impl ProjectsDb {
                 encode_segment(schema_name),
                 encode_segment(table_name)
             ))
-            .query(options)
+            .query(&Query {
+                branch,
+                limit,
+                offset,
+            })
             .ok()
             .await
     }

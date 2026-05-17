@@ -2,13 +2,12 @@ use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreateDbTable, CreateEnvVar, CreatePayBankAccount,
     CreatePayPaymentLink, CreatePayProduct, CreatePayToken, CreatePayWebhook, CreatePayWithdrawal,
-    CreateProject, CreateProjectWithIntegrations, DbColumn, DbDataOptions, DbSchemaOptions,
-    DeleteDbRows, DeploymentEnvironment, DeploymentOptions, Direction, DropDbTableOptions, Engine,
-    ExecuteSession, ExecuteSql, GenerateMeta, Granularity, HistoryOptions, ImportFromGithub,
-    ImportLocal, ImportPublic, InsertDbRow, ListDbRowsOptions, LocalImportFile, MessageType,
-    NeonUsageOptions, PayPaginatedTransactionsOptions, SessionType, StorageStructureOptions,
-    TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdatePayWebhook,
-    UpdateProject, UploadAsset,
+    CreateProject, CreateProjectWithIntegrations, DbColumn, DeleteDbRows, DeploymentEnvironment,
+    DeploymentOptions, Direction, DropDbTableOptions, Engine, ExecuteSession, ExecuteSql,
+    GenerateMeta, Granularity, HistoryOptions, ImportFromGithub, ImportLocal, ImportPublic,
+    InsertDbRow, LocalImportFile, MessageType, PayPaginatedTransactionsOptions, SessionType,
+    StorageStructureOptions, TokenRequest, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount,
+    UpdatePayWebhook, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -707,12 +706,12 @@ async fn project_db_schema() {
         .projects()
         .project("proj_123")
         .db()
-        .schema(&DbSchemaOptions {
-            branch: Some("main".to_string()),
-            include_views: Some(true),
-            with_row_counts: Some(true),
-            include_system_schemas: Some(false),
-        })
+        .schema()
+        .branch("main")
+        .include_views(true)
+        .with_row_counts(true)
+        .include_system_schemas(false)
+        .call()
         .await
         .unwrap();
 
@@ -750,12 +749,12 @@ async fn project_db_data() {
         .projects()
         .project("proj_123")
         .db()
-        .data(&DbDataOptions {
-            branch: Some("dev".to_string()),
-            limit_per_table: Some(5),
-            include_views: Some(false),
-            include_system_schemas: Some(false),
-        })
+        .data()
+        .branch("dev")
+        .limit_per_table(5)
+        .include_views(false)
+        .include_system_schemas(false)
+        .call()
         .await
         .unwrap();
 
@@ -819,11 +818,11 @@ async fn neon_usage() {
 
     let usage = authed_client(&server)
         .projects()
-        .neon_usage(&NeonUsageOptions {
-            from_iso: Some("2026-05-01T00:00:00Z".parse().unwrap()),
-            to_iso: Some("2026-05-02T00:00:00Z".parse().unwrap()),
-            granularity: Some(Granularity::Hourly),
-        })
+        .neon_usage()
+        .from_iso("2026-05-01T00:00:00Z".parse().unwrap())
+        .to_iso("2026-05-02T00:00:00Z".parse().unwrap())
+        .granularity(Granularity::Hourly)
+        .call()
         .await
         .unwrap();
 
@@ -946,15 +945,11 @@ async fn list_db_table_rows() {
         .projects()
         .project("proj_123")
         .db()
-        .list_table_rows(
-            "public",
-            "users",
-            &ListDbRowsOptions {
-                branch: Some("dev".to_string()),
-                limit: Some(10),
-                offset: Some(20),
-            },
-        )
+        .list_table_rows("public", "users")
+        .branch("dev")
+        .limit(10)
+        .offset(20)
+        .call()
         .await
         .unwrap();
 
