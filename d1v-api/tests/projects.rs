@@ -693,8 +693,12 @@ async fn project_db_schema() {
                 "msg": "success",
                 "data": {
                     "tables": [{
-                        "schema_name": "public",
-                        "table_name": "users",
+                        "schema": "public",
+                        "name": "users",
+                        "kind": "BASE TABLE",
+                        "columns": [],
+                        "primary_key": [],
+                        "foreign_keys": [],
                         "row_count": 2
                     }]
                 }
@@ -714,7 +718,7 @@ async fn project_db_schema() {
         .await
         .unwrap();
 
-    assert_eq!(schema["tables"][0]["table_name"], "users");
+    assert_eq!(schema.tables[0].name, "users");
     mock.assert();
 }
 
@@ -880,7 +884,7 @@ async fn create_db_table() {
         .await
         .unwrap();
 
-    assert_eq!(response["message"], "table created");
+    assert_eq!(response, "table created");
     mock.assert();
 }
 
@@ -917,7 +921,7 @@ async fn drop_db_table() {
         .await
         .unwrap();
 
-    assert_eq!(response["message"], "table dropped");
+    assert_eq!(response, "table dropped");
     mock.assert();
 }
 
@@ -999,7 +1003,7 @@ async fn insert_db_table_row() {
         .await
         .unwrap();
 
-    assert_eq!(response["affected"], 1);
+    assert_eq!(response, 1);
     mock.assert();
 }
 
@@ -1044,7 +1048,7 @@ async fn update_db_table_rows() {
         .await
         .unwrap();
 
-    assert_eq!(response["affected"], 1);
+    assert_eq!(response, 1);
     mock.assert();
 }
 
@@ -1084,7 +1088,7 @@ async fn delete_db_table_rows() {
         .await
         .unwrap();
 
-    assert_eq!(response["affected"], 1);
+    assert_eq!(response, 1);
     mock.assert();
 }
 

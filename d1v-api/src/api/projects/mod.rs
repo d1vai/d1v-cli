@@ -8,10 +8,10 @@ mod storage;
 mod types;
 
 pub use db::{
-    ColumnIdentity, CreateDbTable, DbBranch, DbColumn, DbData, DbDataOptions, DbMutation, DbRow,
-    DbSchema, DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql, ExecuteSqlResponse,
-    Granularity, InsertDbRow, ListDbRowsOptions, NeonUsage, NeonUsageOptions, ProjectsDb,
-    UpdateDbRows,
+    ColumnIdentity, ColumnSchema, CreateDbTable, DatabaseSchema, DbBranch, DbColumn, DbData,
+    DbDataOptions, DbRow, DbSchemaOptions, DeleteDbRows, DropDbTableOptions, ExecuteSql,
+    ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, ListDbRowsOptions, NeonUsage,
+    NeonUsageOptions, ProjectsDb, TableSchema, UpdateDbRows,
 };
 pub use env::{
     CreateEnvVar, DeleteEnvVarResponse, EnvVar, EnvVarsOptions, ExportEnvVarsResponse,
