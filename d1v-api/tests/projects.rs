@@ -5,6 +5,7 @@ use d1v_api::api::projects::{
     LocalImportFile, MessageType, PayPermission, SessionType, TokenScope, UpdatePayBankAccount,
     UpdateProject, UploadAsset,
 };
+use d1v_api::row;
 use httpmock::prelude::*;
 use jiff::Timestamp;
 use serde_json::json;
@@ -965,10 +966,7 @@ async fn insert_db_table_row() {
         .project("proj_123")
         .db()
         .insert_table_row("public", "users")
-        .values(serde_json::Map::from_iter([(
-            "email".to_string(),
-            json!("user@example.com"),
-        )]))
+        .values(row!(email = "user@example.com"))
         .branch("main")
         .call()
         .await
@@ -1005,11 +1003,8 @@ async fn update_db_table_rows() {
         .project("proj_123")
         .db()
         .update_table_rows("public", "users")
-        .where_(serde_json::Map::from_iter([("id".to_string(), json!(1))]))
-        .values(serde_json::Map::from_iter([(
-            "email".to_string(),
-            json!("updated@example.com"),
-        )]))
+        .where_(row!(id = 1))
+        .values(row!(email = "updated@example.com"))
         .branch("main")
         .call()
         .await
@@ -1045,7 +1040,7 @@ async fn delete_db_table_rows() {
         .project("proj_123")
         .db()
         .delete_table_rows("public", "users")
-        .where_(serde_json::Map::from_iter([("id".to_string(), json!(1))]))
+        .where_(row!(id = 1))
         .branch("main")
         .call()
         .await

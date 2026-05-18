@@ -5,6 +5,15 @@ use serde_with::skip_serializing_none;
 use crate::encode::encode_segment;
 use crate::{Client, Error};
 
+#[macro_export]
+macro_rules! row {
+    ($($key:ident = $value:expr),* $(,)?) => {{
+        let mut _map = serde_json::Map::new();
+        $(_map.insert(stringify!($key).to_string(), serde_json::json!($value));)*
+        _map
+    }};
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Granularity {
