@@ -1,8 +1,13 @@
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use super::db::DbMessageResponse;
 use crate::{Client, Error};
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Msg {
+    pub message: String,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -156,7 +161,7 @@ impl MigrationApi {
             .await
     }
 
-    pub async fn approve(&self, approval_id: impl AsRef<str>) -> Result<DbMessageResponse, Error> {
+    pub async fn approve(&self, approval_id: impl AsRef<str>) -> Result<Msg, Error> {
         self.client
             .post(format!(
                 "/api/migrations/approvals/{}/approve",

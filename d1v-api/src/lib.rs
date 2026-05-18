@@ -23,12 +23,6 @@ pub use crate::user_agent::UserAgent;
 
 pub use crate::api::user::{DailyCount, PromptDailyActivity, User};
 pub use crate::api::{
-    db::{
-        DbAffectedResponse, DbBranch, DbColumnSchema, DbCreateTableRequest, DbDataOptions,
-        DbDeleteRowsRequest, DbForeignKeySchema, DbMessageResponse, DbRenameTableRequest,
-        DbRowsOptions, DbSchemaOptions, DbSchemaResponse, DbTableColumnInput, DbTableSchema,
-        DbUpdateRowsRequest, DbValuesRequest, ProjectTokenRequest, ProjectTokenResponse,
-    },
     deployment::{
         DeploymentInfo, DeploymentListOptions, DeploymentListResponse, DeploymentLogsResponse,
         DeploymentResponse,

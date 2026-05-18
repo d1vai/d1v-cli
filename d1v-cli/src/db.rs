@@ -1,9 +1,10 @@
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
+use d1v_api::api::migrations::Msg;
 use d1v_api::api::projects::{DatabaseSchema, DbBranch, DbColumn, Token, TokenScope};
 use d1v_api::{
-    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbMessageResponse, ExecuteRequest,
-    ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
+    ApprovalRequest, ApprovalResponse, AutoReviewResponse, ExecuteRequest, ExecuteResponse,
+    HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
 };
 use itertools::Itertools;
 use serde::Serialize;
@@ -305,7 +306,7 @@ struct DbRowsJson<'a> {
 
 #[derive(Debug, Serialize)]
 struct DbMessageJson<'a> {
-    result: &'a DbMessageResponse,
+    result: &'a Msg,
 }
 
 #[derive(Debug, Serialize)]
@@ -504,7 +505,7 @@ impl crate::text::Render for StrView<'_> {
 
 struct DbMessageView<'a> {
     title: &'a str,
-    result: &'a DbMessageResponse,
+    result: &'a Msg,
 }
 
 impl crate::text::Render for DbMessageView<'_> {
