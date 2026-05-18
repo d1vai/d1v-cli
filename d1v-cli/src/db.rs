@@ -1,11 +1,8 @@
-use std::collections::BTreeMap;
-
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
 use d1v_api::api::projects::{DatabaseSchema, DbBranch, DbColumn};
 use d1v_api::{
-    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse, DbDeleteRowsRequest,
-    DbMessageResponse, DbRowsOptions, DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest,
+    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbMessageResponse, ExecuteRequest,
     ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ProjectTokenRequest,
     ProjectTokenResponse, ValidateRequest, ValidateResponse,
 };
@@ -282,6 +279,11 @@ pub struct MigrateDetailArgs {
 }
 
 #[derive(Debug, Serialize)]
+struct Affected {
+    affected: i64,
+}
+
+#[derive(Debug, Serialize)]
 struct DbSchemaJson<'a> {
     schema: &'a DatabaseSchema,
 }
@@ -298,17 +300,12 @@ struct DbBranchesJson<'a> {
 
 #[derive(Debug, Serialize)]
 struct DbRowsJson<'a> {
-    rows: &'a [serde_json::Value],
+    rows: &'a [serde_json::Map<String, serde_json::Value>],
 }
 
 #[derive(Debug, Serialize)]
 struct DbMessageJson<'a> {
     result: &'a DbMessageResponse,
-}
-
-#[derive(Debug, Serialize)]
-struct DbAffectedJson<'a> {
-    result: &'a DbAffectedResponse,
 }
 
 #[derive(Debug, Serialize)]
@@ -464,7 +461,7 @@ impl crate::text::Render for DbValueView<'_> {
 }
 
 struct DbRowsView<'a> {
-    rows: &'a [serde_json::Value],
+    rows: &'a [serde_json::Map<String, serde_json::Value>],
 }
 
 impl crate::text::Render for DbRowsView<'_> {
@@ -481,7 +478,7 @@ impl crate::text::Render for DbRowsView<'_> {
         ));
 
         for row in self.rows {
-            let rendered = serde_json::to_string(row).unwrap_or_else(|_| row.to_string());
+            let rendered = serde_json::to_string(row).unwrap_or_default();
             text = text.line(rendered);
         }
 
@@ -516,22 +513,6 @@ impl crate::text::Render for DbMessageView<'_> {
             .line(Line::styled(self.title.to_string(), theme::ansi::success()))
             .render(ctx)?;
         Fields::new([field("Message", &self.result.message)])
-            .indent(2)
-            .render(ctx)
-    }
-}
-
-struct DbAffectedView<'a> {
-    title: &'a str,
-    result: &'a DbAffectedResponse,
-}
-
-impl crate::text::Render for DbAffectedView<'_> {
-    fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
-        Text::new()
-            .line(Line::styled(self.title.to_string(), theme::ansi::success()))
-            .render(ctx)?;
-        Fields::new([field("Affected", self.result.affected.to_string())])
             .indent(2)
             .render(ctx)
     }
@@ -743,11 +724,14 @@ fn json_string(value: Option<&serde_json::Value>) -> String {
     }
 }
 
-fn parse_json_map(input: &str, flag_name: &str) -> Result<BTreeMap<String, serde_json::Value>> {
+fn parse_json_map(
+    input: &str,
+    flag_name: &str,
+) -> Result<serde_json::Map<String, serde_json::Value>> {
     let value: serde_json::Value = serde_json::from_str(input)
         .map_err(|err| anyhow!("invalid JSON for {flag_name}: {err}"))?;
     match value {
-        serde_json::Value::Object(map) => Ok(map.into_iter().collect()),
+        serde_json::Value::Object(map) => Ok(map),
         _ => Err(anyhow!("{flag_name} must be a JSON object").into()),
     }
 }
@@ -864,92 +848,83 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             RowCommand::List(args) => {
                 let rows = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .list_rows(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        &DbRowsOptions {
-                            branch: args.branch,
-                            limit: Some(args.limit),
-                            offset: Some(args.offset),
-                        },
-                    )
+                    .list_table_rows(&args.schema, &args.table)
+                    .maybe_branch(args.branch.as_deref())
+                    .limit(args.limit)
+                    .offset(args.offset)
+                    .call()
                     .await?;
                 ctx.present(DbRowsView { rows: &rows }, &DbRowsJson { rows: &rows })
             }
             RowCommand::Insert(args) => {
                 let values = parse_json_map(&args.values, "--values")?;
-                let result = ctx
+                let affected = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .insert_row(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        &DbValuesRequest {
-                            values,
-                            branch: args.branch,
-                        },
-                    )
+                    .insert_table_row(&args.schema, &args.table)
+                    .values(values)
+                    .maybe_branch(args.branch.as_deref())
+                    .call()
                     .await?;
-                ctx.success("Row insert requested");
+                let msg = format!("Affected rows: {affected}");
+                ctx.success("Row inserted");
                 ctx.present(
-                    DbAffectedView {
+                    StrView {
                         title: "Insert row",
-                        result: &result,
+                        value: &msg,
                     },
-                    &DbAffectedJson { result: &result },
+                    &Affected { affected },
                 )
             }
             RowCommand::Update(args) => {
                 let where_ = parse_json_map(&args.where_json, "--where-json")?;
                 let values = parse_json_map(&args.values, "--values")?;
-                let result = ctx
+                let affected = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .update_rows(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        &DbUpdateRowsRequest {
-                            where_,
-                            values,
-                            branch: args.branch,
-                        },
-                    )
+                    .update_table_rows(&args.schema, &args.table)
+                    .where_(where_)
+                    .values(values)
+                    .maybe_branch(args.branch.as_deref())
+                    .call()
                     .await?;
-                ctx.success("Row update requested");
+                let msg = format!("Affected rows: {affected}");
+                ctx.success("Rows updated");
                 ctx.present(
-                    DbAffectedView {
+                    StrView {
                         title: "Update rows",
-                        result: &result,
+                        value: &msg,
                     },
-                    &DbAffectedJson { result: &result },
+                    &Affected { affected },
                 )
             }
             RowCommand::Delete(args) => {
                 let where_ = parse_json_map(&args.where_json, "--where-json")?;
-                let result = ctx
+                let affected = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .delete_rows(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        &DbDeleteRowsRequest {
-                            where_,
-                            branch: args.branch,
-                        },
-                    )
+                    .delete_table_rows(&args.schema, &args.table)
+                    .where_(where_)
+                    .maybe_branch(args.branch.as_deref())
+                    .call()
                     .await?;
-                ctx.success("Row delete requested");
+                let msg = format!("Affected rows: {affected}");
+                ctx.success("Rows deleted");
                 ctx.present(
-                    DbAffectedView {
+                    StrView {
                         title: "Delete rows",
-                        result: &result,
+                        value: &msg,
                     },
-                    &DbAffectedJson { result: &result },
+                    &Affected { affected },
                 )
             }
         },
