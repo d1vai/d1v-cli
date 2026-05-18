@@ -1,8 +1,5 @@
 use clap::{Args, Subcommand};
-use d1v_api::api::projects::{Project, Template};
-use d1v_api::{
-    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, UpdateProject, UserProject,
-};
+use d1v_api::api::projects::{CreateProjectResponse, Project, Template};
 use serde::Serialize;
 
 use crate::Context;
@@ -166,59 +163,6 @@ impl crate::text::Render for ProjectTemplatesView<'_> {
 }
 
 #[derive(Debug, Serialize)]
-struct ProjectItemJson<'a> {
-    project: &'a UserProject,
-}
-
-struct ProjectItemView<'a> {
-    title: &'a str,
-    project: &'a UserProject,
-}
-
-impl crate::text::Render for ProjectItemView<'_> {
-    fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
-        let heading = Line::styled(self.title.to_string(), theme::ansi::success())
-            .push_plain(" ")
-            .push_styled(
-                format!("{} ({})", self.project.project_name, self.project.id),
-                theme::ansi::plain(),
-            );
-
-        let fields = vec![
-            field_opt(
-                "Description",
-                Some(self.project.project_description.as_str()),
-            ),
-            field_opt("Emoji", self.project.emoji.as_deref()),
-            field_opt("Repository", self.project.repository_full_name.as_deref()),
-            field_opt(
-                "Repo branch",
-                self.project.repository_current_branch.as_deref(),
-            ),
-            field_opt(
-                "Workspace branch",
-                self.project.workspace_current_branch.as_deref(),
-            ),
-            field_opt("Preview URL", self.project.latest_preview_url.as_deref()),
-            field_opt("Dev URL", self.project.latest_dev_deployment_url.as_deref()),
-            field_opt(
-                "Prod URL",
-                self.project.latest_prod_deployment_url.as_deref(),
-            ),
-            field_opt("Created", Some(self.project.created_at.as_str())),
-            field_opt("Updated", Some(self.project.updated_at.as_str())),
-            field_opt_bool("Auto deploy", self.project.auto_deploy_on_execute),
-            field_opt_bool("Analytics", self.project.analytics_enabled),
-            field_opt("Database", self.project.project_database_id.as_deref()),
-            field_opt("Payments", self.project.project_pay_id.as_deref()),
-        ];
-
-        Text::new().line(heading).render(ctx)?;
-        Fields::new(fields).indent(2).render(ctx)
-    }
-}
-
-#[derive(Debug, Serialize)]
 struct ProjectDetailJson<'a> {
     project: &'a Project,
 }
@@ -294,7 +238,7 @@ struct ProjectCreateView<'a> {
 
 impl crate::text::Render for ProjectCreateView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
-        ProjectItemView {
+        ProjectDetailView {
             title: "Created",
             project: &self.result.project,
         }
@@ -381,15 +325,14 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             if let Some(prompt) = args.prompt {
                 let result = ctx
                     .client
-                    .project()
-                    .create_with_integrations(&CreateProjectWithIntegrations {
-                        prompt,
-                        max_desc_len: Some(120),
-                        template_repo: args.template_repo,
-                        auto_deploy_on_execute: args.auto_deploy,
-                        enable_pay: Some(args.enable_pay.unwrap_or(false)),
-                        enable_database: Some(args.enable_database.unwrap_or(true)),
-                    })
+                    .projects()
+                    .create_with_integrations(&prompt)
+                    .max_desc_len(120)
+                    .maybe_template_repo(args.template_repo.as_deref())
+                    .maybe_auto_deploy_on_execute(args.auto_deploy)
+                    .maybe_enable_pay(args.enable_pay)
+                    .maybe_enable_database(args.enable_database)
+                    .call()
                     .await?;
                 ctx.success(format!("Created project {}", result.project.id));
                 ctx.present(
@@ -405,21 +348,18 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
                     );
                     return Ok(());
                 }
-                let project = ctx
+                let result = ctx
                     .client
-                    .project()
-                    .create(&CreateProject {
-                        project_name: name,
-                        project_description: description,
-                    })
+                    .projects()
+                    .create(&name, &description)
+                    .maybe_enable_database(args.enable_database)
+                    .maybe_enable_pay(args.enable_pay)
+                    .call()
                     .await?;
-                ctx.success(format!("Created project {}", project.id));
+                ctx.success(format!("Created project {}", result.project.id));
                 ctx.present(
-                    ProjectItemView {
-                        title: "Created",
-                        project: &project,
-                    },
-                    &ProjectItemJson { project: &project },
+                    ProjectCreateView { result: &result },
+                    &ProjectCreateJson { result: &result },
                 )
             }
         }
@@ -431,24 +371,22 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
 
             let project = ctx
                 .client
-                .project()
-                .update(
-                    &args.project_id,
-                    &UpdateProject {
-                        project_name: args.name,
-                        project_description: args.description,
-                        emoji: args.emoji,
-                        auto_deploy_on_execute: args.auto_deploy,
-                    },
-                )
+                .projects()
+                .project(&args.project_id)
+                .update()
+                .maybe_project_name(args.name.as_deref())
+                .maybe_project_description(args.description.as_deref())
+                .maybe_emoji(args.emoji.as_deref())
+                .maybe_auto_deploy_on_execute(args.auto_deploy)
+                .call()
                 .await?;
             ctx.success(format!("Updated project {}", project.id));
             ctx.present(
-                ProjectItemView {
+                ProjectDetailView {
                     title: "Updated",
                     project: &project,
                 },
-                &ProjectItemJson { project: &project },
+                &ProjectDetailJson { project: &project },
             )
         }
         ProjectCommand::Delete(args) => {
