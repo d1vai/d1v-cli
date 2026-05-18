@@ -8,9 +8,8 @@ mod storage;
 mod types;
 
 pub use db::{
-    ColumnIdentity, ColumnSchema, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow, DeleteDbRows,
-    ExecuteSqlResponse, ForeignKeySchema, Granularity, InsertDbRow, NeonUsage, ProjectsDb,
-    TableSchema, UpdateDbRows,
+    ColumnIdentity, ColumnSchema, DatabaseSchema, DbBranch, DbColumn, DbData, DbRow,
+    ExecuteSqlResponse, ForeignKeySchema, Granularity, NeonUsage, ProjectsDb, TableSchema,
 };
 pub use env::{
     EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv, SyncEnvVarsResponse,

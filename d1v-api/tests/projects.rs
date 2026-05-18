@@ -1,9 +1,9 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
-    DeleteDbRows, DeploymentEnvironment, Direction, Engine, Granularity, ImportFromGithub,
-    ImportLocal, InsertDbRow, LocalImportFile, MessageType, PayPermission, SessionType, TokenScope,
-    UpdateDbRows, UpdatePayBankAccount, UpdateProject, UploadAsset,
+    DeploymentEnvironment, Direction, Engine, Granularity, ImportFromGithub, ImportLocal,
+    LocalImportFile, MessageType, PayPermission, SessionType, TokenScope, UpdatePayBankAccount,
+    UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -964,17 +964,13 @@ async fn insert_db_table_row() {
         .projects()
         .project("proj_123")
         .db()
-        .insert_table_row(
-            "public",
-            "users",
-            &InsertDbRow {
-                values: serde_json::Map::from_iter([(
-                    "email".to_string(),
-                    json!("user@example.com"),
-                )]),
-                branch: Some("main".to_string()),
-            },
-        )
+        .insert_table_row("public", "users")
+        .values(serde_json::Map::from_iter([(
+            "email".to_string(),
+            json!("user@example.com"),
+        )]))
+        .branch("main")
+        .call()
         .await
         .unwrap();
 
@@ -1008,18 +1004,14 @@ async fn update_db_table_rows() {
         .projects()
         .project("proj_123")
         .db()
-        .update_table_rows(
-            "public",
-            "users",
-            &UpdateDbRows {
-                where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
-                values: serde_json::Map::from_iter([(
-                    "email".to_string(),
-                    json!("updated@example.com"),
-                )]),
-                branch: Some("main".to_string()),
-            },
-        )
+        .update_table_rows("public", "users")
+        .where_(serde_json::Map::from_iter([("id".to_string(), json!(1))]))
+        .values(serde_json::Map::from_iter([(
+            "email".to_string(),
+            json!("updated@example.com"),
+        )]))
+        .branch("main")
+        .call()
         .await
         .unwrap();
 
@@ -1052,14 +1044,10 @@ async fn delete_db_table_rows() {
         .projects()
         .project("proj_123")
         .db()
-        .delete_table_rows(
-            "public",
-            "users",
-            &DeleteDbRows {
-                where_: serde_json::Map::from_iter([("id".to_string(), json!(1))]),
-                branch: Some("main".to_string()),
-            },
-        )
+        .delete_table_rows("public", "users")
+        .where_(serde_json::Map::from_iter([("id".to_string(), json!(1))]))
+        .branch("main")
+        .call()
         .await
         .unwrap();
 

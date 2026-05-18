@@ -78,30 +78,6 @@ pub struct DbColumn {
     pub identity: Option<ColumnIdentity>,
 }
 
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct InsertDbRow {
-    pub values: serde_json::Map<String, serde_json::Value>,
-    pub branch: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct UpdateDbRows {
-    #[serde(rename = "where")]
-    pub where_: serde_json::Map<String, serde_json::Value>,
-    pub values: serde_json::Map<String, serde_json::Value>,
-    pub branch: Option<String>,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DeleteDbRows {
-    #[serde(rename = "where")]
-    pub where_: serde_json::Map<String, serde_json::Value>,
-    pub branch: Option<String>,
-}
-
 pub type DbRow = serde_json::Map<String, serde_json::Value>;
 pub type ExecuteSqlResponse = serde_json::Value;
 
@@ -292,12 +268,21 @@ impl ProjectsDb {
     }
 
     /// Inserts a row. Returns the number of affected rows.
+    #[builder]
     pub async fn insert_table_row(
         &self,
-        schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
-        payload: &InsertDbRow,
+        #[builder(start_fn)] schema_name: impl AsRef<str>,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
+        values: serde_json::Map<String, serde_json::Value>,
+        branch: Option<&str>,
     ) -> Result<i64, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            values: &'a serde_json::Map<String, serde_json::Value>,
+            branch: Option<&'a str>,
+        }
+
         #[derive(Deserialize)]
         struct RowResult {
             affected: i64,
@@ -307,22 +292,37 @@ impl ProjectsDb {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                encode_segment(schema_name),
-                encode_segment(table_name)
+                encode_segment(schema_name.as_ref()),
+                encode_segment(table_name.as_ref())
             ))
-            .json(payload)
+            .json(&Payload {
+                values: &values,
+                branch,
+            })
             .ok::<RowResult>()
             .await
             .map(|r| r.affected)
     }
 
     /// Updates rows. Returns the number of affected rows.
+    #[builder]
     pub async fn update_table_rows(
         &self,
-        schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
-        payload: &UpdateDbRows,
+        #[builder(start_fn)] schema_name: impl AsRef<str>,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
+        where_: serde_json::Map<String, serde_json::Value>,
+        values: serde_json::Map<String, serde_json::Value>,
+        branch: Option<&str>,
     ) -> Result<i64, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            #[serde(rename = "where")]
+            where_: &'a serde_json::Map<String, serde_json::Value>,
+            values: &'a serde_json::Map<String, serde_json::Value>,
+            branch: Option<&'a str>,
+        }
+
         #[derive(Deserialize)]
         struct RowResult {
             affected: i64,
@@ -332,22 +332,36 @@ impl ProjectsDb {
             .patch(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                encode_segment(schema_name),
-                encode_segment(table_name)
+                encode_segment(schema_name.as_ref()),
+                encode_segment(table_name.as_ref())
             ))
-            .json(payload)
+            .json(&Payload {
+                where_: &where_,
+                values: &values,
+                branch,
+            })
             .ok::<RowResult>()
             .await
             .map(|r| r.affected)
     }
 
     /// Deletes rows. Returns the number of affected rows.
+    #[builder]
     pub async fn delete_table_rows(
         &self,
-        schema_name: impl AsRef<str>,
-        table_name: impl AsRef<str>,
-        payload: &DeleteDbRows,
+        #[builder(start_fn)] schema_name: impl AsRef<str>,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
+        where_: serde_json::Map<String, serde_json::Value>,
+        branch: Option<&str>,
     ) -> Result<i64, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            #[serde(rename = "where")]
+            where_: &'a serde_json::Map<String, serde_json::Value>,
+            branch: Option<&'a str>,
+        }
+
         #[derive(Deserialize)]
         struct RowResult {
             affected: i64,
@@ -357,10 +371,13 @@ impl ProjectsDb {
             .post(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows/delete",
                 self.project_id,
-                encode_segment(schema_name),
-                encode_segment(table_name)
+                encode_segment(schema_name.as_ref()),
+                encode_segment(table_name.as_ref())
             ))
-            .json(payload)
+            .json(&Payload {
+                where_: &where_,
+                branch,
+            })
             .ok::<RowResult>()
             .await
             .map(|r| r.affected)
