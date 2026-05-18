@@ -1,11 +1,11 @@
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
-use d1v_api::api::projects::{DatabaseSchema, DbBranch, DbColumn};
+use d1v_api::api::projects::{DatabaseSchema, DbBranch, DbColumn, Token, TokenScope};
 use d1v_api::{
     ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbMessageResponse, ExecuteRequest,
-    ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ProjectTokenRequest,
-    ProjectTokenResponse, ValidateRequest, ValidateResponse,
+    ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
 };
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::Context;
@@ -340,7 +340,7 @@ struct HistoryJson<'a> {
 
 #[derive(Debug, Serialize)]
 struct ProjectTokenJson<'a> {
-    token: &'a ProjectTokenResponse,
+    token: &'a Token,
 }
 
 fn field(label: &'static str, value: impl Into<String>) -> Field {
@@ -691,7 +691,7 @@ impl crate::text::Render for HistoryView<'_> {
 
 struct ProjectTokenView<'a> {
     title: &'a str,
-    result: &'a ProjectTokenResponse,
+    token: &'a Token,
 }
 
 impl crate::text::Render for ProjectTokenView<'_> {
@@ -700,16 +700,22 @@ impl crate::text::Render for ProjectTokenView<'_> {
             .line(Line::styled(self.title.to_string(), theme::ansi::success()))
             .render(ctx)?;
         Fields::new([
-            field("Expires", &self.result.expires_at),
+            field(
+                "Expires",
+                self.token
+                    .expires_at
+                    .strftime("%Y-%m-%d %H:%M:%S")
+                    .to_string(),
+            ),
             field(
                 "Scopes",
-                if self.result.scopes.is_empty() {
+                if self.token.scopes.is_empty() {
                     "-".to_string()
                 } else {
-                    self.result.scopes.join(",")
+                    self.token.scopes.iter().map(|s| s.to_string()).join(",")
                 },
             ),
-            field("Token", &self.result.project_token),
+            field("Token", &self.token.project_token),
         ])
         .indent(2)
         .render(ctx)
@@ -930,53 +936,45 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         },
         DbCommand::Token { command } => match command {
             TokenCommand::Issue(args) => {
-                let result = ctx
+                let scopes: Vec<TokenScope> =
+                    args.scopes.iter().filter_map(|s| s.parse().ok()).collect();
+                let token = ctx
                     .client
-                    .db()
-                    .issue_project_token(
-                        &args.project_id,
-                        &ProjectTokenRequest {
-                            scopes: if args.scopes.is_empty() {
-                                None
-                            } else {
-                                Some(args.scopes)
-                            },
-                            ttl_seconds: Some(args.ttl_seconds),
-                        },
-                    )
+                    .projects()
+                    .project(&args.project_id)
+                    .issue_token()
+                    .maybe_scopes((!scopes.is_empty()).then_some(scopes))
+                    .ttl_seconds(args.ttl_seconds)
+                    .call()
                     .await?;
                 ctx.success(format!("Issued project token for {}", args.project_id));
                 ctx.present(
                     ProjectTokenView {
                         title: "Project token",
-                        result: &result,
+                        token: &token,
                     },
-                    &ProjectTokenJson { token: &result },
+                    &ProjectTokenJson { token: &token },
                 )
             }
             TokenCommand::Refresh(args) => {
-                let result = ctx
+                let scopes: Vec<TokenScope> =
+                    args.scopes.iter().filter_map(|s| s.parse().ok()).collect();
+                let token = ctx
                     .client
-                    .db()
-                    .refresh_project_token(
-                        &args.project_id,
-                        &ProjectTokenRequest {
-                            scopes: if args.scopes.is_empty() {
-                                None
-                            } else {
-                                Some(args.scopes)
-                            },
-                            ttl_seconds: Some(args.ttl_seconds),
-                        },
-                    )
+                    .projects()
+                    .project(&args.project_id)
+                    .refresh_token()
+                    .maybe_scopes((!scopes.is_empty()).then_some(scopes))
+                    .ttl_seconds(args.ttl_seconds)
+                    .call()
                     .await?;
                 ctx.success(format!("Refreshed project token for {}", args.project_id));
                 ctx.present(
                     ProjectTokenView {
                         title: "Project token",
-                        result: &result,
+                        token: &token,
                     },
-                    &ProjectTokenJson { token: &result },
+                    &ProjectTokenJson { token: &token },
                 )
             }
         },
