@@ -26,8 +26,8 @@ pub use pay::{
 };
 pub use project::ProjectApi;
 pub use session::{
-    CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSession,
-    ExecuteSessionResponse, MessageType, RuntimeSession, SessionType,
+    CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSessionResponse,
+    MessageType, RuntimeSession, SessionType,
 };
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{
@@ -43,6 +43,7 @@ use serde::Serialize;
 use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
+use project::ExecuteSessionPayload;
 
 pub struct ProjectsApi {
     client: Client,
@@ -247,13 +248,30 @@ impl ProjectsApi {
             .await
     }
 
+    #[builder]
     pub async fn execute_claude_session(
         &self,
-        payload: &ExecuteSession,
+        #[builder(start_fn)] prompt: &str,
+        #[builder(start_fn)] project_path: &str,
+        session_type: Option<SessionType>,
+        session_id: Option<&str>,
+        model: Option<&str>,
+        engine: Option<Engine>,
+        system_prompt: Option<&str>,
+        auto_deploy: Option<bool>,
     ) -> Result<ExecuteSessionResponse, Error> {
         self.client
             .post("/api/projects/claude/execute")
-            .json(payload)
+            .json(&ExecuteSessionPayload {
+                prompt,
+                project_path: Some(project_path),
+                session_type,
+                session_id,
+                model,
+                engine,
+                system_prompt,
+                auto_deploy,
+            })
             .ok()
             .await
     }

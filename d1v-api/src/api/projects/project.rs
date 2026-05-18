@@ -11,8 +11,8 @@ use super::env::ProjectEnv;
 use super::integrations::ProjectIntegrations;
 use super::pay::ProjectPay;
 use super::session::{
-    ChatHistory, CommaSeparated, Direction, ExecuteSession, ExecuteSessionResponse, MessageType,
-    RuntimeSession,
+    ChatHistory, CommaSeparated, Direction, Engine, ExecuteSessionResponse, MessageType,
+    RuntimeSession, SessionType,
 };
 use super::storage::ProjectStorage;
 use super::types::{
@@ -25,6 +25,19 @@ use super::types::{
 struct TokenPayload {
     scopes: Option<Vec<String>>,
     ttl_seconds: Option<u32>,
+}
+
+#[skip_serializing_none]
+#[derive(Serialize)]
+pub(crate) struct ExecuteSessionPayload<'a> {
+    pub prompt: &'a str,
+    pub session_type: Option<SessionType>,
+    pub session_id: Option<&'a str>,
+    pub model: Option<&'a str>,
+    pub engine: Option<Engine>,
+    pub system_prompt: Option<&'a str>,
+    pub project_path: Option<&'a str>,
+    pub auto_deploy: Option<bool>,
 }
 
 pub struct ProjectApi {
@@ -188,16 +201,33 @@ impl ProjectApi {
             .await
     }
 
+    #[builder]
     pub async fn execute_session(
         &self,
-        payload: &ExecuteSession,
+        #[builder(start_fn)] prompt: &str,
+        session_type: Option<SessionType>,
+        session_id: Option<&str>,
+        model: Option<&str>,
+        engine: Option<Engine>,
+        system_prompt: Option<&str>,
+        project_path: Option<&str>,
+        auto_deploy: Option<bool>,
     ) -> Result<ExecuteSessionResponse, Error> {
         self.client
             .post(format!(
                 "/api/projects/{}/sessions/execute",
                 self.project_id
             ))
-            .json(payload)
+            .json(&ExecuteSessionPayload {
+                prompt,
+                session_type,
+                session_id,
+                model,
+                engine,
+                system_prompt,
+                project_path,
+                auto_deploy,
+            })
             .ok()
             .await
     }

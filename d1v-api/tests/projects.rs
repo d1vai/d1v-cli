@@ -1,9 +1,9 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
-    DeleteDbRows, DeploymentEnvironment, Direction, Engine, ExecuteSession, GenerateMeta,
-    Granularity, ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType,
-    SessionType, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject, UploadAsset,
+    DeleteDbRows, DeploymentEnvironment, Direction, Engine, GenerateMeta, Granularity,
+    ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType, SessionType,
+    UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -1229,15 +1229,12 @@ async fn execute_project_session() {
     let response = authed_client(&server)
         .projects()
         .project("proj_123")
-        .execute_session(
-            &ExecuteSession::builder()
-                .prompt("Build a todo app")
-                .session_type(SessionType::New)
-                .model("gpt-5.4")
-                .engine(Engine::Codex)
-                .auto_deploy(false)
-                .build(),
-        )
+        .execute_session("Build a todo app")
+        .session_type(SessionType::New)
+        .model("gpt-5.4")
+        .engine(Engine::Codex)
+        .auto_deploy(false)
+        .call()
         .await
         .unwrap();
 
@@ -1451,16 +1448,12 @@ async fn execute_claude_session() {
 
     let response = authed_client(&server)
         .projects()
-        .execute_claude_session(
-            &ExecuteSession::builder()
-                .prompt("Continue the task")
-                .session_type(SessionType::Continue)
-                .session_id("sess_123")
-                .model("claude-sonnet-4.6")
-                .engine(Engine::Claude)
-                .project_path("/users/demo/projects/app")
-                .build(),
-        )
+        .execute_claude_session("Continue the task", "/users/demo/projects/app")
+        .session_type(SessionType::Continue)
+        .session_id("sess_123")
+        .model("claude-sonnet-4.6")
+        .engine(Engine::Claude)
+        .call()
         .await
         .unwrap();
 
