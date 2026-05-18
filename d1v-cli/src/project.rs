@@ -309,7 +309,6 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
         ProjectCommand::Get(args) => {
             let project = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .get(args.sync.then_some(true))
                 .await?;
@@ -371,7 +370,6 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
 
             let project = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .update()
                 .maybe_project_name(args.name.as_deref())
@@ -390,11 +388,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             )
         }
         ProjectCommand::Delete(args) => {
-            ctx.client
-                .projects()
-                .project(&args.project_id)
-                .delete()
-                .await?;
+            ctx.client.project(&args.project_id).delete().await?;
             ctx.success(format!("Deleted project {}", args.project_id));
             Ok(())
         }

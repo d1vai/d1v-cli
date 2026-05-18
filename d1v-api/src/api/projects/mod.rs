@@ -53,6 +53,11 @@ impl Client {
             client: self.clone(),
         }
     }
+
+    #[must_use]
+    pub fn project(&self, project_id: impl Into<String>) -> ProjectApi {
+        ProjectApi::new(self.clone(), project_id.into())
+    }
 }
 
 #[bon]

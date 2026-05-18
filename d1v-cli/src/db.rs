@@ -752,7 +752,6 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         DbCommand::Schema(args) => {
             let schema = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .db()
                 .schema()
@@ -770,7 +769,6 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         DbCommand::Data(args) => {
             let data = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .db()
                 .data()
@@ -789,13 +787,7 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             )
         }
         DbCommand::Branches(args) => {
-            let branches = ctx
-                .client
-                .projects()
-                .project(&args.project_id)
-                .db()
-                .branches()
-                .await?;
+            let branches = ctx.client.project(&args.project_id).db().branches().await?;
             ctx.present(
                 DbBranchesView {
                     branches: &branches,

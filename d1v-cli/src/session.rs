@@ -288,7 +288,6 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::Run(args) => {
             let response = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .execute_session(&args.prompt)
                 .session_type(SessionType::New)
@@ -311,7 +310,6 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::Continue(args) => {
             let response = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .execute_session(&args.prompt)
                 .session_type(SessionType::Continue)
@@ -335,7 +333,6 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::Status(args) => {
             let session = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .active_session()
                 .await?;
@@ -347,7 +344,6 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::History(args) => {
             let history = ctx
                 .client
-                .projects()
                 .project(&args.project_id)
                 .history()
                 .limit(args.limit)
