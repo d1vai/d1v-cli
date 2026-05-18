@@ -1,6 +1,7 @@
 use bon::{Builder, bon};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use strum::{Display, EnumString};
 
 use crate::encode::encode_segment;
 use crate::{Client, Error};
@@ -14,8 +15,9 @@ macro_rules! row {
     }};
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Granularity {
     #[default]
     Daily,
@@ -66,8 +68,9 @@ pub type DbData = serde_json::Value;
 pub type DbBranch = serde_json::Value;
 pub type NeonUsage = serde_json::Value;
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum ColumnIdentity {
     #[default]
     ByDefault,

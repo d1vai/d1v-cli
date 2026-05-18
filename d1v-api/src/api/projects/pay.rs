@@ -2,6 +2,7 @@ use bon::{Builder, bon};
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use strum::{Display, EnumString};
 
 use crate::{Client, Error};
 
@@ -26,27 +27,37 @@ pub type PayTokens = serde_json::Value;
 pub type PayToken = serde_json::Value;
 pub type DeletePayTokenResponse = serde_json::Value;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum PayPermission {
     #[serde(rename = "products:read")]
+    #[strum(serialize = "products:read")]
     ProductsRead,
     #[serde(rename = "products:write")]
+    #[strum(serialize = "products:write")]
     ProductsWrite,
     #[serde(rename = "prices:read")]
+    #[strum(serialize = "prices:read")]
     PricesRead,
     #[serde(rename = "prices:write")]
+    #[strum(serialize = "prices:write")]
     PricesWrite,
     #[serde(rename = "transactions:read")]
+    #[strum(serialize = "transactions:read")]
     TransactionsRead,
     #[serde(rename = "analytics:read")]
+    #[strum(serialize = "analytics:read")]
     AnalyticsRead,
     #[serde(rename = "payments:read")]
+    #[strum(serialize = "payments:read")]
     PaymentsRead,
     #[serde(rename = "payments:write")]
+    #[strum(serialize = "payments:write")]
     PaymentsWrite,
     #[serde(rename = "withdrawals:read")]
+    #[strum(serialize = "withdrawals:read")]
     WithdrawalsRead,
     #[serde(rename = "withdrawals:write")]
+    #[strum(serialize = "withdrawals:write")]
     WithdrawalsWrite,
 }
 

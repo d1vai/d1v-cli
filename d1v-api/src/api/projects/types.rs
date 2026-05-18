@@ -3,6 +3,7 @@ use jiff::Timestamp;
 use reqwest::multipart::{Form, Part};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use strum::{Display, EnumString};
 
 use super::super::session::ProjectSession;
 use super::session::TokenScope;
@@ -18,8 +19,9 @@ pub struct GenerateMetaResponse {
     pub template_confidence: i64,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum RepositoryMode {
     #[default]
     Direct,
@@ -27,8 +29,9 @@ pub enum RepositoryMode {
     Mirrored,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum DeploymentEnvironment {
     #[default]
     Dev,

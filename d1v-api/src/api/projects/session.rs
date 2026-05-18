@@ -2,36 +2,42 @@ use itertools::Itertools;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_with::{SerializeAs, skip_serializing_none};
+use strum::{Display, EnumString};
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SessionType {
     #[default]
     New,
     Continue,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Engine {
     #[default]
     Claude,
     Codex,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum Direction {
     User,
     Assistant,
     System,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum MessageType {
     Prompt,
     #[serde(rename = "git_commit")]
+    #[strum(serialize = "git_commit")]
     GitCommit,
     Result,
     Complete,
@@ -52,13 +58,16 @@ impl MessageType {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumString, Display)]
 pub enum TokenScope {
     #[serde(rename = "db:read")]
+    #[strum(serialize = "db:read")]
     DbRead,
     #[serde(rename = "db:write")]
+    #[strum(serialize = "db:write")]
     DbWrite,
     #[serde(rename = "migrate")]
+    #[strum(to_string = "migrate")]
     Migrate,
 }
 
