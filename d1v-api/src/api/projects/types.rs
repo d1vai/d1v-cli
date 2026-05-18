@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use strum::{Display, EnumString};
 
-use super::super::session::ProjectSession;
-use super::session::TokenScope;
+use super::session::{RuntimeSession, TokenScope};
 use crate::multipart::FormExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +92,7 @@ pub struct RepositoryInfo {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CreateProjectResponse {
     pub project: Project,
-    pub session: Option<ProjectSession>,
+    pub session: Option<RuntimeSession>,
     pub import_auto_deploy: Option<serde_json::Value>,
 }
 
@@ -285,5 +284,5 @@ pub struct Project {
     pub created_at: Option<Timestamp>,
     pub updated_at: Option<Timestamp>,
     #[serde(default)]
-    pub sessions: Vec<ProjectSession>,
+    pub sessions: Vec<RuntimeSession>,
 }
