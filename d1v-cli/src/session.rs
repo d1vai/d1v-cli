@@ -1,6 +1,7 @@
-use clap::{Args, Subcommand};
-use d1v_api::{
-    ChatHistoryEntry, ExecuteSessionRequest, ExecuteSessionResponse, HistoryOptions, ProjectSession,
+use clap::{Args, Subcommand, ValueEnum};
+use d1v_api::api::projects::{
+    ChatHistory, Direction, Engine, ExecuteSessionResponse, MessageType, RuntimeSession,
+    SessionType,
 };
 use serde::Serialize;
 
@@ -31,7 +32,7 @@ pub struct RunArgs {
     #[arg(long)]
     pub model: Option<String>,
     #[arg(long)]
-    pub engine: Option<String>,
+    pub engine: Option<EngineArg>,
     #[arg(long)]
     pub auto_deploy: Option<bool>,
 }
@@ -46,7 +47,7 @@ pub struct ContinueArgs {
     #[arg(long)]
     pub model: Option<String>,
     #[arg(long)]
-    pub engine: Option<String>,
+    pub engine: Option<EngineArg>,
     #[arg(long)]
     pub auto_deploy: Option<bool>,
 }
@@ -64,14 +65,70 @@ pub struct HistoryArgs {
     #[arg(long)]
     pub include_payload: bool,
     #[arg(long)]
-    pub direction: Option<String>,
-    #[arg(long)]
-    pub message_type: Option<String>,
+    pub direction: Option<DirectionArg>,
+    #[arg(long, value_delimiter = ',')]
+    pub message_type: Vec<MessageTypeArg>,
 }
 
 #[derive(Args)]
 pub struct CancelArgs {
     pub session_id: String,
+}
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum DirectionArg {
+    User,
+    Assistant,
+    System,
+}
+
+impl From<DirectionArg> for Direction {
+    fn from(v: DirectionArg) -> Self {
+        match v {
+            DirectionArg::User => Self::User,
+            DirectionArg::Assistant => Self::Assistant,
+            DirectionArg::System => Self::System,
+        }
+    }
+}
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum MessageTypeArg {
+    Prompt,
+    #[value(name = "git_commit")]
+    GitCommit,
+    Result,
+    Complete,
+    Cancelled,
+    Error,
+}
+
+impl From<MessageTypeArg> for MessageType {
+    fn from(v: MessageTypeArg) -> Self {
+        match v {
+            MessageTypeArg::Prompt => Self::Prompt,
+            MessageTypeArg::GitCommit => Self::GitCommit,
+            MessageTypeArg::Result => Self::Result,
+            MessageTypeArg::Complete => Self::Complete,
+            MessageTypeArg::Cancelled => Self::Cancelled,
+            MessageTypeArg::Error => Self::Error,
+        }
+    }
+}
+
+#[derive(ValueEnum, Clone, Copy)]
+pub enum EngineArg {
+    Claude,
+    Codex,
+}
+
+impl From<EngineArg> for Engine {
+    fn from(v: EngineArg) -> Self {
+        match v {
+            EngineArg::Claude => Self::Claude,
+            EngineArg::Codex => Self::Codex,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -81,12 +138,12 @@ struct SessionResponseJson<'a> {
 
 #[derive(Debug, Serialize)]
 struct SessionStatusJson<'a> {
-    session: &'a Option<ProjectSession>,
+    session: &'a Option<RuntimeSession>,
 }
 
 #[derive(Debug, Serialize)]
 struct SessionHistoryJson<'a> {
-    history: &'a [ChatHistoryEntry],
+    history: &'a [ChatHistory],
 }
 
 struct SessionResponseView<'a> {
@@ -108,6 +165,14 @@ impl crate::text::Render for SessionResponseView<'_> {
             field("Project", &self.response.session.project_id),
             field_opt("Model", self.response.session.model.as_deref()),
             field_opt("Status", self.response.session.status.as_deref()),
+            field_opt(
+                "Created",
+                self.response
+                    .session
+                    .created_at
+                    .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                    .as_deref(),
+            ),
             field("WebSocket", &self.response.websocket_url),
         ])
         .indent(2)
@@ -116,7 +181,7 @@ impl crate::text::Render for SessionResponseView<'_> {
 }
 
 struct SessionStatusView<'a> {
-    session: &'a Option<ProjectSession>,
+    session: &'a Option<RuntimeSession>,
 }
 
 impl crate::text::Render for SessionStatusView<'_> {
@@ -134,8 +199,20 @@ impl crate::text::Render for SessionStatusView<'_> {
                     field("Project", &session.project_id),
                     field_opt("Model", session.model.as_deref()),
                     field_opt("Status", session.status.as_deref()),
-                    field_opt("Created", session.created_at.as_deref()),
-                    field_opt("Updated", session.updated_at.as_deref()),
+                    field_opt(
+                        "Created",
+                        session
+                            .created_at
+                            .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                            .as_deref(),
+                    ),
+                    field_opt(
+                        "Updated",
+                        session
+                            .updated_at
+                            .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                            .as_deref(),
+                    ),
                 ])
                 .indent(2)
                 .render(ctx)
@@ -148,7 +225,7 @@ impl crate::text::Render for SessionStatusView<'_> {
 }
 
 struct SessionHistoryView<'a> {
-    entries: &'a [ChatHistoryEntry],
+    entries: &'a [ChatHistory],
 }
 
 impl crate::text::Render for SessionHistoryView<'_> {
@@ -169,12 +246,12 @@ impl crate::text::Render for SessionHistoryView<'_> {
                 .collect::<String>();
             TableRow::new([
                 entry.id.to_string(),
-                entry.direction.clone(),
+                entry.direction.to_string(),
                 entry
                     .message_type
                     .clone()
                     .unwrap_or_else(|| "-".to_string()),
-                entry.created_at.clone(),
+                entry.created_at.strftime("%Y-%m-%d %H:%M:%S").to_string(),
                 if text.is_empty() {
                     "-".to_string()
                 } else {
@@ -212,19 +289,14 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::Run(args) => {
             let response = ctx
                 .client
-                .session()
-                .execute(
-                    &args.project_id,
-                    &ExecuteSessionRequest {
-                        prompt: args.prompt,
-                        session_type: Some("new".to_string()),
-                        session_id: None,
-                        model: args.model,
-                        engine: args.engine,
-                        system_prompt: None,
-                        auto_deploy: args.auto_deploy,
-                    },
-                )
+                .projects()
+                .project(&args.project_id)
+                .execute_session(&args.prompt)
+                .session_type(SessionType::New)
+                .maybe_model(args.model.as_deref())
+                .maybe_engine(args.engine.map(Into::into))
+                .maybe_auto_deploy(args.auto_deploy)
+                .call()
                 .await?;
             ctx.success(format!("Started session {}", response.session_id));
             ctx.present(
@@ -240,19 +312,15 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::Continue(args) => {
             let response = ctx
                 .client
-                .session()
-                .execute(
-                    &args.project_id,
-                    &ExecuteSessionRequest {
-                        prompt: args.prompt,
-                        session_type: Some("continue".to_string()),
-                        session_id: args.session_id,
-                        model: args.model,
-                        engine: args.engine,
-                        system_prompt: None,
-                        auto_deploy: args.auto_deploy,
-                    },
-                )
+                .projects()
+                .project(&args.project_id)
+                .execute_session(&args.prompt)
+                .session_type(SessionType::Continue)
+                .maybe_session_id(args.session_id.as_deref())
+                .maybe_model(args.model.as_deref())
+                .maybe_engine(args.engine.map(Into::into))
+                .maybe_auto_deploy(args.auto_deploy)
+                .call()
                 .await?;
             ctx.success(format!("Continued session {}", response.session_id));
             ctx.present(
@@ -266,7 +334,12 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
             )
         }
         SessionCommand::Status(args) => {
-            let session = ctx.client.session().active(&args.project_id).await?;
+            let session = ctx
+                .client
+                .projects()
+                .project(&args.project_id)
+                .active_session()
+                .await?;
             ctx.present(
                 SessionStatusView { session: &session },
                 &SessionStatusJson { session: &session },
@@ -275,18 +348,17 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
         SessionCommand::History(args) => {
             let history = ctx
                 .client
-                .session()
-                .history(
-                    &args.project_id,
-                    &HistoryOptions {
-                        limit: Some(args.limit),
-                        before_ts: None,
-                        before_id: None,
-                        direction: args.direction,
-                        message_type: args.message_type,
-                        include_payload: Some(args.include_payload),
-                    },
+                .projects()
+                .project(&args.project_id)
+                .history()
+                .limit(args.limit)
+                .maybe_direction(args.direction.map(Into::into))
+                .maybe_message_type(
+                    (!args.message_type.is_empty())
+                        .then(|| args.message_type.into_iter().map(Into::into).collect()),
                 )
+                .include_payload(args.include_payload)
+                .call()
                 .await?;
             ctx.present(
                 SessionHistoryView { entries: &history },
@@ -294,7 +366,11 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
             )
         }
         SessionCommand::Cancel(args) => {
-            let result = ctx.client.session().cancel(&args.session_id).await?;
+            let result = ctx
+                .client
+                .projects()
+                .cancel_session(&args.session_id)
+                .await?;
             ctx.success(format!("Cancel requested for {}", args.session_id));
             ctx.output.present(Text::from("cancel requested"), &result)
         }
