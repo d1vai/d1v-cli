@@ -4,8 +4,22 @@ use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
-use super::session::ProjectSession;
 use crate::multipart::FormExt;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProjectSession {
+    pub id: Option<i64>,
+    pub project_id: String,
+    pub opcode_project_id: Option<String>,
+    pub opcode_project_path: Option<String>,
+    pub session_id: String,
+    pub model: Option<String>,
+    pub status: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub websocket_url: Option<String>,
+}
 
 pub struct ProjectApi {
     client: Client,

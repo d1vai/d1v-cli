@@ -5,5 +5,4 @@ pub mod github_ops;
 pub mod migrations;
 pub mod project;
 pub mod projects;
-pub mod session;
 pub mod user;

@@ -47,10 +47,6 @@ pub use crate::api::{
         CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, LocalImportUploadFile,
         ProjectTemplateInfo, UpdateProject, UserProject,
     },
-    session::{
-        ChatHistoryEntry, ExecuteSessionRequest, ExecuteSessionResponse, HistoryOptions,
-        ProjectSession,
-    },
 };
 pub use crate::validate::{
     Code, CodeError, Email, EmailError, UrlError, Validate, ValidationError,
