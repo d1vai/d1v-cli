@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
+use d1v_api::api::projects::{DatabaseSchema, DbBranch};
 use d1v_api::{
-    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse, DbBranch,
-    DbCreateTableRequest, DbDataOptions, DbDeleteRowsRequest, DbMessageResponse,
-    DbRenameTableRequest, DbRowsOptions, DbSchemaOptions, DbSchemaResponse, DbTableColumnInput,
-    DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest, ExecuteResponse, HistoryResponse,
-    PlanRequest, PlanResponse, ProjectTokenRequest, ProjectTokenResponse, ValidateRequest,
-    ValidateResponse,
+    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse,
+    DbCreateTableRequest, DbDeleteRowsRequest, DbMessageResponse, DbRenameTableRequest,
+    DbRowsOptions, DbTableColumnInput, DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest,
+    ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ProjectTokenRequest,
+    ProjectTokenResponse, ValidateRequest, ValidateResponse,
 };
 use serde::Serialize;
 
@@ -299,7 +299,7 @@ pub struct MigrateDetailArgs {
 
 #[derive(Debug, Serialize)]
 struct DbSchemaJson<'a> {
-    schema: &'a DbSchemaResponse,
+    schema: &'a DatabaseSchema,
 }
 
 #[derive(Debug, Serialize)]
@@ -383,7 +383,7 @@ fn field_bool(label: &'static str, value: Option<bool>) -> Field {
 }
 
 struct DbSchemaView<'a> {
-    schema: &'a DbSchemaResponse,
+    schema: &'a DatabaseSchema,
 }
 
 impl crate::text::Render for DbSchemaView<'_> {
@@ -445,7 +445,7 @@ impl crate::text::Render for DbBranchesView<'_> {
         let rows = self.branches.iter().map(|branch| {
             TableRow::new([
                 branch.id.clone(),
-                branch.name.clone(),
+                branch.name.clone().unwrap_or_default(),
                 if branch.primary.unwrap_or(false) {
                     "true"
                 } else {
@@ -761,16 +761,15 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         DbCommand::Schema(args) => {
             let schema = ctx
                 .client
+                .projects()
+                .project(&args.project_id)
                 .db()
-                .schema(
-                    &args.project_id,
-                    &DbSchemaOptions {
-                        branch: args.branch,
-                        include_views: Some(args.include_views),
-                        with_row_counts: Some(args.with_row_counts),
-                        include_system_schemas: Some(args.include_system_schemas),
-                    },
-                )
+                .schema()
+                .maybe_branch(args.branch.as_deref())
+                .include_views(args.include_views)
+                .with_row_counts(args.with_row_counts)
+                .include_system_schemas(args.include_system_schemas)
+                .call()
                 .await?;
             ctx.present(
                 DbSchemaView { schema: &schema },
@@ -780,16 +779,15 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         DbCommand::Data(args) => {
             let data = ctx
                 .client
+                .projects()
+                .project(&args.project_id)
                 .db()
-                .data(
-                    &args.project_id,
-                    &DbDataOptions {
-                        branch: args.branch,
-                        limit_per_table: Some(args.limit_per_table),
-                        include_views: Some(args.include_views),
-                        include_system_schemas: Some(args.include_system_schemas),
-                    },
-                )
+                .data()
+                .maybe_branch(args.branch.as_deref())
+                .limit_per_table(args.limit_per_table)
+                .include_views(args.include_views)
+                .include_system_schemas(args.include_system_schemas)
+                .call()
                 .await?;
             ctx.present(
                 DbValueView {
@@ -800,7 +798,13 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             )
         }
         DbCommand::Branches(args) => {
-            let branches = ctx.client.db().branches(&args.project_id).await?;
+            let branches = ctx
+                .client
+                .projects()
+                .project(&args.project_id)
+                .db()
+                .branches()
+                .await?;
             ctx.present(
                 DbBranchesView {
                     branches: &branches,
