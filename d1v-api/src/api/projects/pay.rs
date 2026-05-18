@@ -72,27 +72,6 @@ pub struct CreatePayBankAccount {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdatePayBankAccount {
-    #[builder(into)]
-    pub account_holder_name: Option<String>,
-    #[builder(into)]
-    pub bank_name: Option<String>,
-    #[builder(into)]
-    pub account_number: Option<String>,
-    #[builder(into)]
-    pub routing_number: Option<String>,
-    #[builder(into)]
-    pub account_type: Option<String>,
-    #[builder(into)]
-    pub currency: Option<String>,
-    #[builder(into)]
-    pub country: Option<String>,
-    pub is_default: Option<bool>,
-}
-
-#[skip_serializing_none]
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WithdrawalPayload<'a> {
@@ -511,18 +490,49 @@ impl ProjectPay {
             .await
     }
 
+    #[builder]
     pub async fn update_bank_account(
         &self,
-        bank_id: impl AsRef<str>,
-        payload: &UpdatePayBankAccount,
+        #[builder(start_fn)] bank_id: impl AsRef<str>,
+        account_holder_name: Option<&str>,
+        bank_name: Option<&str>,
+        account_number: Option<&str>,
+        routing_number: Option<&str>,
+        account_type: Option<&str>,
+        currency: Option<&str>,
+        country: Option<&str>,
+        is_default: Option<bool>,
     ) -> Result<PayBankAccount, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Payload<'a> {
+            account_holder_name: Option<&'a str>,
+            bank_name: Option<&'a str>,
+            account_number: Option<&'a str>,
+            routing_number: Option<&'a str>,
+            account_type: Option<&'a str>,
+            currency: Option<&'a str>,
+            country: Option<&'a str>,
+            is_default: Option<bool>,
+        }
+
         self.client
             .put(format!(
                 "/api/projects/{}/pay/bank-accounts/{}",
                 self.project_id,
                 bank_id.as_ref()
             ))
-            .json(payload)
+            .json(&Payload {
+                account_holder_name,
+                bank_name,
+                account_number,
+                routing_number,
+                account_type,
+                currency,
+                country,
+                is_default,
+            })
             .ok()
             .await
     }

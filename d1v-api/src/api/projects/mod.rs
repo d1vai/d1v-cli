@@ -20,7 +20,7 @@ pub use pay::{
     DeletePayWebhookResponse, PayBankAccount, PayBankAccounts, PayDashboardMetrics,
     PayPaymentIntent, PayPaymentLink, PayPermission, PayProduct, PayProducts, PayRevenue, PayToken,
     PayTokens, PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks, PayWithdrawal,
-    PayWithdrawals, ProjectPay, RegeneratePayWebhookSecretResponse, UpdatePayBankAccount,
+    PayWithdrawals, ProjectPay, RegeneratePayWebhookSecretResponse,
 };
 pub use project::ProjectApi;
 pub use session::{
@@ -29,10 +29,9 @@ pub use session::{
 };
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{
-    CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
-    DeploymentEnvironment, GenerateEmojisProject, GenerateEmojisResponse, GenerateMetaResponse,
-    GitMigrationStatus, ImportFromGithub, ImportLocal, LocalImportFile, Project, PublishResponse,
-    RepositoryMode, Template, Token, UpdateProject,
+    CreateProjectResponse, Database, Deployment, DeploymentEnvironment, GenerateEmojisProject,
+    GenerateEmojisResponse, GenerateMetaResponse, GitMigrationStatus, ImportLocal, LocalImportFile,
+    Project, PublishResponse, RepositoryInfo, RepositoryMode, Template, Token,
 };
 
 use bon::bon;
@@ -135,26 +134,99 @@ impl ProjectsApi {
             .await
     }
 
+    #[builder]
     pub async fn create_with_integrations(
         &self,
-        payload: &CreateProjectWithIntegrations,
+        #[builder(start_fn)] prompt: impl AsRef<str>,
+        max_desc_len: Option<u32>,
+        template_repo: Option<&str>,
+        auto_deploy_on_execute: Option<bool>,
+        enable_pay: Option<bool>,
+        enable_database: Option<bool>,
+        enable_resend: Option<bool>,
+        repository: Option<&RepositoryInfo>,
     ) -> Result<CreateProjectResponse, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            prompt: &'a str,
+            max_desc_len: Option<u32>,
+            template_repo: Option<&'a str>,
+            auto_deploy_on_execute: Option<bool>,
+            enable_pay: Option<bool>,
+            enable_database: Option<bool>,
+            enable_resend: Option<bool>,
+            #[serde(flatten)]
+            repository: Option<&'a RepositoryInfo>,
+        }
+
         self.client
             .post("/api/projects/create-with-integrations")
-            .json(payload)
+            .json(&Payload {
+                prompt: prompt.as_ref(),
+                max_desc_len,
+                template_repo,
+                auto_deploy_on_execute,
+                enable_pay,
+                enable_database,
+                enable_resend,
+                repository,
+            })
             .ok()
             .await
     }
 
+    #[builder]
     pub async fn import_from_github(
         &self,
-        payload: &ImportFromGithub,
+        #[builder(start_fn)] repository_full_name: impl AsRef<str>,
+        project_name: Option<&str>,
+        project_description: Option<&str>,
+        repository_url: Option<&str>,
+        repository_ssh_url: Option<&str>,
+        default_branch: Option<&str>,
+        is_private: Option<bool>,
+        primary_language: Option<&str>,
+        repository_mode: Option<RepositoryMode>,
+        source_repository_full_name: Option<&str>,
+        source_repository_url: Option<&str>,
+        platform_managed_repository: Option<bool>,
         schedule_auto_deploy: Option<bool>,
     ) -> Result<CreateProjectResponse, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            repository_full_name: &'a str,
+            project_name: Option<&'a str>,
+            project_description: Option<&'a str>,
+            repository_url: Option<&'a str>,
+            repository_ssh_url: Option<&'a str>,
+            default_branch: Option<&'a str>,
+            is_private: Option<bool>,
+            primary_language: Option<&'a str>,
+            repository_mode: Option<RepositoryMode>,
+            source_repository_full_name: Option<&'a str>,
+            source_repository_url: Option<&'a str>,
+            platform_managed_repository: Option<bool>,
+        }
+
         self.client
             .post("/api/projects/import-from-github")
             .query_if_some("schedule_auto_deploy", schedule_auto_deploy)
-            .json(payload)
+            .json(&Payload {
+                repository_full_name: repository_full_name.as_ref(),
+                project_name,
+                project_description,
+                repository_url,
+                repository_ssh_url,
+                default_branch,
+                is_private,
+                primary_language,
+                repository_mode,
+                source_repository_full_name,
+                source_repository_url,
+                platform_managed_repository,
+            })
             .ok()
             .await
     }

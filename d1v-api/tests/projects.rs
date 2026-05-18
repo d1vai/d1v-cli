@@ -1,9 +1,8 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
-    AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
-    DeploymentEnvironment, Direction, Engine, Granularity, ImportFromGithub, ImportLocal,
-    LocalImportFile, MessageType, PayPermission, SessionType, TokenScope, UpdatePayBankAccount,
-    UpdateProject, UploadAsset,
+    AssetFile, ColumnIdentity, CreatePayBankAccount, DbColumn, DeploymentEnvironment, Direction,
+    Engine, Granularity, ImportLocal, LocalImportFile, MessageType, PayPermission, SessionType,
+    TokenScope, UploadAsset,
 };
 use d1v_api::row;
 use httpmock::prelude::*;
@@ -130,12 +129,10 @@ async fn create_with_integrations() {
 
     let response = authed_client(&server)
         .projects()
-        .create_with_integrations(&CreateProjectWithIntegrations {
-            prompt: "Build a CRM".to_string(),
-            max_desc_len: Some(120),
-            enable_database: Some(true),
-            ..CreateProjectWithIntegrations::default()
-        })
+        .create_with_integrations("Build a CRM")
+        .max_desc_len(120)
+        .enable_database(true)
+        .call()
         .await
         .unwrap();
 
@@ -165,16 +162,12 @@ async fn import_from_github() {
 
     let response = authed_client(&server)
         .projects()
-        .import_from_github(
-            &ImportFromGithub {
-                repository_full_name: "d1v/demo".to_string(),
-                repository_url: Some("https://github.com/d1v/demo.git".to_string()),
-                default_branch: Some("main".to_string()),
-                is_private: Some(false),
-                ..ImportFromGithub::default()
-            },
-            Some(false),
-        )
+        .import_from_github("d1v/demo")
+        .repository_url("https://github.com/d1v/demo.git")
+        .default_branch("main")
+        .is_private(false)
+        .schedule_auto_deploy(false)
+        .call()
         .await
         .unwrap();
 
@@ -414,11 +407,10 @@ async fn update_project() {
     let project = authed_client(&server)
         .projects()
         .project("proj_123")
-        .update(&UpdateProject {
-            project_name: Some("renamed".to_string()),
-            auto_deploy_on_execute: Some(false),
-            ..UpdateProject::default()
-        })
+        .update()
+        .project_name("renamed")
+        .auto_deploy_on_execute(false)
+        .call()
         .await
         .unwrap();
 
@@ -2193,13 +2185,10 @@ async fn update_pay_bank_account() {
         .projects()
         .project("proj_123")
         .pay()
-        .update_bank_account(
-            "bank_123",
-            &UpdatePayBankAccount::builder()
-                .bank_name("Updated Bank")
-                .is_default(false)
-                .build(),
-        )
+        .update_bank_account("bank_123")
+        .bank_name("Updated Bank")
+        .is_default(false)
+        .call()
         .await
         .unwrap();
 

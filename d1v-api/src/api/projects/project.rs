@@ -17,7 +17,7 @@ use super::session::{
 use super::storage::ProjectStorage;
 use super::types::{
     Database, Deployment, DeploymentEnvironment, GitMigrationStatus, Project, PublishResponse,
-    Token, UpdateProject,
+    RepositoryInfo, Token,
 };
 
 #[skip_serializing_none]
@@ -79,10 +79,41 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn update(&self, payload: &UpdateProject) -> Result<Project, Error> {
+    #[builder]
+    pub async fn update(
+        &self,
+        project_name: Option<&str>,
+        project_description: Option<&str>,
+        emoji: Option<&str>,
+        auto_deploy_on_execute: Option<bool>,
+        super_admin_email: Option<&str>,
+        project_secret: Option<&str>,
+        repository: Option<&RepositoryInfo>,
+    ) -> Result<Project, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            project_name: Option<&'a str>,
+            project_description: Option<&'a str>,
+            emoji: Option<&'a str>,
+            auto_deploy_on_execute: Option<bool>,
+            super_admin_email: Option<&'a str>,
+            project_secret: Option<&'a str>,
+            #[serde(flatten)]
+            repository: Option<&'a RepositoryInfo>,
+        }
+
         self.client
             .put(format!("/api/projects/{}", self.project_id))
-            .json(payload)
+            .json(&Payload {
+                project_name,
+                project_description,
+                emoji,
+                auto_deploy_on_execute,
+                super_admin_email,
+                project_secret,
+                repository,
+            })
             .ok()
             .await
     }
