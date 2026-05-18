@@ -260,24 +260,72 @@ impl ProjectsApi {
             .await
     }
 
+    #[builder(on(String, into))]
     pub async fn import_from_local(
         &self,
-        payload: ImportLocal,
+        project_name: Option<String>,
+        project_description: Option<String>,
+        private: Option<bool>,
+        archive: Option<LocalImportFile>,
+        #[builder(default)] files: Vec<LocalImportFile>,
+        single_file_name: Option<String>,
+        single_file_type: Option<String>,
+        single_file_content: Option<String>,
+        wait_for_deploy: Option<bool>,
+        wait_deploy_seconds: Option<u32>,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/import-from-local")
-            .multipart(payload.into())
+            .multipart(
+                ImportLocal {
+                    project_name,
+                    project_description,
+                    private,
+                    archive,
+                    files,
+                    single_file_name,
+                    single_file_type,
+                    single_file_content,
+                    wait_for_deploy,
+                    wait_deploy_seconds,
+                }
+                .into(),
+            )
             .ok()
             .await
     }
 
+    #[builder(on(String, into))]
     pub async fn cli_import_local(
         &self,
-        payload: ImportLocal,
+        project_name: Option<String>,
+        project_description: Option<String>,
+        private: Option<bool>,
+        archive: Option<LocalImportFile>,
+        #[builder(default)] files: Vec<LocalImportFile>,
+        single_file_name: Option<String>,
+        single_file_type: Option<String>,
+        single_file_content: Option<String>,
+        wait_for_deploy: Option<bool>,
+        wait_deploy_seconds: Option<u32>,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/cli-import-local")
-            .multipart(payload.into())
+            .multipart(
+                ImportLocal {
+                    project_name,
+                    project_description,
+                    private,
+                    archive,
+                    files,
+                    single_file_name,
+                    single_file_type,
+                    single_file_content,
+                    wait_for_deploy,
+                    wait_deploy_seconds,
+                }
+                .into(),
+            )
             .ok()
             .await
     }
