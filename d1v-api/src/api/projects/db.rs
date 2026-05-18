@@ -65,7 +65,16 @@ pub struct ForeignKeySchema {
 }
 
 pub type DbData = serde_json::Value;
-pub type DbBranch = serde_json::Value;
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DbBranch {
+    pub id: String,
+    pub name: Option<String>,
+    pub parent_id: Option<String>,
+    pub primary: Option<bool>,
+}
+
 pub type NeonUsage = serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]

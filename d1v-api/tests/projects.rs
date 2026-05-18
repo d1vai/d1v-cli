@@ -774,7 +774,7 @@ async fn project_db_branches() {
         .await
         .unwrap();
 
-    assert_eq!(branches[0]["name"], "main");
+    assert_eq!(branches[0].name.as_deref(), Some("main"));
     mock.assert();
 }
 
