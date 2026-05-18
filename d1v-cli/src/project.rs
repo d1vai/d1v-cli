@@ -1,7 +1,7 @@
 use clap::{Args, Subcommand};
+use d1v_api::api::projects::{Project, Template};
 use d1v_api::{
-    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, ProjectTemplateInfo,
-    UpdateProject, UserProject,
+    CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, UpdateProject, UserProject,
 };
 use serde::Serialize;
 
@@ -95,11 +95,11 @@ pub struct DeleteArgs {
 
 #[derive(Debug, Serialize)]
 struct ProjectListJson<'a> {
-    projects: &'a [UserProject],
+    projects: &'a [Project],
 }
 
 struct ProjectListView<'a> {
-    projects: &'a [UserProject],
+    projects: &'a [Project],
 }
 
 impl crate::text::Render for ProjectListView<'_> {
@@ -118,7 +118,10 @@ impl crate::text::Render for ProjectListView<'_> {
                     .repository_full_name
                     .clone()
                     .unwrap_or_else(|| "-".to_string()),
-                project.updated_at.clone(),
+                project
+                    .updated_at
+                    .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                    .unwrap_or_default(),
             ])
         });
 
@@ -131,11 +134,11 @@ impl crate::text::Render for ProjectListView<'_> {
 
 #[derive(Debug, Serialize)]
 struct ProjectTemplatesJson<'a> {
-    templates: &'a [ProjectTemplateInfo],
+    templates: &'a [Template],
 }
 
 struct ProjectTemplatesView<'a> {
-    templates: &'a [ProjectTemplateInfo],
+    templates: &'a [Template],
 }
 
 impl crate::text::Render for ProjectTemplatesView<'_> {
@@ -216,6 +219,71 @@ impl crate::text::Render for ProjectItemView<'_> {
 }
 
 #[derive(Debug, Serialize)]
+struct ProjectDetailJson<'a> {
+    project: &'a Project,
+}
+
+struct ProjectDetailView<'a> {
+    title: &'a str,
+    project: &'a Project,
+}
+
+impl crate::text::Render for ProjectDetailView<'_> {
+    fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
+        let heading = Line::styled(self.title.to_string(), theme::ansi::success())
+            .push_plain(" ")
+            .push_styled(
+                format!("{} ({})", self.project.project_name, self.project.id),
+                theme::ansi::plain(),
+            );
+
+        let fields = vec![
+            field_opt(
+                "Description",
+                Some(self.project.project_description.as_str()),
+            ),
+            field_opt("Emoji", self.project.emoji.as_deref()),
+            field_opt("Repository", self.project.repository_full_name.as_deref()),
+            field_opt(
+                "Repo branch",
+                self.project.repository_current_branch.as_deref(),
+            ),
+            field_opt(
+                "Workspace branch",
+                self.project.workspace_current_branch.as_deref(),
+            ),
+            field_opt("Preview URL", self.project.latest_preview_url.as_deref()),
+            field_opt("Dev URL", self.project.latest_dev_deployment_url.as_deref()),
+            field_opt(
+                "Prod URL",
+                self.project.latest_prod_deployment_url.as_deref(),
+            ),
+            field_opt(
+                "Created",
+                self.project
+                    .created_at
+                    .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                    .as_deref(),
+            ),
+            field_opt(
+                "Updated",
+                self.project
+                    .updated_at
+                    .map(|t| t.strftime("%Y-%m-%d %H:%M:%S").to_string())
+                    .as_deref(),
+            ),
+            field_opt_bool("Auto deploy", self.project.auto_deploy_on_execute),
+            field_opt_bool("Analytics", self.project.analytics_enabled),
+            field_opt("Database", self.project.project_database_id.as_deref()),
+            field_opt("Payments", self.project.project_pay_id.as_deref()),
+        ];
+
+        Text::new().line(heading).render(ctx)?;
+        Fields::new(fields).indent(2).render(ctx)
+    }
+}
+
+#[derive(Debug, Serialize)]
 struct ProjectCreateJson<'a> {
     result: &'a CreateProjectResponse,
 }
@@ -273,7 +341,7 @@ fn field_opt_bool(label: &'static str, value: Option<bool>) -> Field {
 pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
     match command {
         ProjectCommand::List => {
-            let projects = ctx.client.project().list().await?;
+            let projects = ctx.client.projects().list().await?;
             ctx.present(
                 ProjectListView {
                     projects: &projects,
@@ -284,7 +352,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             )
         }
         ProjectCommand::Templates => {
-            let templates = ctx.client.project().templates().await?;
+            let templates = ctx.client.projects().templates().await?;
             ctx.present(
                 ProjectTemplatesView {
                     templates: &templates,
@@ -297,15 +365,16 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
         ProjectCommand::Get(args) => {
             let project = ctx
                 .client
-                .project()
-                .get(&args.project_id, args.sync.then_some(true))
+                .projects()
+                .project(&args.project_id)
+                .get(args.sync.then_some(true))
                 .await?;
             ctx.present(
-                ProjectItemView {
+                ProjectDetailView {
                     title: "Project",
                     project: &project,
                 },
-                &ProjectItemJson { project: &project },
+                &ProjectDetailJson { project: &project },
             )
         }
         ProjectCommand::Create(args) => {
@@ -383,7 +452,11 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             )
         }
         ProjectCommand::Delete(args) => {
-            ctx.client.project().delete(&args.project_id).await?;
+            ctx.client
+                .projects()
+                .project(&args.project_id)
+                .delete()
+                .await?;
             ctx.success(format!("Deleted project {}", args.project_id));
             Ok(())
         }

@@ -6,9 +6,8 @@ use std::process::{Command, Stdio};
 
 use anyhow::{Context as AnyhowContext, anyhow};
 use clap::Args;
-use d1v_api::{
-    GitHubProjectCliAccess, GitHubProjectGitCredential, LocalImportUploadFile, PullWorkspaceRequest,
-};
+use d1v_api::api::projects::LocalImportFile;
+use d1v_api::{GitHubProjectCliAccess, GitHubProjectGitCredential, PullWorkspaceRequest};
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
@@ -329,8 +328,11 @@ pub async fn init(ctx: &Context, args: InitArgs) -> Result<()> {
             ));
             let result = ctx
                 .client
-                .project()
-                .cli_import_local(Some(&metadata.project_name), None, &upload_files)
+                .projects()
+                .cli_import_local()
+                .project_name(metadata.project_name.clone())
+                .files(upload_files)
+                .call()
                 .await?;
             metadata.project_id = Some(result.project.id.clone());
             metadata.project_name = result.project.project_name;
@@ -575,7 +577,7 @@ fn scan_workspace(root: &Path) -> Result<ScanSummary> {
     Ok(summary)
 }
 
-fn collect_upload_files(root: &Path) -> Result<Vec<LocalImportUploadFile>> {
+fn collect_upload_files(root: &Path) -> Result<Vec<LocalImportFile>> {
     let extra_ignores = load_ignore_patterns(root)?;
     let mut files = Vec::new();
     collect_files_recursive(root, root, &extra_ignores, &mut files)?;
@@ -643,7 +645,7 @@ fn collect_files_recursive(
     root: &Path,
     dir: &Path,
     extra_ignores: &BTreeSet<String>,
-    files: &mut Vec<LocalImportUploadFile>,
+    files: &mut Vec<LocalImportFile>,
 ) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -664,7 +666,7 @@ fn collect_files_recursive(
             continue;
         }
 
-        files.push(LocalImportUploadFile {
+        files.push(LocalImportFile {
             path: rel,
             bytes: fs::read(&path)?,
         });
