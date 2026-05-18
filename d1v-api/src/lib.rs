@@ -43,10 +43,6 @@ pub use crate::api::{
         ApprovalRequest, ApprovalResponse, AutoReviewResponse, ExecuteRequest, ExecuteResponse,
         HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
     },
-    project::{
-        CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, LocalImportUploadFile,
-        ProjectTemplateInfo, UpdateProject, UserProject,
-    },
 };
 pub use crate::validate::{
     Code, CodeError, Email, EmailError, UrlError, Validate, ValidationError,

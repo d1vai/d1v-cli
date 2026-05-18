@@ -5,7 +5,31 @@ use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
 
-use super::project::UserProject;
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UserProject {
+    pub id: String,
+    #[serde(default)]
+    pub project_name: String,
+    #[serde(default)]
+    pub project_description: String,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub updated_at: String,
+    pub project_port: Option<u16>,
+    pub emoji: Option<String>,
+    pub repository_full_name: Option<String>,
+    pub repository_current_branch: Option<String>,
+    pub workspace_current_branch: Option<String>,
+    pub latest_preview_url: Option<String>,
+    pub latest_dev_deployment_url: Option<String>,
+    pub latest_prod_deployment_url: Option<String>,
+    pub analytics_enabled: Option<bool>,
+    pub project_database_id: Option<String>,
+    pub project_pay_id: Option<String>,
+    pub auto_deploy_on_execute: Option<bool>,
+}
 
 pub struct GitHubAppApi {
     client: Client,
