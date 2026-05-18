@@ -99,8 +99,8 @@ impl ProjectPay {
     #[builder]
     pub async fn create_product(
         &self,
-        #[builder(start_fn)] user_id: &str,
-        #[builder(start_fn)] name: &str,
+        #[builder(start_fn)] user_id: impl AsRef<str>,
+        #[builder(start_fn)] name: impl AsRef<str>,
         description: Option<&str>,
         category: Option<&str>,
         active: Option<bool>,
@@ -123,8 +123,8 @@ impl ProjectPay {
         self.client
             .post(format!("/api/projects/{}/pay/products", self.project_id))
             .json(&Payload {
-                user_id,
-                name,
+                user_id: user_id.as_ref(),
+                name: name.as_ref(),
                 description,
                 category,
                 active,
@@ -362,8 +362,8 @@ impl ProjectPay {
     #[builder]
     pub async fn create_webhook(
         &self,
-        #[builder(start_fn)] name: &str,
-        #[builder(start_fn)] url: &str,
+        #[builder(start_fn)] name: impl AsRef<str>,
+        #[builder(start_fn)] url: impl AsRef<str>,
         events: Option<Vec<String>>,
         is_active: Option<bool>,
     ) -> Result<PayWebhook, Error> {
@@ -380,8 +380,8 @@ impl ProjectPay {
         self.client
             .post(format!("/api/projects/{}/pay/webhooks", self.project_id))
             .json(&Payload {
-                name,
-                url,
+                name: name.as_ref(),
+                url: url.as_ref(),
                 events,
                 is_active,
             })
@@ -392,7 +392,7 @@ impl ProjectPay {
     #[builder]
     pub async fn update_webhook(
         &self,
-        #[builder(start_fn)] webhook_id: &str,
+        #[builder(start_fn)] webhook_id: impl AsRef<str>,
         name: Option<&str>,
         url: Option<&str>,
         events: Option<Vec<String>>,
@@ -411,7 +411,8 @@ impl ProjectPay {
         self.client
             .patch(format!(
                 "/api/projects/{}/pay/webhooks/{}",
-                self.project_id, webhook_id
+                self.project_id,
+                webhook_id.as_ref()
             ))
             .json(&Payload {
                 name,
@@ -598,7 +599,7 @@ impl ProjectPay {
     #[builder]
     pub async fn create_token(
         &self,
-        #[builder(start_fn)] name: &str,
+        #[builder(start_fn)] name: impl AsRef<str>,
         permissions: Option<Vec<String>>,
         is_active: Option<bool>,
         expires_at: Option<Timestamp>,
@@ -616,7 +617,7 @@ impl ProjectPay {
         self.client
             .post(format!("/api/projects/{}/pay/tokens", self.project_id))
             .json(&Payload {
-                name,
+                name: name.as_ref(),
                 permissions,
                 is_active,
                 expires_at,

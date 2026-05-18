@@ -81,8 +81,8 @@ impl ProjectEnv {
     #[builder]
     pub async fn create_var(
         &self,
-        #[builder(start_fn)] key: &str,
-        #[builder(start_fn)] value: &str,
+        #[builder(start_fn)] key: impl AsRef<str>,
+        #[builder(start_fn)] value: impl AsRef<str>,
         description: Option<&str>,
         is_sensitive: Option<bool>,
     ) -> Result<EnvVar, Error> {
@@ -98,8 +98,8 @@ impl ProjectEnv {
         self.client
             .post(format!("/api/projects/{}/env-vars", self.project_id))
             .json(&Payload {
-                key,
-                value,
+                key: key.as_ref(),
+                value: value.as_ref(),
                 description,
                 is_sensitive,
             })

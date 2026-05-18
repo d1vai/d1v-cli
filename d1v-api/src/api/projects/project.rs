@@ -204,7 +204,7 @@ impl ProjectApi {
     #[builder]
     pub async fn execute_session(
         &self,
-        #[builder(start_fn)] prompt: &str,
+        #[builder(start_fn)] prompt: impl AsRef<str>,
         session_type: Option<SessionType>,
         session_id: Option<&str>,
         model: Option<&str>,
@@ -219,7 +219,7 @@ impl ProjectApi {
                 self.project_id
             ))
             .json(&ExecuteSessionPayload {
-                prompt,
+                prompt: prompt.as_ref(),
                 session_type,
                 session_id,
                 model,

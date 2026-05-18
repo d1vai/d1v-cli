@@ -67,8 +67,8 @@ impl ProjectsApi {
     #[builder]
     pub async fn create(
         &self,
-        #[builder(start_fn)] project_name: &str,
-        #[builder(start_fn)] project_description: &str,
+        #[builder(start_fn)] project_name: impl AsRef<str>,
+        #[builder(start_fn)] project_description: impl AsRef<str>,
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
@@ -86,8 +86,8 @@ impl ProjectsApi {
         self.client
             .post("/api/projects/")
             .json(&Payload {
-                project_name,
-                project_description,
+                project_name: project_name.as_ref(),
+                project_description: project_description.as_ref(),
                 enable_pay,
                 enable_database,
                 enable_resend,
@@ -150,8 +150,8 @@ impl ProjectsApi {
     #[builder]
     pub async fn import_public_to_org(
         &self,
-        #[builder(start_fn)] source_url: &str,
-        #[builder(start_fn)] project_name: &str,
+        #[builder(start_fn)] source_url: impl AsRef<str>,
+        #[builder(start_fn)] project_name: impl AsRef<str>,
         project_description: Option<&str>,
         private: Option<bool>,
     ) -> Result<CreateProjectResponse, Error> {
@@ -167,8 +167,8 @@ impl ProjectsApi {
         self.client
             .post("/api/projects/import-public-to-org")
             .json(&Payload {
-                source_url,
-                project_name,
+                source_url: source_url.as_ref(),
+                project_name: project_name.as_ref(),
                 project_description,
                 private,
             })
@@ -251,8 +251,8 @@ impl ProjectsApi {
     #[builder]
     pub async fn execute_claude_session(
         &self,
-        #[builder(start_fn)] prompt: &str,
-        #[builder(start_fn)] project_path: &str,
+        #[builder(start_fn)] prompt: impl AsRef<str>,
+        #[builder(start_fn)] project_path: impl AsRef<str>,
         session_type: Option<SessionType>,
         session_id: Option<&str>,
         model: Option<&str>,
@@ -263,8 +263,8 @@ impl ProjectsApi {
         self.client
             .post("/api/projects/claude/execute")
             .json(&ExecuteSessionPayload {
-                prompt,
-                project_path: Some(project_path),
+                prompt: prompt.as_ref(),
+                project_path: Some(project_path.as_ref()),
                 session_type,
                 session_id,
                 model,

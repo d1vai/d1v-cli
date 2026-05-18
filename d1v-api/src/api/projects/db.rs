@@ -186,7 +186,7 @@ impl ProjectsDb {
     #[builder]
     pub async fn create_table(
         &self,
-        #[builder(start_fn)] table_name: &str,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
         columns: Vec<DbColumn>,
         schema_name: Option<&str>,
         primary_key: Option<Vec<String>>,
@@ -212,7 +212,7 @@ impl ProjectsDb {
         self.client
             .post(format!("/api/projects/{}/db/tables", self.project_id))
             .json(&Payload {
-                table_name,
+                table_name: table_name.as_ref(),
                 columns: &columns,
                 schema_name,
                 primary_key,
@@ -228,8 +228,8 @@ impl ProjectsDb {
     #[builder]
     pub async fn drop_table(
         &self,
-        #[builder(start_fn)] schema_name: &str,
-        #[builder(start_fn)] table_name: &str,
+        #[builder(start_fn)] schema_name: impl AsRef<str>,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
         branch: Option<&str>,
         cascade: Option<bool>,
     ) -> Result<String, Error> {
@@ -249,8 +249,8 @@ impl ProjectsDb {
             .delete(format!(
                 "/api/projects/{}/db/tables/{}/{}",
                 self.project_id,
-                encode_segment(schema_name),
-                encode_segment(table_name)
+                encode_segment(schema_name.as_ref()),
+                encode_segment(table_name.as_ref())
             ))
             .query(&Query { branch, cascade })
             .ok::<MsgResult>()
@@ -261,8 +261,8 @@ impl ProjectsDb {
     #[builder]
     pub async fn list_table_rows(
         &self,
-        #[builder(start_fn)] schema_name: &str,
-        #[builder(start_fn)] table_name: &str,
+        #[builder(start_fn)] schema_name: impl AsRef<str>,
+        #[builder(start_fn)] table_name: impl AsRef<str>,
         branch: Option<&str>,
         limit: Option<u32>,
         offset: Option<u32>,
@@ -279,8 +279,8 @@ impl ProjectsDb {
             .get(format!(
                 "/api/projects/{}/db/tables/{}/{}/rows",
                 self.project_id,
-                encode_segment(schema_name),
-                encode_segment(table_name)
+                encode_segment(schema_name.as_ref()),
+                encode_segment(table_name.as_ref())
             ))
             .query(&Query {
                 branch,
@@ -369,7 +369,7 @@ impl ProjectsDb {
     #[builder]
     pub async fn execute_sql(
         &self,
-        #[builder(start_fn)] sql: &str,
+        #[builder(start_fn)] sql: impl AsRef<str>,
         branch: Option<&str>,
         dry_run: Option<bool>,
         read_only: Option<bool>,
@@ -390,7 +390,7 @@ impl ProjectsDb {
         self.client
             .post(format!("/api/projects/{}/db/sql", self.project_id))
             .json(&Payload {
-                sql,
+                sql: sql.as_ref(),
                 branch,
                 dry_run,
                 read_only,
