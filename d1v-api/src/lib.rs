@@ -27,11 +27,7 @@ pub use crate::api::{
         DbAffectedResponse, DbBranch, DbColumnSchema, DbCreateTableRequest, DbDataOptions,
         DbDeleteRowsRequest, DbForeignKeySchema, DbMessageResponse, DbRenameTableRequest,
         DbRowsOptions, DbSchemaOptions, DbSchemaResponse, DbTableColumnInput, DbTableSchema,
-        DbUpdateRowsRequest, DbValuesRequest, MigrationApprovalRequest, MigrationApprovalResponse,
-        MigrationAutoReviewResponse, MigrationExecuteRequest, MigrationExecuteResponse,
-        MigrationHistoryResponse, MigrationPlanRequest, MigrationPlanResponse,
-        MigrationValidateRequest, MigrationValidateResponse, ProjectTokenRequest,
-        ProjectTokenResponse,
+        DbUpdateRowsRequest, DbValuesRequest, ProjectTokenRequest, ProjectTokenResponse,
     },
     deployment::{
         DeploymentInfo, DeploymentListOptions, DeploymentListResponse, DeploymentLogsResponse,
@@ -43,6 +39,10 @@ pub use crate::api::{
         GitHubProjectGitCredential,
     },
     github_ops::{PullWorkspaceRequest, PullWorkspaceResponse},
+    migrations::{
+        ApprovalRequest, ApprovalResponse, AutoReviewResponse, ExecuteRequest, ExecuteResponse,
+        HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
+    },
     project::{
         CreateProject, CreateProjectResponse, CreateProjectWithIntegrations, LocalImportUploadFile,
         ProjectTemplateInfo, UpdateProject, UserProject,

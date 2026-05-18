@@ -3,13 +3,12 @@ use std::collections::BTreeMap;
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
 use d1v_api::{
-    DbAffectedResponse, DbBranch, DbCreateTableRequest, DbDataOptions, DbDeleteRowsRequest,
-    DbMessageResponse, DbRenameTableRequest, DbRowsOptions, DbSchemaOptions, DbSchemaResponse,
-    DbTableColumnInput, DbUpdateRowsRequest, DbValuesRequest, MigrationApprovalRequest,
-    MigrationApprovalResponse, MigrationAutoReviewResponse, MigrationExecuteRequest,
-    MigrationExecuteResponse, MigrationHistoryResponse, MigrationPlanRequest,
-    MigrationPlanResponse, MigrationValidateRequest, MigrationValidateResponse,
-    ProjectTokenRequest, ProjectTokenResponse,
+    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse, DbBranch,
+    DbCreateTableRequest, DbDataOptions, DbDeleteRowsRequest, DbMessageResponse,
+    DbRenameTableRequest, DbRowsOptions, DbSchemaOptions, DbSchemaResponse, DbTableColumnInput,
+    DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest, ExecuteResponse, HistoryResponse,
+    PlanRequest, PlanResponse, ProjectTokenRequest, ProjectTokenResponse, ValidateRequest,
+    ValidateResponse,
 };
 use serde::Serialize;
 
@@ -329,33 +328,33 @@ struct DbAffectedJson<'a> {
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationPlanJson<'a> {
-    plan: &'a MigrationPlanResponse,
+struct PlanJson<'a> {
+    plan: &'a PlanResponse,
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationValidateJson<'a> {
-    validation: &'a MigrationValidateResponse,
+struct ValidateJson<'a> {
+    validation: &'a ValidateResponse,
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationApprovalJson<'a> {
-    approval: &'a MigrationApprovalResponse,
+struct ApprovalJson<'a> {
+    approval: &'a ApprovalResponse,
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationAutoReviewJson<'a> {
-    review: &'a MigrationAutoReviewResponse,
+struct AutoReviewJson<'a> {
+    review: &'a AutoReviewResponse,
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationExecuteJson<'a> {
-    execution: &'a MigrationExecuteResponse,
+struct ExecuteJson<'a> {
+    execution: &'a ExecuteResponse,
 }
 
 #[derive(Debug, Serialize)]
-struct MigrationHistoryJson<'a> {
-    history: &'a MigrationHistoryResponse,
+struct HistoryJson<'a> {
+    history: &'a HistoryResponse,
 }
 
 #[derive(Debug, Serialize)]
@@ -538,11 +537,11 @@ impl crate::text::Render for DbAffectedView<'_> {
     }
 }
 
-struct MigrationPlanView<'a> {
-    result: &'a MigrationPlanResponse,
+struct PlanView<'a> {
+    result: &'a PlanResponse,
 }
 
-impl crate::text::Render for MigrationPlanView<'_> {
+impl crate::text::Render for PlanView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         Text::new()
             .line(
@@ -561,11 +560,11 @@ impl crate::text::Render for MigrationPlanView<'_> {
     }
 }
 
-struct MigrationValidateView<'a> {
-    result: &'a MigrationValidateResponse,
+struct ValidateView<'a> {
+    result: &'a ValidateResponse,
 }
 
-impl crate::text::Render for MigrationValidateView<'_> {
+impl crate::text::Render for ValidateView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         Text::new()
             .line(
@@ -592,12 +591,12 @@ impl crate::text::Render for MigrationValidateView<'_> {
     }
 }
 
-struct MigrationApprovalView<'a> {
+struct ApprovalView<'a> {
     title: &'a str,
-    result: &'a MigrationApprovalResponse,
+    result: &'a ApprovalResponse,
 }
 
-impl crate::text::Render for MigrationApprovalView<'_> {
+impl crate::text::Render for ApprovalView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         Text::new()
             .line(
@@ -618,11 +617,11 @@ impl crate::text::Render for MigrationApprovalView<'_> {
     }
 }
 
-struct MigrationAutoReviewView<'a> {
-    result: &'a MigrationAutoReviewResponse,
+struct AutoReviewView<'a> {
+    result: &'a AutoReviewResponse,
 }
 
-impl crate::text::Render for MigrationAutoReviewView<'_> {
+impl crate::text::Render for AutoReviewView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         let reasons = self
             .result
@@ -653,11 +652,11 @@ impl crate::text::Render for MigrationAutoReviewView<'_> {
     }
 }
 
-struct MigrationExecuteView<'a> {
-    result: &'a MigrationExecuteResponse,
+struct ExecuteView<'a> {
+    result: &'a ExecuteResponse,
 }
 
-impl crate::text::Render for MigrationExecuteView<'_> {
+impl crate::text::Render for ExecuteView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         Text::new()
             .line(
@@ -678,11 +677,11 @@ impl crate::text::Render for MigrationExecuteView<'_> {
     }
 }
 
-struct MigrationHistoryView<'a> {
-    result: &'a MigrationHistoryResponse,
+struct HistoryView<'a> {
+    result: &'a HistoryResponse,
 }
 
-impl crate::text::Render for MigrationHistoryView<'_> {
+impl crate::text::Render for HistoryView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         if self.result.plans.is_empty() {
             return Text::new()
@@ -1036,31 +1035,28 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             MigrateCommand::Plan(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_plan(&MigrationPlanRequest {
+                    .migrations()
+                    .plan(&PlanRequest {
                         project_id: args.project_id,
                         intent: args.intent,
                         proposed_sql: args.sql,
                     })
                     .await?;
                 ctx.success(format!("Created plan {}", result.plan_id));
-                ctx.present(
-                    MigrationPlanView { result: &result },
-                    &MigrationPlanJson { plan: &result },
-                )
+                ctx.present(PlanView { result: &result }, &PlanJson { plan: &result })
             }
             MigrateCommand::Validate(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_validate(&MigrationValidateRequest {
+                    .migrations()
+                    .validate(&ValidateRequest {
                         plan_id: args.plan_id,
                         sql: args.sql,
                     })
                     .await?;
                 ctx.present(
-                    MigrationValidateView { result: &result },
-                    &MigrationValidateJson {
+                    ValidateView { result: &result },
+                    &ValidateJson {
                         validation: &result,
                     },
                 )
@@ -1068,8 +1064,8 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             MigrateCommand::Approve(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_create_approval(&MigrationApprovalRequest {
+                    .migrations()
+                    .create_approval(&ApprovalRequest {
                         plan_id: args.plan_id,
                         risk_summary: args.risk_summary,
                         expires_in_minutes: args.expires_in_minutes,
@@ -1077,26 +1073,26 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
                     .await?;
                 ctx.success(format!("Created approval {}", result.approval_id));
                 ctx.present(
-                    MigrationApprovalView {
+                    ApprovalView {
                         title: "Migration approval",
                         result: &result,
                     },
-                    &MigrationApprovalJson { approval: &result },
+                    &ApprovalJson { approval: &result },
                 )
             }
             MigrateCommand::AutoReview(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_auto_review(&args.approval_id)
+                    .migrations()
+                    .auto_review(&args.approval_id)
                     .await?;
                 ctx.present(
-                    MigrationAutoReviewView { result: &result },
-                    &MigrationAutoReviewJson { review: &result },
+                    AutoReviewView { result: &result },
+                    &AutoReviewJson { review: &result },
                 )
             }
             MigrateCommand::ManualApprove(args) => {
-                let result = ctx.client.db().migration_approve(&args.approval_id).await?;
+                let result = ctx.client.migrations().approve(&args.approval_id).await?;
                 ctx.success(format!("Approved {}", args.approval_id));
                 ctx.present(
                     DbMessageView {
@@ -1109,8 +1105,8 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
             MigrateCommand::Execute(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_execute(&MigrationExecuteRequest {
+                    .migrations()
+                    .execute(&ExecuteRequest {
                         plan_id: args.plan_id,
                         strategy: args.strategy,
                         approval_token: args.approval_token,
@@ -1118,23 +1114,23 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
                     .await?;
                 ctx.success(format!("Started execution {}", result.job_id));
                 ctx.present(
-                    MigrationExecuteView { result: &result },
-                    &MigrationExecuteJson { execution: &result },
+                    ExecuteView { result: &result },
+                    &ExecuteJson { execution: &result },
                 )
             }
             MigrateCommand::History(args) => {
                 let result = ctx
                     .client
-                    .db()
-                    .migration_history(&args.project_id, Some(args.limit), Some(args.offset))
+                    .migrations()
+                    .history(&args.project_id, Some(args.limit), Some(args.offset))
                     .await?;
                 ctx.present(
-                    MigrationHistoryView { result: &result },
-                    &MigrationHistoryJson { history: &result },
+                    HistoryView { result: &result },
+                    &HistoryJson { history: &result },
                 )
             }
             MigrateCommand::Detail(args) => {
-                let result = ctx.client.db().migration_detail(&args.plan_id).await?;
+                let result = ctx.client.migrations().detail(&args.plan_id).await?;
                 ctx.present(
                     DbValueView {
                         title: "Migration detail",
