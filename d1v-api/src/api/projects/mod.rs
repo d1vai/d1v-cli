@@ -25,7 +25,7 @@ pub use pay::{
 pub use project::ProjectApi;
 pub use session::{
     CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSessionResponse,
-    MessageType, RuntimeSession, SessionType, TokenScope,
+    MessageType, Session, SessionType, TokenScope,
 };
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{

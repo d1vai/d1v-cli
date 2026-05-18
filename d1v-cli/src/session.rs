@@ -1,7 +1,6 @@
 use clap::{Args, Subcommand, ValueEnum};
 use d1v_api::api::projects::{
-    ChatHistory, Direction, Engine, ExecuteSessionResponse, MessageType, RuntimeSession,
-    SessionType,
+    ChatHistory, Direction, Engine, ExecuteSessionResponse, MessageType, Session, SessionType,
 };
 use serde::Serialize;
 
@@ -138,7 +137,7 @@ struct SessionResponseJson<'a> {
 
 #[derive(Debug, Serialize)]
 struct SessionStatusJson<'a> {
-    session: &'a Option<RuntimeSession>,
+    session: &'a Option<Session>,
 }
 
 #[derive(Debug, Serialize)]
@@ -181,7 +180,7 @@ impl crate::text::Render for SessionResponseView<'_> {
 }
 
 struct SessionStatusView<'a> {
-    session: &'a Option<RuntimeSession>,
+    session: &'a Option<Session>,
 }
 
 impl crate::text::Render for SessionStatusView<'_> {

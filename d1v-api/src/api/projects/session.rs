@@ -85,7 +85,7 @@ impl SerializeAs<Vec<MessageType>> for CommaSeparated {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct RuntimeSession {
+pub struct Session {
     pub id: Option<i64>,
     pub project_id: String,
     pub opcode_project_id: Option<String>,
@@ -102,7 +102,7 @@ pub struct RuntimeSession {
 pub struct ExecuteSessionResponse {
     pub session_id: String,
     pub websocket_url: String,
-    pub session: RuntimeSession,
+    pub session: Session,
 }
 
 #[skip_serializing_none]

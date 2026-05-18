@@ -11,8 +11,8 @@ use super::env::ProjectEnv;
 use super::integrations::ProjectIntegrations;
 use super::pay::ProjectPay;
 use super::session::{
-    ChatHistory, CommaSeparated, Direction, Engine, ExecuteSessionResponse, MessageType,
-    RuntimeSession, SessionType, TokenScope,
+    ChatHistory, CommaSeparated, Direction, Engine, ExecuteSessionResponse, MessageType, Session,
+    SessionType, TokenScope,
 };
 use super::storage::ProjectStorage;
 use super::types::{
@@ -306,7 +306,7 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn active_session(&self) -> Result<Option<RuntimeSession>, Error> {
+    pub async fn active_session(&self) -> Result<Option<Session>, Error> {
         self.client
             .get(format!("/api/projects/{}/sessions/active", self.project_id))
             .ok()
