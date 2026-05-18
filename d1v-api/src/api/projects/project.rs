@@ -12,7 +12,7 @@ use super::integrations::ProjectIntegrations;
 use super::pay::ProjectPay;
 use super::session::{
     ChatHistory, CommaSeparated, Direction, Engine, ExecuteSessionResponse, MessageType,
-    RuntimeSession, SessionType,
+    RuntimeSession, SessionType, TokenScope,
 };
 use super::storage::ProjectStorage;
 use super::types::{
@@ -22,8 +22,8 @@ use super::types::{
 
 #[skip_serializing_none]
 #[derive(Serialize)]
-struct TokenPayload {
-    scopes: Option<Vec<String>>,
+struct TokenPayload<'a> {
+    scopes: Option<&'a [TokenScope]>,
     ttl_seconds: Option<u32>,
 }
 
@@ -166,7 +166,7 @@ impl ProjectApi {
     #[builder]
     pub async fn issue_token(
         &self,
-        scopes: Option<Vec<String>>,
+        scopes: Option<Vec<TokenScope>>,
         ttl_seconds: Option<u32>,
     ) -> Result<Token, Error> {
         self.client
@@ -175,7 +175,7 @@ impl ProjectApi {
                 self.project_id
             ))
             .json(&TokenPayload {
-                scopes,
+                scopes: scopes.as_deref(),
                 ttl_seconds,
             })
             .ok()
@@ -185,7 +185,7 @@ impl ProjectApi {
     #[builder]
     pub async fn refresh_token(
         &self,
-        scopes: Option<Vec<String>>,
+        scopes: Option<Vec<TokenScope>>,
         ttl_seconds: Option<u32>,
     ) -> Result<Token, Error> {
         self.client
@@ -194,7 +194,7 @@ impl ProjectApi {
                 self.project_id
             ))
             .json(&TokenPayload {
-                scopes,
+                scopes: scopes.as_deref(),
                 ttl_seconds,
             })
             .ok()

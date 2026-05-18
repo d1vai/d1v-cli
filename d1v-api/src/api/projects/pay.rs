@@ -1,6 +1,6 @@
 use bon::{Builder, bon};
 use jiff::Timestamp;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
@@ -25,6 +25,30 @@ pub type PayWithdrawal = serde_json::Value;
 pub type PayTokens = serde_json::Value;
 pub type PayToken = serde_json::Value;
 pub type DeletePayTokenResponse = serde_json::Value;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PayPermission {
+    #[serde(rename = "products:read")]
+    ProductsRead,
+    #[serde(rename = "products:write")]
+    ProductsWrite,
+    #[serde(rename = "prices:read")]
+    PricesRead,
+    #[serde(rename = "prices:write")]
+    PricesWrite,
+    #[serde(rename = "transactions:read")]
+    TransactionsRead,
+    #[serde(rename = "analytics:read")]
+    AnalyticsRead,
+    #[serde(rename = "payments:read")]
+    PaymentsRead,
+    #[serde(rename = "payments:write")]
+    PaymentsWrite,
+    #[serde(rename = "withdrawals:read")]
+    WithdrawalsRead,
+    #[serde(rename = "withdrawals:write")]
+    WithdrawalsWrite,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Builder)]
@@ -600,7 +624,7 @@ impl ProjectPay {
     pub async fn create_token(
         &self,
         #[builder(start_fn)] name: impl AsRef<str>,
-        permissions: Option<Vec<String>>,
+        permissions: Option<Vec<PayPermission>>,
         is_active: Option<bool>,
         expires_at: Option<Timestamp>,
     ) -> Result<PayToken, Error> {
@@ -609,7 +633,7 @@ impl ProjectPay {
         #[serde(rename_all = "camelCase")]
         struct Payload<'a> {
             name: &'a str,
-            permissions: Option<Vec<String>>,
+            permissions: Option<&'a [PayPermission]>,
             is_active: Option<bool>,
             expires_at: Option<Timestamp>,
         }
@@ -618,7 +642,7 @@ impl ProjectPay {
             .post(format!("/api/projects/{}/pay/tokens", self.project_id))
             .json(&Payload {
                 name: name.as_ref(),
-                permissions,
+                permissions: permissions.as_deref(),
                 is_active,
                 expires_at,
             })

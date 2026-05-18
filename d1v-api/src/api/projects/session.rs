@@ -52,6 +52,16 @@ impl MessageType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TokenScope {
+    #[serde(rename = "db:read")]
+    DbRead,
+    #[serde(rename = "db:write")]
+    DbWrite,
+    #[serde(rename = "migrate")]
+    Migrate,
+}
+
 pub(crate) struct CommaSeparated;
 
 impl SerializeAs<Vec<MessageType>> for CommaSeparated {

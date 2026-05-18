@@ -2,8 +2,9 @@ use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
     DeleteDbRows, DeploymentEnvironment, Direction, Engine, GenerateMeta, Granularity,
-    ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType, SessionType,
-    UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject, UploadAsset,
+    ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType, PayPermission,
+    SessionType, TokenScope, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject,
+    UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -1144,14 +1145,14 @@ async fn issue_project_token() {
         .projects()
         .project("proj_123")
         .issue_token()
-        .scopes(vec!["db:read".to_string(), "migrate".to_string()])
+        .scopes(vec![TokenScope::DbRead, TokenScope::Migrate])
         .ttl_seconds(900)
         .call()
         .await
         .unwrap();
 
     assert_eq!(token.project_token, "project.jwt");
-    assert_eq!(token.scopes, ["db:read", "migrate"]);
+    assert_eq!(token.scopes, [TokenScope::DbRead, TokenScope::Migrate]);
     mock.assert();
 }
 
@@ -2458,7 +2459,7 @@ async fn create_pay_token() {
         .project("proj_123")
         .pay()
         .create_token("cli")
-        .permissions(vec!["products:read".to_string()])
+        .permissions(vec![PayPermission::ProductsRead])
         .is_active(true)
         .expires_at("2026-05-01T00:00:00Z".parse().unwrap())
         .call()

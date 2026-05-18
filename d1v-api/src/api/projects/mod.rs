@@ -20,14 +20,14 @@ pub use integrations::{IntegrationResponse, ProjectIntegrations};
 pub use pay::{
     CreatePayBankAccount, DeletePayBankAccountResponse, DeletePayTokenResponse,
     DeletePayWebhookResponse, PayBankAccount, PayBankAccounts, PayDashboardMetrics,
-    PayPaymentIntent, PayPaymentLink, PayProduct, PayProducts, PayRevenue, PayToken, PayTokens,
-    PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks, PayWithdrawal, PayWithdrawals,
-    ProjectPay, RegeneratePayWebhookSecretResponse, UpdatePayBankAccount,
+    PayPaymentIntent, PayPaymentLink, PayPermission, PayProduct, PayProducts, PayRevenue, PayToken,
+    PayTokens, PayTransactionStats, PayTransactions, PayWebhook, PayWebhooks, PayWithdrawal,
+    PayWithdrawals, ProjectPay, RegeneratePayWebhookSecretResponse, UpdatePayBankAccount,
 };
 pub use project::ProjectApi;
 pub use session::{
     CancelSessionResponse, ChatHistory, ClaudeProject, Direction, Engine, ExecuteSessionResponse,
-    MessageType, RuntimeSession, SessionType,
+    MessageType, RuntimeSession, SessionType, TokenScope,
 };
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{

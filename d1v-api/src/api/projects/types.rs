@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use super::super::session::ProjectSession;
+use super::session::TokenScope;
 use crate::multipart::FormExt;
 
 #[skip_serializing_none]
@@ -268,7 +269,7 @@ pub struct Deployment {
 pub struct Token {
     pub project_token: String,
     pub expires_at: Timestamp,
-    pub scopes: Vec<String>,
+    pub scopes: Vec<TokenScope>,
 }
 
 pub type Database = Vec<serde_json::Value>;
