@@ -2,11 +2,10 @@ use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
-use d1v_api::api::projects::{DatabaseSchema, DbBranch};
+use d1v_api::api::projects::{DatabaseSchema, DbBranch, DbColumn};
 use d1v_api::{
-    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse,
-    DbCreateTableRequest, DbDeleteRowsRequest, DbMessageResponse, DbRenameTableRequest,
-    DbRowsOptions, DbTableColumnInput, DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest,
+    ApprovalRequest, ApprovalResponse, AutoReviewResponse, DbAffectedResponse, DbDeleteRowsRequest,
+    DbMessageResponse, DbRowsOptions, DbUpdateRowsRequest, DbValuesRequest, ExecuteRequest,
     ExecuteResponse, HistoryResponse, PlanRequest, PlanResponse, ProjectTokenRequest,
     ProjectTokenResponse, ValidateRequest, ValidateResponse,
 };
@@ -51,8 +50,6 @@ pub enum DbCommand {
 pub enum TableCommand {
     /// Create a table
     Create(TableCreateArgs),
-    /// Rename a table
-    Rename(TableRenameArgs),
     /// Drop a table
     Drop(TableDropArgs),
 }
@@ -144,19 +141,6 @@ pub struct TableCreateArgs {
     pub branch: Option<String>,
     #[arg(long, default_value_t = true)]
     pub create_schema_if_missing: bool,
-}
-
-#[derive(Args)]
-pub struct TableRenameArgs {
-    pub project_id: String,
-    #[arg(long, default_value = "public")]
-    pub schema: String,
-    #[arg(long)]
-    pub table: String,
-    #[arg(long)]
-    pub new_table_name: String,
-    #[arg(long)]
-    pub branch: Option<String>,
 }
 
 #[derive(Args)]
@@ -505,6 +489,22 @@ impl crate::text::Render for DbRowsView<'_> {
     }
 }
 
+struct StrView<'a> {
+    title: &'a str,
+    value: &'a str,
+}
+
+impl crate::text::Render for StrView<'_> {
+    fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
+        Text::new()
+            .line(Line::styled(self.title.to_string(), theme::ansi::success()))
+            .render(ctx)?;
+        Fields::new([field("Message", self.value)])
+            .indent(2)
+            .render(ctx)
+    }
+}
+
 struct DbMessageView<'a> {
     title: &'a str,
     result: &'a DbMessageResponse,
@@ -752,7 +752,7 @@ fn parse_json_map(input: &str, flag_name: &str) -> Result<BTreeMap<String, serde
     }
 }
 
-fn parse_columns(input: &str) -> Result<Vec<DbTableColumnInput>> {
+fn parse_columns(input: &str) -> Result<Vec<DbColumn>> {
     serde_json::from_str(input).map_err(|err| anyhow!("invalid JSON for --columns: {err}").into())
 }
 
@@ -817,76 +817,46 @@ pub async fn run(ctx: &Context, command: DbCommand) -> Result<()> {
         DbCommand::Tables { command } => match command {
             TableCommand::Create(args) => {
                 let columns = parse_columns(&args.columns)?;
-                let result = ctx
+                let msg = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .create_table(
-                        &args.project_id,
-                        &DbCreateTableRequest {
-                            schema_name: Some(args.schema),
-                            table_name: args.table,
-                            columns,
-                            primary_key: if args.primary_key.is_empty() {
-                                None
-                            } else {
-                                Some(args.primary_key)
-                            },
-                            branch: args.branch,
-                            create_schema_if_missing: Some(args.create_schema_if_missing),
-                        },
-                    )
+                    .create_table(&args.table)
+                    .columns(columns)
+                    .maybe_schema_name(Some(args.schema.as_str()))
+                    .maybe_primary_key((!args.primary_key.is_empty()).then_some(args.primary_key))
+                    .maybe_branch(args.branch.as_deref())
+                    .create_schema_if_missing(args.create_schema_if_missing)
+                    .call()
                     .await?;
                 ctx.success("Table created");
                 ctx.present(
-                    DbMessageView {
+                    StrView {
                         title: "Create table",
-                        result: &result,
+                        value: &msg,
                     },
-                    &DbMessageJson { result: &result },
-                )
-            }
-            TableCommand::Rename(args) => {
-                let result = ctx
-                    .client
-                    .db()
-                    .rename_table(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        &DbRenameTableRequest {
-                            new_table_name: args.new_table_name,
-                            branch: args.branch,
-                        },
-                    )
-                    .await?;
-                ctx.success("Table renamed");
-                ctx.present(
-                    DbMessageView {
-                        title: "Rename table",
-                        result: &result,
-                    },
-                    &DbMessageJson { result: &result },
+                    &msg,
                 )
             }
             TableCommand::Drop(args) => {
-                let result = ctx
+                let msg = ctx
                     .client
+                    .projects()
+                    .project(&args.project_id)
                     .db()
-                    .drop_table(
-                        &args.project_id,
-                        &args.schema,
-                        &args.table,
-                        args.branch.as_deref(),
-                        Some(args.cascade),
-                    )
+                    .drop_table(&args.schema, &args.table)
+                    .maybe_branch(args.branch.as_deref())
+                    .maybe_cascade(args.cascade.then_some(true))
+                    .call()
                     .await?;
                 ctx.success("Table dropped");
                 ctx.present(
-                    DbMessageView {
+                    StrView {
                         title: "Drop table",
-                        result: &result,
+                        value: &msg,
                     },
-                    &DbMessageJson { result: &result },
+                    &msg,
                 )
             }
         },
