@@ -46,7 +46,15 @@ pub struct UpdateProject {
     pub repository_metadata: Option<serde_json::Value>,
 }
 
-pub type Meta = serde_json::Value;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerateMetaResponse {
+    pub project_name: String,
+    pub project_description: String,
+    pub emoji: String,
+    pub template_repo: String,
+    pub template_reason: String,
+    pub template_confidence: i64,
+}
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -266,8 +274,20 @@ pub struct Token {
 }
 
 pub type Database = Vec<serde_json::Value>;
-pub type TransferResponse = serde_json::Value;
-pub type GenerateEmojisResponse = serde_json::Value;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerateEmojisProject {
+    pub project_id: String,
+    pub project_name: String,
+    pub emoji: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerateEmojisResponse {
+    pub message: String,
+    pub updated_count: i64,
+    #[serde(default)]
+    pub projects: Option<Vec<GenerateEmojisProject>>,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

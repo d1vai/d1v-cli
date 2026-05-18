@@ -47,8 +47,22 @@ pub struct Asset {
     pub deleted: Option<bool>,
 }
 
-pub type StorageStructure = serde_json::Value;
-pub type StorageFile = serde_json::Value;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageStructure {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub size: Option<u64>,
+    pub children: Option<Vec<StorageStructure>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageFile {
+    pub path: String,
+    pub content: String,
+    pub size: u64,
+    pub is_binary: bool,
+}
 
 pub struct ProjectStorage {
     client: Client,

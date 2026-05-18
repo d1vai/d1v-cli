@@ -109,7 +109,11 @@ pub struct ChatHistory {
     pub created_at: Timestamp,
 }
 
-pub type CancelSessionResponse = serde_json::Value;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CancelSessionResponse {
+    pub session_id: String,
+    pub cancelled: bool,
+}
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

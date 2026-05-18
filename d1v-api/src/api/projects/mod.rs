@@ -30,9 +30,9 @@ pub use session::{
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{
     CreateProjectResponse, CreateProjectWithIntegrations, Database, Deployment,
-    DeploymentEnvironment, GenerateEmojisResponse, GitMigrationStatus, ImportFromGithub,
-    ImportLocal, LocalImportFile, Meta, Project, PublishResponse, RepositoryMode, Template, Token,
-    TransferResponse, UpdateProject,
+    DeploymentEnvironment, GenerateEmojisProject, GenerateEmojisResponse, GenerateMetaResponse,
+    GitMigrationStatus, ImportFromGithub, ImportLocal, LocalImportFile, Project, PublishResponse,
+    RepositoryMode, Template, Token, UpdateProject,
 };
 
 use bon::bon;
@@ -102,7 +102,7 @@ impl ProjectsApi {
         &self,
         prompt: impl AsRef<str>,
         max_desc_len: Option<u32>,
-    ) -> Result<Meta, Error> {
+    ) -> Result<GenerateMetaResponse, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
         struct Payload<'a> {

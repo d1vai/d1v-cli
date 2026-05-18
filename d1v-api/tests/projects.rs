@@ -326,7 +326,10 @@ async fn generate_meta() {
                 "data": {
                     "project_name": "todo-app",
                     "project_description": "A focused todo app",
-                    "emoji": "✅"
+                    "emoji": "✅",
+                    "template_repo": "d1vai/nextjs-starter",
+                    "template_reason": "Next.js fits full-stack apps",
+                    "template_confidence": 78
                 }
             }));
     });
@@ -337,7 +340,7 @@ async fn generate_meta() {
         .await
         .unwrap();
 
-    assert_eq!(meta["project_name"], "todo-app");
+    assert_eq!(meta.project_name, "todo-app");
     mock.assert();
 }
 
@@ -630,7 +633,7 @@ async fn transfer_project() {
         .await
         .unwrap();
 
-    assert_eq!(response["project"]["id"], "proj_123");
+    assert_eq!(response.id, "proj_123");
     mock.assert();
 }
 
@@ -646,7 +649,10 @@ async fn generate_project_emojis() {
             .json_body(json!({
                 "code": 0,
                 "msg": "success",
-                "data": { "updated": 3 }
+                "data": {
+                    "message": "成功为 3 个项目生成了 emoji",
+                    "updated_count": 3
+                }
             }));
     });
 
@@ -656,7 +662,7 @@ async fn generate_project_emojis() {
         .await
         .unwrap();
 
-    assert_eq!(response["updated"], 3);
+    assert_eq!(response.updated_count, 3);
     mock.assert();
 }
 
@@ -1387,7 +1393,7 @@ async fn cancel_project_session() {
         .await
         .unwrap();
 
-    assert_eq!(response["cancelled"], true);
+    assert_eq!(response.cancelled, true);
     mock.assert();
 }
 
@@ -2838,7 +2844,17 @@ async fn project_storage_structure() {
             .json_body(json!({
                 "code": 0,
                 "msg": "success",
-                "data": { "children": [{ "path": "src/app.tsx" }] }
+                "data": {
+                    "name": "src",
+                    "path": "proj_123/src",
+                    "is_directory": true,
+                    "children": [{
+                        "name": "app.tsx",
+                        "path": "proj_123/src/app.tsx",
+                        "is_directory": false,
+                        "size": 2048
+                    }]
+                }
             }));
     });
 
@@ -2853,7 +2869,9 @@ async fn project_storage_structure() {
         .await
         .unwrap();
 
-    assert_eq!(structure["children"][0]["path"], "src/app.tsx");
+    let children = structure.children.as_ref().unwrap();
+    assert_eq!(children[0].name, "app.tsx");
+    assert_eq!(children[0].path, "proj_123/src/app.tsx");
     mock.assert();
 }
 
@@ -2869,7 +2887,12 @@ async fn project_storage_file() {
             .json_body(json!({
                 "code": 0,
                 "msg": "success",
-                "data": { "path": "src/app.tsx", "content": "export default App" }
+                "data": {
+                    "path": "src/app.tsx",
+                    "content": "export default App",
+                    "size": 21,
+                    "is_binary": false
+                }
             }));
     });
 
@@ -2881,7 +2904,7 @@ async fn project_storage_file() {
         .await
         .unwrap();
 
-    assert_eq!(file["path"], "src/app.tsx");
+    assert_eq!(file.path, "src/app.tsx");
     mock.assert();
 }
 

@@ -1,6 +1,6 @@
 use bon::bon;
 use jiff::Timestamp;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use serde_with::skip_serializing_none;
 
@@ -17,7 +17,7 @@ use super::session::{
 use super::storage::ProjectStorage;
 use super::types::{
     Database, Deployment, DeploymentEnvironment, GitMigrationStatus, Project, PublishResponse,
-    Token, TransferResponse, UpdateProject,
+    Token, UpdateProject,
 };
 
 #[skip_serializing_none]
@@ -148,7 +148,12 @@ impl ProjectApi {
             .await
     }
 
-    pub async fn transfer(&self, target_email: impl AsRef<str>) -> Result<TransferResponse, Error> {
+    pub async fn transfer(&self, target_email: impl AsRef<str>) -> Result<Project, Error> {
+        #[derive(Deserialize)]
+        struct TransferResult {
+            project: Project,
+        }
+
         #[derive(Serialize)]
         struct Payload<'a> {
             target_email: &'a str,
@@ -159,8 +164,9 @@ impl ProjectApi {
             .json(&Payload {
                 target_email: target_email.as_ref(),
             })
-            .ok()
+            .ok::<TransferResult>()
             .await
+            .map(|r| r.project)
     }
 
     #[builder]
