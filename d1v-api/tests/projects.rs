@@ -1,10 +1,9 @@
 use d1v_api::Client;
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, CreateProjectWithIntegrations, DbColumn,
-    DeleteDbRows, DeploymentEnvironment, Direction, Engine, GenerateMeta, Granularity,
-    ImportFromGithub, ImportLocal, InsertDbRow, LocalImportFile, MessageType, PayPermission,
-    SessionType, TokenScope, UpdateDbRows, UpdateEnvVar, UpdatePayBankAccount, UpdateProject,
-    UploadAsset,
+    DeleteDbRows, DeploymentEnvironment, Direction, Engine, Granularity, ImportFromGithub,
+    ImportLocal, InsertDbRow, LocalImportFile, MessageType, PayPermission, SessionType, TokenScope,
+    UpdateDbRows, UpdatePayBankAccount, UpdateProject, UploadAsset,
 };
 use httpmock::prelude::*;
 use jiff::Timestamp;
@@ -333,10 +332,7 @@ async fn generate_meta() {
 
     let meta = authed_client(&server)
         .projects()
-        .generate_meta(&GenerateMeta {
-            prompt: "Build a todo app".to_string(),
-            max_desc_len: Some(120),
-        })
+        .generate_meta("Build a todo app", Some(120))
         .await
         .unwrap();
 
@@ -2591,13 +2587,10 @@ async fn update_project_env_var() {
         .projects()
         .project("proj_123")
         .env()
-        .update_var(
-            1,
-            &UpdateEnvVar::builder()
-                .value("sk-updated")
-                .is_sensitive(false)
-                .build(),
-        )
+        .update_var(1)
+        .value("sk-updated")
+        .is_sensitive(false)
+        .call()
         .await
         .unwrap();
 

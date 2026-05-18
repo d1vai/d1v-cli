@@ -1,4 +1,4 @@
-use bon::{Builder, bon};
+use bon::bon;
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -16,16 +16,6 @@ pub struct EnvVar {
     pub is_sensitive: bool,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct UpdateEnvVar {
-    #[builder(into)]
-    pub value: Option<String>,
-    #[builder(into)]
-    pub description: Option<String>,
-    pub is_sensitive: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,17 +97,32 @@ impl ProjectEnv {
             .await
     }
 
+    #[builder]
     pub async fn update_var(
         &self,
-        env_var_id: i64,
-        payload: &UpdateEnvVar,
+        #[builder(start_fn)] env_var_id: i64,
+        value: Option<&str>,
+        description: Option<&str>,
+        is_sensitive: Option<bool>,
     ) -> Result<EnvVar, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            value: Option<&'a str>,
+            description: Option<&'a str>,
+            is_sensitive: Option<bool>,
+        }
+
         self.client
             .patch(format!(
                 "/api/projects/{}/env-vars/{}",
                 self.project_id, env_var_id
             ))
-            .json(payload)
+            .json(&Payload {
+                value,
+                description,
+                is_sensitive,
+            })
             .ok()
             .await
     }

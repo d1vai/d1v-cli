@@ -46,13 +46,6 @@ pub struct UpdateProject {
     pub repository_metadata: Option<serde_json::Value>,
 }
 
-#[skip_serializing_none]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct GenerateMeta {
-    pub prompt: String,
-    pub max_desc_len: Option<u32>,
-}
-
 pub type Meta = serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
