@@ -70,7 +70,7 @@ async fn list_projects() {
     assert_eq!(projects.len(), 1);
     assert_eq!(projects[0].id, "proj_123");
     assert_eq!(
-        projects[0].repository_full_name.as_deref(),
+        projects[0].repository.full_name.as_deref(),
         Some("d1v/demo")
     );
     mock.assert();
@@ -172,7 +172,7 @@ async fn import_from_github() {
         .unwrap();
 
     assert_eq!(
-        response.project.repository_full_name.as_deref(),
+        response.project.repository.full_name.as_deref(),
         Some("d1v/demo")
     );
     mock.assert();

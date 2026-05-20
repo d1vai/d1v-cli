@@ -17,7 +17,7 @@ use super::session::{
 use super::storage::ProjectStorage;
 use super::types::{
     Database, Deployment, DeploymentEnvironment, GitMigrationStatus, Project, PublishResponse,
-    RepositoryInfo, Token,
+    Repository, Token,
 };
 
 #[skip_serializing_none]
@@ -88,7 +88,7 @@ impl ProjectApi {
         auto_deploy_on_execute: Option<bool>,
         super_admin_email: Option<&str>,
         project_secret: Option<&str>,
-        repository: Option<&RepositoryInfo>,
+        repository: Option<&Repository>,
     ) -> Result<Project, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
@@ -100,7 +100,7 @@ impl ProjectApi {
             super_admin_email: Option<&'a str>,
             project_secret: Option<&'a str>,
             #[serde(flatten)]
-            repository: Option<&'a RepositoryInfo>,
+            repository: Option<&'a Repository>,
         }
 
         self.client

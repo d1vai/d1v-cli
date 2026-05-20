@@ -112,7 +112,8 @@ impl crate::text::Render for ProjectListView<'_> {
                 project.id.clone(),
                 project.project_name.clone(),
                 project
-                    .repository_full_name
+                    .repository
+                    .full_name
                     .clone()
                     .unwrap_or_else(|| "-".to_string()),
                 project
@@ -187,20 +188,26 @@ impl crate::text::Render for ProjectDetailView<'_> {
                 Some(self.project.project_description.as_str()),
             ),
             field_opt("Emoji", self.project.emoji.as_deref()),
-            field_opt("Repository", self.project.repository_full_name.as_deref()),
+            field_opt("Repository", self.project.repository.full_name.as_deref()),
             field_opt(
                 "Repo branch",
-                self.project.repository_current_branch.as_deref(),
+                self.project.repository.current_branch.as_deref(),
             ),
             field_opt(
                 "Workspace branch",
                 self.project.workspace_current_branch.as_deref(),
             ),
-            field_opt("Preview URL", self.project.latest_preview_url.as_deref()),
-            field_opt("Dev URL", self.project.latest_dev_deployment_url.as_deref()),
+            field_opt(
+                "Preview URL",
+                self.project.vercel.latest_preview_url.as_deref(),
+            ),
+            field_opt(
+                "Dev URL",
+                self.project.vercel.latest_dev_deployment_url.as_deref(),
+            ),
             field_opt(
                 "Prod URL",
-                self.project.latest_prod_deployment_url.as_deref(),
+                self.project.vercel.latest_prod_deployment_url.as_deref(),
             ),
             field_opt(
                 "Created",
@@ -217,7 +224,7 @@ impl crate::text::Render for ProjectDetailView<'_> {
                     .as_deref(),
             ),
             field_opt_bool("Auto deploy", self.project.auto_deploy_on_execute),
-            field_opt_bool("Analytics", self.project.analytics_enabled),
+            field_opt_bool("Analytics", self.project.analytics.enabled),
             field_opt("Database", self.project.project_database_id.as_deref()),
             field_opt("Payments", self.project.project_pay_id.as_deref()),
         ];

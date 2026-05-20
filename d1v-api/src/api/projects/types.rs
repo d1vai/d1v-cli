@@ -51,7 +51,7 @@ pub struct Template {
 
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Builder)]
-pub struct RepositoryInfo {
+pub struct Repository {
     #[builder(into)]
     #[serde(rename = "repository_platform")]
     pub platform: Option<String>,
@@ -86,6 +86,121 @@ pub struct RepositoryInfo {
     pub language: Option<String>,
     #[serde(rename = "repository_metadata")]
     pub metadata: Option<serde_json::Value>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct RepositoryInfo {
+    #[serde(rename = "repository_platform")]
+    pub platform: Option<String>,
+    #[serde(rename = "repository_mode")]
+    pub mode: Option<RepositoryMode>,
+    #[serde(rename = "repository_full_name")]
+    pub full_name: Option<String>,
+    #[serde(rename = "repository_id")]
+    pub id: Option<String>,
+    #[serde(rename = "repository_owner")]
+    pub owner: Option<String>,
+    #[serde(rename = "repository_name")]
+    pub name: Option<String>,
+    #[serde(rename = "repository_clone_url")]
+    pub clone_url: Option<String>,
+    #[serde(rename = "repository_ssh_url")]
+    pub ssh_url: Option<String>,
+    #[serde(rename = "repository_default_branch")]
+    pub default_branch: Option<String>,
+    #[serde(rename = "repository_current_branch")]
+    pub current_branch: Option<String>,
+    #[serde(rename = "repository_is_private")]
+    pub is_private: Option<bool>,
+    #[serde(rename = "repository_description")]
+    pub description: Option<String>,
+    #[serde(rename = "repository_language")]
+    pub language: Option<String>,
+    #[serde(rename = "repository_metadata")]
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct VercelInfo {
+    #[serde(rename = "vercel_dev_project_id")]
+    pub dev_project_id: Option<String>,
+    #[serde(rename = "vercel_dev_domain")]
+    pub dev_domain: Option<String>,
+    pub latest_dev_deployment_url: Option<String>,
+    #[serde(rename = "vercel_prod_project_id")]
+    pub prod_project_id: Option<String>,
+    #[serde(rename = "vercel_prod_domain")]
+    pub prod_domain: Option<String>,
+    pub latest_prod_deployment_url: Option<String>,
+    pub latest_preview_url: Option<String>,
+    #[serde(rename = "vercel_framework")]
+    pub framework: Option<String>,
+    #[serde(rename = "vercel_build_command")]
+    pub build_command: Option<String>,
+    #[serde(rename = "vercel_output_dir")]
+    pub output_dir: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct OpcodeInfo {
+    #[serde(rename = "opcode_project_id")]
+    pub project_id: Option<String>,
+    #[serde(rename = "opcode_project_path")]
+    pub project_path: Option<String>,
+    #[serde(rename = "opcode_username")]
+    pub username: Option<String>,
+    #[serde(rename = "opcode_last_accessed_at")]
+    pub last_accessed_at: Option<Timestamp>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AnalyticsInfo {
+    #[serde(rename = "umami_website_id")]
+    pub website_id: Option<String>,
+    #[serde(rename = "analytics_enabled")]
+    pub enabled: Option<bool>,
+    #[serde(rename = "analytics_team_code")]
+    pub team_code: Option<String>,
+    #[serde(rename = "analytics_team_id")]
+    pub team_id: Option<String>,
+    #[serde(rename = "analytics_id")]
+    pub id: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct VercelDeploymentInfo {
+    #[serde(rename = "vercel_deployment_id")]
+    pub deployment_id: Option<String>,
+    #[serde(rename = "vercel_deployment_url")]
+    pub deployment_url: Option<String>,
+    #[serde(rename = "vercel_project_id")]
+    pub project_id: Option<String>,
+    #[serde(rename = "vercel_domain")]
+    pub domain: Option<String>,
+    #[serde(rename = "vercel_framework")]
+    pub framework: Option<String>,
+    #[serde(rename = "vercel_build_command")]
+    pub build_command: Option<String>,
+    #[serde(rename = "vercel_output_dir")]
+    pub output_dir: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GitCommitInfo {
+    #[serde(rename = "git_branch")]
+    pub branch: Option<String>,
+    #[serde(rename = "git_commit_sha")]
+    pub commit_sha: Option<String>,
+    #[serde(rename = "git_commit_message")]
+    pub commit_message: Option<String>,
+    #[serde(rename = "git_commit_author")]
+    pub commit_author: Option<String>,
 }
 
 #[skip_serializing_none]
@@ -187,17 +302,6 @@ pub struct Deployment {
     pub project_id: String,
     pub environment: DeploymentEnvironment,
     pub status: String,
-    pub vercel_deployment_id: Option<String>,
-    pub vercel_deployment_url: Option<String>,
-    pub vercel_project_id: Option<String>,
-    pub vercel_domain: Option<String>,
-    pub vercel_framework: Option<String>,
-    pub vercel_build_command: Option<String>,
-    pub vercel_output_dir: Option<String>,
-    pub git_branch: Option<String>,
-    pub git_commit_sha: Option<String>,
-    pub git_commit_message: Option<String>,
-    pub git_commit_author: Option<String>,
     pub deployed_by: Option<String>,
     pub started_at: Option<Timestamp>,
     pub completed_at: Option<Timestamp>,
@@ -205,6 +309,10 @@ pub struct Deployment {
     pub error_message: Option<String>,
     pub created_at: Option<Timestamp>,
     pub updated_at: Option<Timestamp>,
+    #[serde(flatten)]
+    pub vercel: VercelDeploymentInfo,
+    #[serde(flatten)]
+    pub git: GitCommitInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -242,47 +350,22 @@ pub struct Project {
     pub project_port: Option<u16>,
     pub project_pay_id: Option<String>,
     pub project_database_id: Option<String>,
-    pub repository_platform: Option<String>,
-    pub repository_mode: Option<RepositoryMode>,
-    pub repository_full_name: Option<String>,
-    pub repository_id: Option<String>,
-    pub repository_owner: Option<String>,
-    pub repository_name: Option<String>,
-    pub repository_clone_url: Option<String>,
-    pub repository_ssh_url: Option<String>,
-    pub repository_default_branch: Option<String>,
-    pub repository_current_branch: Option<String>,
     pub workspace_current_branch: Option<String>,
-    pub repository_is_private: Option<bool>,
-    pub repository_description: Option<String>,
-    pub repository_language: Option<String>,
     pub source_repository_full_name: Option<String>,
     pub source_repository_url: Option<String>,
     pub platform_managed_repository: Option<bool>,
-    pub repository_metadata: Option<serde_json::Value>,
-    pub opcode_project_id: Option<String>,
-    pub opcode_project_path: Option<String>,
-    pub opcode_username: Option<String>,
-    pub opcode_last_accessed_at: Option<Timestamp>,
-    pub vercel_dev_project_id: Option<String>,
-    pub vercel_dev_domain: Option<String>,
-    pub latest_dev_deployment_url: Option<String>,
-    pub vercel_prod_project_id: Option<String>,
-    pub vercel_prod_domain: Option<String>,
-    pub latest_prod_deployment_url: Option<String>,
-    pub latest_preview_url: Option<String>,
-    pub vercel_framework: Option<String>,
-    pub vercel_build_command: Option<String>,
-    pub vercel_output_dir: Option<String>,
-    pub umami_website_id: Option<String>,
-    pub analytics_enabled: Option<bool>,
-    pub analytics_team_code: Option<String>,
-    pub analytics_team_id: Option<String>,
-    pub analytics_id: Option<String>,
     pub emoji: Option<String>,
     pub auto_deploy_on_execute: Option<bool>,
     pub created_at: Option<Timestamp>,
     pub updated_at: Option<Timestamp>,
     #[serde(default)]
     pub sessions: Vec<Session>,
+    #[serde(flatten)]
+    pub repository: RepositoryInfo,
+    #[serde(flatten)]
+    pub vercel: VercelInfo,
+    #[serde(flatten)]
+    pub opcode: OpcodeInfo,
+    #[serde(flatten)]
+    pub analytics: AnalyticsInfo,
 }

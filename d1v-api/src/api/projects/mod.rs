@@ -29,9 +29,10 @@ pub use session::{
 };
 pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructure, UploadAsset};
 pub use types::{
-    CreateProjectResponse, Database, Deployment, DeploymentEnvironment, GenerateEmojisProject,
-    GenerateEmojisResponse, GenerateMetaResponse, GitMigrationStatus, ImportLocal, LocalImportFile,
-    Project, PublishResponse, RepositoryInfo, RepositoryMode, Template, Token,
+    AnalyticsInfo, CreateProjectResponse, Database, Deployment, DeploymentEnvironment,
+    GenerateEmojisProject, GenerateEmojisResponse, GenerateMetaResponse, GitCommitInfo,
+    GitMigrationStatus, ImportLocal, LocalImportFile, OpcodeInfo, Project, PublishResponse,
+    Repository, RepositoryInfo, RepositoryMode, Template, Token, VercelDeploymentInfo, VercelInfo,
 };
 
 use bon::bon;
@@ -149,7 +150,7 @@ impl ProjectsApi {
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
-        repository: Option<&RepositoryInfo>,
+        repository: Option<&Repository>,
     ) -> Result<CreateProjectResponse, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
@@ -162,7 +163,7 @@ impl ProjectsApi {
             enable_database: Option<bool>,
             enable_resend: Option<bool>,
             #[serde(flatten)]
-            repository: Option<&'a RepositoryInfo>,
+            repository: Option<&'a Repository>,
         }
 
         self.client
