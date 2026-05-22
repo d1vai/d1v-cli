@@ -21,6 +21,7 @@ const WORKSPACE_DIR: &str = ".d1v";
 const WORKSPACE_FILE: &str = "project.json";
 const IGNORE_FILE: &str = ".d1vignore";
 const IGNORE_PROFILE_VERSION: u32 = 1;
+const COMMIT_SUMMARY_PROMPT_MAX_CHARS: usize = 24_000;
 
 const DEFAULT_EXCLUDED_DIRS: &[&str] = &[
     ".git",
@@ -113,6 +114,16 @@ struct SyncResultJson<'a> {
     dirty: bool,
     can_sync: bool,
     status: &'a str,
+}
+
+#[derive(Debug, Clone)]
+struct CommitSummaryInput {
+    status: String,
+    unstaged_stat: String,
+    staged_stat: String,
+    unstaged_patch: String,
+    staged_patch: String,
+    raw_diff: String,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -714,19 +725,19 @@ fn sync_status_message(
 }
 
 async fn generate_commit_message(root: &Path) -> Result<String> {
-    let diff = git_diff_for_summary(root)?;
-    if diff.trim().is_empty() {
+    let input = collect_commit_summary_input(root)?;
+    if input.raw_diff.trim().is_empty() {
         return Ok("chore: sync local changes".to_string());
     }
 
     if let Some(config) = load_pai_config(root)?
-        && let Ok(summary) = summarize_diff_with_pai(&config, &diff).await
+        && let Ok(summary) = summarize_diff_with_pai(&config, &input).await
         && !summary.trim().is_empty()
     {
         return Ok(summary.trim().to_string());
     }
 
-    Ok(fallback_commit_message(&diff))
+    Ok(fallback_commit_message(&input.raw_diff))
 }
 
 fn load_pai_config(root: &Path) -> Result<Option<PaiConfig>> {
@@ -795,7 +806,7 @@ fn parse_env_file(path: &Path) -> Result<HashMap<String, String>> {
     Ok(env)
 }
 
-async fn summarize_diff_with_pai(config: &PaiConfig, diff: &str) -> Result<String> {
+async fn summarize_diff_with_pai(config: &PaiConfig, input: &CommitSummaryInput) -> Result<String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -805,12 +816,29 @@ async fn summarize_diff_with_pai(config: &PaiConfig, diff: &str) -> Result<Strin
     } else {
         select_pai_model(&client, config).await?
     };
-    let prompt = build_commit_summary_prompt(diff);
+    let prompts = build_commit_summary_prompt_variants(input);
+    let mut last_error: Option<crate::error::Error> = None;
+    for prompt in prompts {
+        match request_commit_summary_with_pai(&client, config, &model, &prompt).await {
+            Ok(message) if !message.trim().is_empty() => return Ok(message),
+            Ok(_) => last_error = Some(anyhow!("PAI returned an empty commit summary").into()),
+            Err(error) => last_error = Some(error),
+        }
+    }
+    Err(last_error.unwrap_or_else(|| anyhow!("PAI did not return a commit summary").into()))
+}
+
+async fn request_commit_summary_with_pai(
+    client: &reqwest::Client,
+    config: &PaiConfig,
+    model: &str,
+    prompt: &str,
+) -> Result<String> {
     let response = client
         .post(format!("{}/v1/chat/completions", config.base_url))
         .bearer_auth(&config.api_key)
         .json(&ChatCompletionsRequest {
-            model: &model,
+            model,
             messages: vec![
                 ChatMessage {
                     role: "system",
@@ -866,11 +894,46 @@ async fn select_pai_model(client: &reqwest::Client, config: &PaiConfig) -> Resul
         .ok_or_else(|| anyhow!("No models available from D1V_PAI_BASE_URL").into())
 }
 
-fn build_commit_summary_prompt(diff: &str) -> String {
-    let trimmed = truncate_for_prompt(diff, 24_000);
-    format!(
-        "Write one concise git commit message under 72 characters.\nUse conventional-commit style when appropriate.\nReturn only the commit message.\n\nDiff:\n{trimmed}"
-    )
+fn build_commit_summary_prompt_variants(input: &CommitSummaryInput) -> Vec<String> {
+    let status = truncate_for_prompt(&input.status, 2_000);
+    let diff_stats = render_commit_diff_stats(input);
+    let detailed_patch = render_commit_patch_sections(input, 8, 4, 1_600, 12_000);
+    let compact_patch = render_commit_patch_sections(input, 4, 2, 800, 4_000);
+
+    let variants = vec![
+        build_commit_summary_prompt(&status, &diff_stats, Some(&detailed_patch)),
+        build_commit_summary_prompt(&status, &diff_stats, Some(&compact_patch)),
+        build_commit_summary_prompt(&status, &diff_stats, None),
+    ];
+
+    let mut seen = BTreeSet::new();
+    variants
+        .into_iter()
+        .filter(|prompt| seen.insert(prompt.clone()))
+        .collect()
+}
+
+fn build_commit_summary_prompt(
+    status: &str,
+    diff_stats: &str,
+    patch_excerpt: Option<&str>,
+) -> String {
+    let mut prompt = String::from(
+        "Write one concise git commit message under 72 characters.\n\
+Use conventional-commit style when appropriate.\n\
+Return only the commit message.\n\n",
+    );
+    prompt.push_str("Status:\n");
+    prompt.push_str(status);
+    prompt.push_str("\n\nDiff stats:\n");
+    prompt.push_str(diff_stats);
+    if let Some(patch_excerpt) = patch_excerpt
+        && !patch_excerpt.trim().is_empty()
+    {
+        prompt.push_str("\n\nPatch excerpts:\n");
+        prompt.push_str(patch_excerpt);
+    }
+    truncate_for_prompt(&prompt, COMMIT_SUMMARY_PROMPT_MAX_CHARS)
 }
 
 fn truncate_for_prompt(text: &str, max_chars: usize) -> String {
@@ -881,6 +944,139 @@ fn truncate_for_prompt(text: &str, max_chars: usize) -> String {
     } else {
         truncated
     }
+}
+
+fn render_commit_diff_stats(input: &CommitSummaryInput) -> String {
+    let mut sections = Vec::new();
+    if !input.unstaged_stat.trim().is_empty() {
+        sections.push(format!("Unstaged:\n{}", input.unstaged_stat.trim()));
+    }
+    if !input.staged_stat.trim().is_empty() {
+        sections.push(format!("Staged:\n{}", input.staged_stat.trim()));
+    }
+    if sections.is_empty() {
+        sections.push("No diff stats available".to_string());
+    }
+    sections.join("\n\n")
+}
+
+fn render_commit_patch_sections(
+    input: &CommitSummaryInput,
+    max_files: usize,
+    max_hunks_per_file: usize,
+    max_chars_per_file: usize,
+    max_total_chars: usize,
+) -> String {
+    let mut sections = Vec::new();
+    let unstaged = compact_patch_for_prompt(
+        &input.unstaged_patch,
+        max_files,
+        max_hunks_per_file,
+        max_chars_per_file,
+        max_total_chars / 2,
+    );
+    if !unstaged.trim().is_empty() {
+        sections.push(format!("Unstaged:\n{unstaged}"));
+    }
+
+    let staged = compact_patch_for_prompt(
+        &input.staged_patch,
+        max_files,
+        max_hunks_per_file,
+        max_chars_per_file,
+        max_total_chars / 2,
+    );
+    if !staged.trim().is_empty() {
+        sections.push(format!("Staged:\n{staged}"));
+    }
+
+    let joined = sections.join("\n\n");
+    truncate_for_prompt(&joined, max_total_chars)
+}
+
+fn compact_patch_for_prompt(
+    diff: &str,
+    max_files: usize,
+    max_hunks_per_file: usize,
+    max_chars_per_file: usize,
+    max_total_chars: usize,
+) -> String {
+    let mut output = String::new();
+    let mut files_seen = 0usize;
+    let mut chars_in_file = 0usize;
+    let mut hunks_in_file = 0usize;
+    let mut file_truncated = false;
+
+    for line in diff.lines() {
+        if line.starts_with("diff --git ") {
+            if files_seen >= max_files {
+                if !output.contains("\n...[additional files truncated]") {
+                    output.push_str("\n...[additional files truncated]");
+                }
+                break;
+            }
+            files_seen += 1;
+            chars_in_file = 0;
+            hunks_in_file = 0;
+            file_truncated = false;
+        } else if files_seen == 0 {
+            continue;
+        }
+
+        if line.starts_with("@@") {
+            if hunks_in_file >= max_hunks_per_file {
+                if !file_truncated {
+                    append_compact_line(
+                        &mut output,
+                        "...[additional hunks truncated]",
+                        max_total_chars,
+                    );
+                    file_truncated = true;
+                }
+                continue;
+            }
+            hunks_in_file += 1;
+        }
+
+        let line_len = line.chars().count() + 1;
+        let is_metadata = line.starts_with("diff --git ")
+            || line.starts_with("index ")
+            || line.starts_with("--- ")
+            || line.starts_with("+++ ")
+            || line.starts_with("@@");
+        if !is_metadata && chars_in_file + line_len > max_chars_per_file {
+            if !file_truncated {
+                append_compact_line(&mut output, "...[file excerpt truncated]", max_total_chars);
+                file_truncated = true;
+            }
+            continue;
+        }
+
+        if !append_compact_line(&mut output, line, max_total_chars) {
+            break;
+        }
+        chars_in_file += line_len;
+    }
+
+    output.trim().to_string()
+}
+
+fn append_compact_line(output: &mut String, line: &str, max_total_chars: usize) -> bool {
+    let candidate_len = output.chars().count() + line.chars().count() + 1;
+    if candidate_len > max_total_chars {
+        if !output.contains("\n...[patch truncated]") {
+            if !output.is_empty() {
+                output.push('\n');
+            }
+            output.push_str("...[patch truncated]");
+        }
+        return false;
+    }
+    if !output.is_empty() {
+        output.push('\n');
+    }
+    output.push_str(line);
+    true
 }
 
 fn sanitize_commit_message(message: &str) -> String {
@@ -909,23 +1105,67 @@ fn fallback_commit_message(diff: &str) -> String {
     format!("chore: {verb} local changes")
 }
 
-fn git_diff_for_summary(root: &Path) -> Result<String> {
+fn collect_commit_summary_input(root: &Path) -> Result<CommitSummaryInput> {
     let status = run_git(
         root,
         &["status", "--short", "--untracked-files=all"],
         None,
         None,
     )?;
-    let diff = run_git(root, &["diff", "--no-ext-diff", "--minimal"], None, None)?;
-    let cached = run_git(
+    let unstaged_stat = run_git(
         root,
-        &["diff", "--no-ext-diff", "--minimal", "--cached"],
+        &[
+            "diff",
+            "--no-ext-diff",
+            "--minimal",
+            "--stat=160,120",
+            "--compact-summary",
+        ],
         None,
         None,
     )?;
-    Ok(format!(
-        "Status:\n{status}\n\nUnstaged diff:\n{diff}\n\nStaged diff:\n{cached}"
-    ))
+    let staged_stat = run_git(
+        root,
+        &[
+            "diff",
+            "--no-ext-diff",
+            "--minimal",
+            "--cached",
+            "--stat=160,120",
+            "--compact-summary",
+        ],
+        None,
+        None,
+    )?;
+    let unstaged_patch = run_git(
+        root,
+        &["diff", "--no-ext-diff", "--minimal", "--unified=0"],
+        None,
+        None,
+    )?;
+    let staged_patch = run_git(
+        root,
+        &[
+            "diff",
+            "--no-ext-diff",
+            "--minimal",
+            "--cached",
+            "--unified=0",
+        ],
+        None,
+        None,
+    )?;
+    let raw_diff = format!(
+        "Status:\n{status}\n\nUnstaged diff:\n{unstaged_patch}\n\nStaged diff:\n{staged_patch}"
+    );
+    Ok(CommitSummaryInput {
+        status,
+        unstaged_stat,
+        staged_stat,
+        unstaged_patch,
+        staged_patch,
+        raw_diff,
+    })
 }
 
 fn git_stage_all(root: &Path) -> Result<()> {
@@ -1503,5 +1743,69 @@ mod tests {
         fs::remove_dir_all(workspace).unwrap();
         fs::remove_dir_all(verify).unwrap();
         fs::remove_dir_all(remote).unwrap();
+    }
+
+    #[test]
+    fn compact_patch_for_prompt_truncates_large_patch_gracefully() {
+        let diff = [
+            "diff --git a/a.txt b/a.txt",
+            "index 1111111..2222222 100644",
+            "--- a/a.txt",
+            "+++ b/a.txt",
+            "@@ -1 +1 @@",
+            "-old line",
+            "+new line",
+            "@@ -10 +10 @@",
+            "-another old line",
+            "+another new line",
+            "@@ -20 +20 @@",
+            "-third old line",
+            "+third new line",
+            "diff --git a/b.txt b/b.txt",
+            "index 3333333..4444444 100644",
+            "--- a/b.txt",
+            "+++ b/b.txt",
+            "@@ -1 +1 @@",
+            "-before",
+            "+after",
+        ]
+        .join("\n");
+
+        let compact = compact_patch_for_prompt(&diff, 1, 2, 200, 600);
+        assert!(compact.contains("diff --git a/a.txt b/a.txt"));
+        assert!(compact.contains("...[additional hunks truncated]"));
+        assert!(!compact.contains("diff --git a/b.txt b/b.txt"));
+        assert!(compact.contains("...[additional files truncated]"));
+    }
+
+    #[test]
+    fn build_commit_summary_prompt_variants_shrink_context_progressively() {
+        let input = CommitSummaryInput {
+            status: " M src/main.rs\n?? src/new.rs".to_string(),
+            unstaged_stat: " src/main.rs | 12 ++++++------".to_string(),
+            staged_stat: " src/new.rs | 30 ++++++++++++++++++++++++++++++".to_string(),
+            unstaged_patch: [
+                "diff --git a/src/main.rs b/src/main.rs",
+                "@@ -1 +1 @@",
+                "-old",
+                "+new",
+            ]
+            .join("\n"),
+            staged_patch: [
+                "diff --git a/src/new.rs b/src/new.rs",
+                "@@ -0,0 +1,3 @@",
+                "+one",
+                "+two",
+                "+three",
+            ]
+            .join("\n"),
+            raw_diff: "placeholder".to_string(),
+        };
+
+        let prompts = build_commit_summary_prompt_variants(&input);
+        assert!(prompts.len() >= 2);
+        assert!(prompts[0].len() >= prompts[1].len());
+        assert!(prompts.last().unwrap().contains("Diff stats:"));
+        assert!(!prompts.last().unwrap().contains("Patch excerpts:"));
     }
 }
