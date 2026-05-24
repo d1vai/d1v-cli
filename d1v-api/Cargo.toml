@@ -20,7 +20,7 @@ base64 = "0.22"
 bon = "3.9"
 jiff = { version = "0.2", features = ["serde"] }
 parking_lot = "0.12"
-os_info = "3.14"
+os_info = "3.15"
 reqwest = { version = "0.13", features = ["json", "query", "multipart"] }
 secrecy = { version = "0.10", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -33,7 +33,7 @@ percent-encoding = "2.3"
 unic-langid = "0.9"
 url = "2.5"
 serde_with = "3.20"
-garde = { version = "0.22", features = ["email"] }
+garde = { version = "0.23", features = ["email"] }
 
 [dev-dependencies]
 httpmock = "0.8"
