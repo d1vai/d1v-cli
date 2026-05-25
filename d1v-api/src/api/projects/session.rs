@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_with::{SerializeAs, skip_serializing_none};
 use strum::{Display, EnumString};
 
+use super::time::{deserialize_optional_timestamp, deserialize_timestamp};
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -93,7 +95,9 @@ pub struct Session {
     pub session_id: String,
     pub model: Option<String>,
     pub status: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub created_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub updated_at: Option<Timestamp>,
     pub websocket_url: Option<String>,
 }
@@ -115,6 +119,7 @@ pub struct ChatHistory {
     pub message_text: Option<String>,
     #[serde(default)]
     pub payload: serde_json::Value,
+    #[serde(deserialize_with = "deserialize_timestamp")]
     pub created_at: Timestamp,
 }
 

@@ -170,6 +170,16 @@ d1v auth login
 | GitHub    | `d1v github status|bind|installations|repos|import` |
 | 数据库    | `d1v db schema|data|branches|tables|rows|token|migrate` |
 
+### 容器内按需启用集成
+
+当容器运行时注入了 `D1V_AUTH_TOKEN`、`D1V_BASE_URL`、`D1V_PROJECT_ID` 之后，agent 可以直接按需启用项目集成，不需要再走浏览器登录：
+
+```sh
+d1v project ensure database
+d1v project ensure db analytics
+d1v --format json project ensure pay
+```
+
 ### GitHub 跳转路径
 
 优先走 CLI，只有在绑定或安装缺失时再跳浏览器：
@@ -206,7 +216,7 @@ d1v db migrate auto-review <approval_id>
 
 ### 前置要求
 
-- [Rust](https://www.rust-lang.org/)（最新稳定版）
+- [Rust](https://www.rust-lang.org/)（稳定版 1.95+）
 - [Task](https://taskfile.dev/)（可选）
 
 ### 构建

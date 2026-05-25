@@ -376,6 +376,20 @@ pub async fn push(ctx: &Context, args: PushArgs) -> Result<()> {
     sync_workspace(ctx, args.path, args.dry_run, "push").await
 }
 
+pub fn resolve_bound_project_id(path: Option<&Path>) -> Result<Option<String>> {
+    let target = match path {
+        Some(path) => fs::canonicalize(path)?,
+        None => std::env::current_dir()?,
+    };
+
+    let Some(workspace_root) = find_workspace_root(&target)? else {
+        return Ok(None);
+    };
+
+    let metadata = read_workspace_metadata(&workspace_root)?;
+    Ok(metadata.project_id.filter(|value| !value.trim().is_empty()))
+}
+
 fn write_workspace_metadata(root: &Path, metadata: &WorkspaceMetadata) -> Result<()> {
     let dir = root.join(WORKSPACE_DIR);
     fs::create_dir_all(&dir)?;
@@ -1502,6 +1516,37 @@ mod tests {
 
         assert_eq!(loaded.project_id.as_deref(), Some("proj_123"));
         assert_eq!(loaded.project_name, "sample");
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn resolves_bound_project_id_from_nested_workspace_path() {
+        let dir = temp_dir("resolve-project-id");
+        let nested = dir.join("app/pages");
+        fs::create_dir_all(&nested).unwrap();
+
+        let metadata = WorkspaceMetadata {
+            version: 1,
+            project_id: Some("proj_nested".to_string()),
+            workspace_id: None,
+            project_name: "sample".to_string(),
+            root_path: dir.display().to_string(),
+            framework: None,
+            package_manager: None,
+            remote_revision: None,
+            last_pull_revision: None,
+            last_push_revision: None,
+            created_by_cli_version: "0.1.0".to_string(),
+            ignore_profile_version: IGNORE_PROFILE_VERSION,
+            bound_at: Timestamp::now().to_string(),
+            updated_at: Timestamp::now().to_string(),
+        };
+
+        write_workspace_metadata(&dir, &metadata).unwrap();
+
+        let resolved = resolve_bound_project_id(Some(&nested)).unwrap();
+        assert_eq!(resolved.as_deref(), Some("proj_nested"));
 
         fs::remove_dir_all(dir).unwrap();
     }

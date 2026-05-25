@@ -1,4 +1,40 @@
-# Goal: Add `d1v upgrade` Self-Update From GitHub Releases
+# Goal: Add Project-Scoped Integration Ensure Flow For Container Runtimes
+
+## Current Execution
+
+- Background: container agents need a lightweight, discoverable way to enable project integrations on demand without re-reading state files or hand-crafting backend API calls. Backend now exposes an idempotent `POST /api/projects/{project_id}/integrations/ensure` route that accepts project tokens and syncs workspace env updates.
+- User outcome: inside a containerized project runtime, the agent should be able to run a single `d1v` command that resolves project scope from env or workspace state, uses a project token from `D1V_AUTH_TOKEN`, and enables `database`, `pay`, and/or `analytics` without duplicating already-enabled work.
+- Runtime integration requirements:
+  - prefer `D1V_PROJECT_ID`, then `.d1v/project.json`, then explicit `--project-id`
+  - keep text output human-readable and `--format json` stable for automation
+  - work with project tokens injected by `opcode-api` child-process env
+  - document the command so container/runtime integration remains discoverable
+- Selected validators for this execution: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`
+
+## Current Todo
+
+- [ ] Add a project-scoped `ensure` command that resolves project id from env/workspace/flag and calls the backend ensure endpoint. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@auth-state-qa`
+  - Owner: main agent
+  - Verification: `cargo run -p d1v-cli -- project ensure --help`; local smoke against a stub/live backend using `D1V_AUTH_TOKEN` and `D1V_PROJECT_ID`
+  - Status: in_progress
+  - Evidence: pending
+  - Notes: keep the command idempotent and friendly to agent automation.
+
+- [ ] Pin the Rust toolchain at MSRV 1.95 so local and container builds stop failing on upstream crate updates. `@docs-adoption-qa`
+  - Owner: main agent
+  - Verification: `cargo run -p d1v-cli -- --help`
+  - Status: pending
+  - Evidence: pending
+  - Notes: prefer repository-level toolchain pinning over ad-hoc local overrides.
+
+- [ ] Update adoption docs and execution evidence for the new integration-ensure workflow. `@docs-adoption-qa`
+  - Owner: main agent
+  - Verification: README/PLAN review after implementation
+  - Status: pending
+  - Evidence: pending
+  - Notes: include the container-oriented `D1V_PROJECT_ID` / `D1V_AUTH_TOKEN` workflow.
+
+# Archived Execution: Add `d1v upgrade` Self-Update From GitHub Releases
 
 ## Current Execution
 

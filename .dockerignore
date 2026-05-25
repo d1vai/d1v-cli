@@ -1,0 +1,6 @@
+.git
+.github
+.vscode
+target
+**/target
+.DS_Store

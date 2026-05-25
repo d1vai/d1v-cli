@@ -1,11 +1,18 @@
-use clap::{Args, Subcommand};
-use d1v_api::api::projects::{CreateProjectResponse, Project, Template};
+use std::path::PathBuf;
+
+use anyhow::anyhow;
+use clap::{Args, Subcommand, ValueEnum};
+use d1v_api::api::projects::{
+    CreateProjectResponse, EnsureProjectIntegrationStatus, EnsureProjectIntegrationsResponse,
+    Project, Template,
+};
 use serde::Serialize;
 
 use crate::Context;
 use crate::error::Result;
 use crate::text::{Field, Fields, Line, Span, Table, TableRow, Text};
 use crate::theme;
+use crate::workspace;
 
 #[derive(Subcommand)]
 pub enum ProjectCommand {
@@ -19,6 +26,8 @@ pub enum ProjectCommand {
     Create(CreateArgs),
     /// Update a project
     Update(UpdateArgs),
+    /// Ensure project integrations are enabled
+    Ensure(EnsureArgs),
     /// Delete a project
     Delete(DeleteArgs),
 }
@@ -73,6 +82,28 @@ pub struct UpdateArgs {
     /// Override auto-deploy-on-execute
     #[arg(long)]
     pub auto_deploy: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum EnsureTarget {
+    #[value(alias = "db")]
+    Database,
+    #[value(alias = "payments", alias = "payment")]
+    Pay,
+    Analytics,
+}
+
+#[derive(Args)]
+pub struct EnsureArgs {
+    /// Integration targets to ensure
+    #[arg(value_enum, num_args = 1..)]
+    pub targets: Vec<EnsureTarget>,
+    /// Project ID override (defaults to D1V_PROJECT_ID or .d1v/project.json)
+    #[arg(long, env = "D1V_PROJECT_ID")]
+    pub project_id: Option<String>,
+    /// Resolve workspace metadata from this path instead of the current directory
+    #[arg(long)]
+    pub path: Option<PathBuf>,
 }
 
 impl UpdateArgs {
@@ -243,6 +274,15 @@ struct ProjectCreateView<'a> {
     result: &'a CreateProjectResponse,
 }
 
+#[derive(Debug, Serialize)]
+struct ProjectEnsureJson<'a> {
+    result: &'a EnsureProjectIntegrationsResponse,
+}
+
+struct ProjectEnsureView<'a> {
+    result: &'a EnsureProjectIntegrationsResponse,
+}
+
 impl crate::text::Render for ProjectCreateView<'_> {
     fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
         ProjectDetailView {
@@ -273,6 +313,42 @@ impl crate::text::Render for ProjectCreateView<'_> {
     }
 }
 
+impl crate::text::Render for ProjectEnsureView<'_> {
+    fn render(&self, ctx: &mut crate::text::RenderContext<'_>) -> std::io::Result<()> {
+        let project = &self.result.project;
+        let heading = Line::styled("Ensured".to_string(), theme::ansi::success())
+            .push_plain(" ")
+            .push_styled(
+                format!("{} ({})", project.project_name, project.id),
+                theme::ansi::plain(),
+            );
+
+        Text::new().line(heading).render(ctx)?;
+        Fields::new([
+            field_opt(
+                "Database",
+                Some(&render_ensure_status(&self.result.database)),
+            ),
+            field_opt("Pay", Some(&render_ensure_status(&self.result.pay))),
+            field_opt(
+                "Analytics",
+                Some(&render_ensure_status(&self.result.analytics)),
+            ),
+        ])
+        .indent(2)
+        .render(ctx)?;
+
+        if !self.result.errors.is_empty() {
+            let joined = self.result.errors.join("; ");
+            Fields::new([field_opt("Errors", Some(&joined))])
+                .indent(2)
+                .render(ctx)?;
+        }
+
+        Ok(())
+    }
+}
+
 fn field_opt(label: &'static str, value: Option<&str>) -> Field {
     Field::new(
         Span::styled(label, theme::ansi::label()),
@@ -287,6 +363,36 @@ fn field_opt_bool(label: &'static str, value: Option<bool>) -> Field {
         None => "-",
     };
     field_opt(label, Some(rendered))
+}
+
+fn render_ensure_status(status: &EnsureProjectIntegrationStatus) -> String {
+    let mut rendered = format!("{}: {}", status.status, status.message);
+    if let Some(error) = status.error.as_deref() {
+        rendered.push_str(" (");
+        rendered.push_str(error);
+        rendered.push(')');
+    }
+    rendered
+}
+
+fn resolve_ensure_project_id(args: &EnsureArgs) -> Result<String> {
+    if let Some(project_id) = args
+        .project_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(project_id.to_string());
+    }
+
+    if let Some(project_id) = workspace::resolve_bound_project_id(args.path.as_deref())? {
+        return Ok(project_id);
+    }
+
+    Err(anyhow!(
+        "project id is required. Set D1V_PROJECT_ID, pass --project-id, or run inside a bound d1v workspace."
+    )
+    .into())
 }
 
 pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
@@ -392,6 +498,47 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
                     project: &project,
                 },
                 &ProjectDetailJson { project: &project },
+            )
+        }
+        ProjectCommand::Ensure(args) => {
+            let project_id = resolve_ensure_project_id(&args)?;
+            let mut database = false;
+            let mut pay = false;
+            let mut analytics = false;
+            for target in args.targets {
+                match target {
+                    EnsureTarget::Database => database = true,
+                    EnsureTarget::Pay => pay = true,
+                    EnsureTarget::Analytics => analytics = true,
+                }
+            }
+
+            let result = ctx
+                .client
+                .project(&project_id)
+                .integrations()
+                .ensure()
+                .database(database)
+                .pay(pay)
+                .analytics(analytics)
+                .call()
+                .await?;
+
+            if result.errors.is_empty() {
+                ctx.success(format!(
+                    "Ensured integrations for project {}",
+                    result.project.id
+                ));
+            } else {
+                ctx.message(format!(
+                    "Integration ensure completed with {} error(s)",
+                    result.errors.len()
+                ));
+            }
+
+            ctx.present(
+                ProjectEnsureView { result: &result },
+                &ProjectEnsureJson { result: &result },
             )
         }
         ProjectCommand::Delete(args) => {

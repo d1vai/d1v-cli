@@ -6,6 +6,7 @@ use serde_with::skip_serializing_none;
 use strum::{Display, EnumString};
 
 use super::session::{Session, TokenScope};
+use super::time::{deserialize_optional_timestamp, deserialize_timestamp};
 use crate::multipart::FormExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +154,7 @@ pub struct OpcodeInfo {
     #[serde(rename = "opcode_username")]
     pub username: Option<String>,
     #[serde(rename = "opcode_last_accessed_at")]
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub last_accessed_at: Option<Timestamp>,
 }
 
@@ -303,11 +305,15 @@ pub struct Deployment {
     pub environment: DeploymentEnvironment,
     pub status: String,
     pub deployed_by: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub started_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub completed_at: Option<Timestamp>,
     pub deployment_duration_seconds: Option<i64>,
     pub error_message: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub created_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub updated_at: Option<Timestamp>,
     #[serde(flatten)]
     pub vercel: VercelDeploymentInfo,
@@ -318,6 +324,7 @@ pub struct Deployment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Token {
     pub project_token: String,
+    #[serde(deserialize_with = "deserialize_timestamp")]
     pub expires_at: Timestamp,
     pub scopes: Vec<TokenScope>,
 }
@@ -356,7 +363,9 @@ pub struct Project {
     pub platform_managed_repository: Option<bool>,
     pub emoji: Option<String>,
     pub auto_deploy_on_execute: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub created_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub updated_at: Option<Timestamp>,
     #[serde(default)]
     pub sessions: Vec<Session>,

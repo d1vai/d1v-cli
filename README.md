@@ -170,6 +170,16 @@ d1v auth login
 | GitHub    | `d1v github status|bind|installations|repos|import` |
 | Database  | `d1v db schema|data|branches|tables|rows|token|migrate` |
 
+### Container Integration Ensure
+
+When a container runtime injects `D1V_AUTH_TOKEN`, `D1V_BASE_URL`, and `D1V_PROJECT_ID`, agents can enable project integrations on demand without a browser login:
+
+```sh
+d1v project ensure database
+d1v project ensure db analytics
+d1v --format json project ensure pay
+```
+
 ### GitHub Handoff
 
 Use CLI first, then jump to web only when setup is required:
@@ -206,7 +216,7 @@ d1v db migrate auto-review <approval_id>
 
 ### Prerequisites
 
-- [Rust](https://www.rust-lang.org/) (latest stable)
+- [Rust](https://www.rust-lang.org/) (stable 1.95+)
 - [Task](https://taskfile.dev/) (optional)
 
 ### Build

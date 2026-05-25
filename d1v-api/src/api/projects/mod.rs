@@ -5,6 +5,7 @@ mod pay;
 mod project;
 mod session;
 mod storage;
+mod time;
 mod types;
 
 pub use db::{
@@ -14,7 +15,10 @@ pub use db::{
 pub use env::{
     EnvVar, ExportEnvVarsResponse, ImportEnvVarsResponse, ProjectEnv, SyncEnvVarsResponse,
 };
-pub use integrations::{IntegrationResponse, ProjectIntegrations};
+pub use integrations::{
+    EnsureProjectIntegrationStatus, EnsureProjectIntegrationsResponse, IntegrationResponse,
+    ProjectIntegrations,
+};
 pub use pay::{
     CreatePayBankAccount, DeletePayBankAccountResponse, DeletePayTokenResponse,
     DeletePayWebhookResponse, PayBankAccount, PayBankAccounts, PayDashboardMetrics,

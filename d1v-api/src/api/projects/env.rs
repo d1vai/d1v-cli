@@ -3,6 +3,7 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
+use super::time::deserialize_timestamp;
 use crate::{Client, Error};
 
 #[skip_serializing_none]
@@ -14,7 +15,9 @@ pub struct EnvVar {
     pub value_preview: String,
     pub description: Option<String>,
     pub is_sensitive: bool,
+    #[serde(deserialize_with = "deserialize_timestamp")]
     pub created_at: Timestamp,
+    #[serde(deserialize_with = "deserialize_timestamp")]
     pub updated_at: Timestamp,
 }
 
