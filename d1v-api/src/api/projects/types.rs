@@ -6,8 +6,8 @@ use serde_with::skip_serializing_none;
 use strum::{Display, EnumString};
 
 use super::session::{Session, TokenScope};
-use super::time::{deserialize_optional_timestamp, deserialize_timestamp};
 use crate::multipart::FormExt;
+use crate::time::{deserialize_optional_timestamp, deserialize_timestamp};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenerateMetaResponse {

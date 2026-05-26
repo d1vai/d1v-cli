@@ -5,7 +5,6 @@ mod pay;
 mod project;
 mod session;
 mod storage;
-mod time;
 mod types;
 
 pub use db::{

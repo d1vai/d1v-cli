@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, Serializer};
 use serde_with::{SerializeAs, skip_serializing_none};
 use strum::{Display, EnumString};
 
-use super::time::{deserialize_optional_timestamp, deserialize_timestamp};
+use crate::time::{deserialize_optional_timestamp, deserialize_timestamp};
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, EnumString, Display)]
 #[serde(rename_all = "snake_case")]

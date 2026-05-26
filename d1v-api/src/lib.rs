@@ -8,6 +8,7 @@ mod multipart;
 #[cfg(feature = "record")]
 pub mod record;
 pub mod response;
+mod time;
 pub mod user_agent;
 mod validate;
 

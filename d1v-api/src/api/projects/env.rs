@@ -3,7 +3,7 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use super::time::deserialize_timestamp;
+use crate::time::deserialize_timestamp;
 use crate::{Client, Error};
 
 #[skip_serializing_none]
