@@ -3011,3 +3011,45 @@ async fn delete_project_asset() {
     assert_eq!(asset.deleted, Some(true));
     mock.assert();
 }
+
+#[tokio::test]
+async fn deserialize_naive_datetime() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/projects/proj_123")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": "proj_123",
+                    "user_id": 42,
+                    "project_name": "test",
+                    "project_description": "test",
+                    "project_port": 3000,
+                    "created_at": "2026-02-12T06:30:55",
+                    "updated_at": "2026-02-12T06:30:55",
+                    "sessions": []
+                }
+            }));
+    });
+
+    let project = authed_client(&server)
+        .project("proj_123")
+        .get(None)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        project.created_at.unwrap().to_string(),
+        "2026-02-12T06:30:55Z"
+    );
+    assert_eq!(
+        project.updated_at.unwrap().to_string(),
+        "2026-02-12T06:30:55Z"
+    );
+    mock.assert();
+}
