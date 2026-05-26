@@ -184,3 +184,26 @@ upgrade-success = 🎉 升级成功！已安装发布版本 { $version }。
 
 ## 卸载
 uninstall-success = 🗑️ 卸载成功！已从 { $path } 移除 d1v。
+
+## 环境变量
+project-required = 需要指定项目。请使用 -p 参数、设置 D1V_PROJECT_ID 环境变量、或在 d1v 工作区中执行。
+env-key-not-found = 未找到键 "{ $key }"。
+env-set-summary = 新建 { $created } 个，更新 { $updated } 个
+env-import-summary = 新建 { $created } 个，更新 { $updated } 个，跳过 { $skipped } 个（共 { $total } 个）
+env-export-saved = 已导出到 { $path }
+env-import-stdin-required = 请通过管道传入 .env 内容，或使用 -i 指定文件路径。
+env-sync-confirm-required = 使用 --yes 参数确认同步到 Vercel。
+env-label-key = 键
+env-label-value = 值
+env-label-description = 描述
+env-label-sensitive = 敏感
+env-label-message = 消息
+env-label-dev-project = 开发项目
+env-label-dev-env-count = 开发环境变量数
+env-label-dev-up-to-date = 开发环境已同步
+env-label-prod-project = 生产项目
+env-label-prod-env-count = 生产环境变量数
+env-label-prod-up-to-date = 生产环境已同步
+env-empty-list = 暂无环境变量。
+env-yes = 是
+env-no = 否

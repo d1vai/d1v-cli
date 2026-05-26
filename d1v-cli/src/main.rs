@@ -13,8 +13,8 @@ use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
-    BaseUrlCandidate, Context, auth, base_url, config, db, debug, deploy, github, i18n, logging,
-    project, session, t, upgrade, user, workspace,
+    BaseUrlCandidate, Context, auth, base_url, config, db, debug, deploy, env, github, i18n,
+    logging, project, session, t, upgrade, user, workspace,
 };
 
 #[derive(Parser)]
@@ -97,6 +97,11 @@ enum Command {
         #[command(subcommand)]
         command: deploy::DeployCommand,
     },
+    /// Manage project environment variables
+    Env {
+        #[command(subcommand)]
+        command: env::EnvCommand,
+    },
     /// Manage AI runtime sessions
     Session {
         #[command(subcommand)]
@@ -132,7 +137,8 @@ impl Command {
             | Command::Github { .. }
             | Command::Db { .. }
             | Command::Deploy { .. }
-            | Command::Session { .. } => true,
+            | Command::Session { .. }
+            | Command::Env { .. } => true,
             Command::Init(..) => false,
             Command::Pull(..) | Command::Push(..) => true,
         }
@@ -256,6 +262,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Db { command } => db::run(&ctx, command).await,
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
+        Command::Env { command } => env::run(&ctx, command).await,
         Command::Init(args) => workspace::init(&ctx, args).await,
         Command::Pull(args) => workspace::pull(&ctx, args).await,
         Command::Push(args) => workspace::push(&ctx, args).await,

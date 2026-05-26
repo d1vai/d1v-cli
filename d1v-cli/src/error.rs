@@ -125,7 +125,8 @@ impl Error {
         }
 
         match self {
-            Error::Io(_) | Error::Other(_) => error!(%self, "unexpected error"),
+            Error::Io(_) => error!(%self, "unexpected error"),
+            Error::Other(_) => debug!(%self, "unexpected error"),
             _ => debug!(%self, "cli error"),
         }
 

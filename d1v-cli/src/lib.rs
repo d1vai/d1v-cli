@@ -5,6 +5,7 @@ pub mod config;
 pub mod db;
 pub mod debug;
 pub mod deploy;
+pub mod env;
 pub mod error;
 pub mod github;
 pub mod i18n;

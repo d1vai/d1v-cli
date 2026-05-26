@@ -184,3 +184,26 @@ upgrade-success = 🎉 Upgrade successful! Installed release { $version }.
 
 ## Uninstall
 uninstall-success = 🗑️ Uninstall successful! Removed d1v from { $path }.
+
+## Env
+project-required = Project is required. Pass -p, set D1V_PROJECT_ID, or run in a d1v workspace.
+env-key-not-found = Key "{ $key }" not found.
+env-set-summary = { $created } created, { $updated } updated
+env-import-summary = { $created } created, { $updated } updated, { $skipped } skipped (total: { $total })
+env-export-saved = Exported to { $path }
+env-import-stdin-required = Pipe .env content or use -i to specify a file.
+env-sync-confirm-required = Pass --yes to confirm sync to Vercel.
+env-label-key = Key
+env-label-value = Value
+env-label-description = Description
+env-label-sensitive = Sensitive
+env-label-message = Message
+env-label-dev-project = Dev project
+env-label-dev-env-count = Dev env count
+env-label-dev-up-to-date = Dev up to date
+env-label-prod-project = Prod project
+env-label-prod-env-count = Prod env count
+env-label-prod-up-to-date = Prod up to date
+env-empty-list = No environment variables found.
+env-yes = yes
+env-no = no
