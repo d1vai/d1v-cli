@@ -1,6 +1,6 @@
 mod common;
 
-use crate::common::test_client;
+use crate::common::{authed_client, test_client};
 use d1v_api::Client;
 use httpmock::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
@@ -731,5 +731,143 @@ async fn prompt_daily_activity_by_user_forbidden() {
         other => panic!("expected Error::Api, got {other:?}"),
     }
 
+    mock.assert();
+}
+
+#[tokio::test]
+async fn send_delete_account_code() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/account/delete/send")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success"}"#);
+    });
+
+    authed_client(&server)
+        .user()
+        .send_delete_account_code(None)
+        .await
+        .unwrap();
+    mock.assert();
+}
+
+#[tokio::test]
+async fn delete_account() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/user/account")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({ "code": "123456" }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"code": 0, "msg": "success"}"#);
+    });
+
+    authed_client(&server)
+        .user()
+        .delete_account("123456")
+        .await
+        .unwrap();
+    mock.assert();
+}
+
+#[tokio::test]
+async fn list_api_keys() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/api/user/api-keys")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": [{
+                    "id": 1,
+                    "name": "default",
+                    "key_prefix": "d1v_",
+                    "created_at": "2026-05-01T00:00:00",
+                    "last_used_at": null
+                }]
+            }));
+    });
+
+    let keys = authed_client(&server).user().api_keys().await.unwrap();
+    assert_eq!(keys.len(), 1);
+    assert_eq!(keys[0].name, "default");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn create_api_key() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/user/api-keys")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({ "name": "my-key" }));
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "api_key": "d1v_xxx",
+                    "item": {
+                        "id": 2,
+                        "name": "my-key",
+                        "key_prefix": "d1v_",
+                        "created_at": "2026-05-01T00:00:00",
+                        "last_used_at": null
+                    }
+                }
+            }));
+    });
+
+    let result = authed_client(&server)
+        .user()
+        .create_api_key("my-key", None)
+        .await
+        .unwrap();
+    assert_eq!(result.item.name, "my-key");
+    assert_eq!(result.api_key, "d1v_xxx");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn revoke_api_key() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(DELETE)
+            .path("/api/user/api-keys/1")
+            .header("authorization", "Bearer token123");
+        then.status(200)
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": 1,
+                    "name": "default",
+                    "key_prefix": "d1v_",
+                    "created_at": "2026-05-01T00:00:00",
+                    "last_used_at": null
+                }
+            }));
+    });
+
+    let key = authed_client(&server)
+        .user()
+        .revoke_api_key(1)
+        .await
+        .unwrap();
+    assert_eq!(key.id, 1);
     mock.assert();
 }

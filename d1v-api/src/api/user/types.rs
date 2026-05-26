@@ -1,7 +1,11 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
+
+use crate::time::deserialize_optional_timestamp;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -87,4 +91,21 @@ impl Display for PromptDailyActivity {
 pub struct DailyCount {
     pub date: String,
     pub count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserApiKey {
+    pub id: i64,
+    pub name: String,
+    pub key_prefix: String,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
+    pub created_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
+    pub last_used_at: Option<Timestamp>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatedApiKey {
+    pub api_key: String,
+    pub item: UserApiKey,
 }

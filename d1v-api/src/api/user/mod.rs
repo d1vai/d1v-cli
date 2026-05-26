@@ -9,7 +9,7 @@ use url::Url;
 use crate::locale::{IntoLocale, Locale};
 use crate::validate::{Code, Email, Validate};
 use crate::{Client, Error, UrlError};
-pub use types::{DailyCount, PromptDailyActivity, User};
+pub use types::{CreatedApiKey, DailyCount, PromptDailyActivity, User, UserApiKey};
 
 pub struct UserApi {
     client: Client,
@@ -435,6 +435,76 @@ impl UserApi {
         self.client
             .get(format!("/api/user/activity/prompt-daily/user/{user_id}"))
             .query_if_some("days", days)
+            .ok()
+            .await
+    }
+
+    /// Sends a verification code to delete the account.
+    pub async fn send_delete_account_code(&self, locale: impl IntoLocale) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct Payload {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            locale: Option<Locale>,
+        }
+
+        self.client
+            .post("/api/user/account/delete/send")
+            .json(&Payload {
+                locale: locale.into_locale(),
+            })
+            .ok()
+            .await
+    }
+
+    /// Deletes the current user's account with a verification code.
+    pub async fn delete_account(&self, code: impl AsRef<str>) -> Result<(), Error> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            code: Code<'a>,
+        }
+
+        let code = Code(code.as_ref());
+        code.validate()?;
+
+        self.client
+            .delete("/api/user/account")
+            .json(&Payload { code })
+            .ok()
+            .await
+    }
+
+    /// Lists API keys for the current user.
+    pub async fn api_keys(&self) -> Result<Vec<UserApiKey>, Error> {
+        self.client.get("/api/user/api-keys").ok().await
+    }
+
+    /// Creates a new API key.
+    pub async fn create_api_key(
+        &self,
+        name: impl AsRef<str>,
+        description: Option<&str>,
+    ) -> Result<CreatedApiKey, Error> {
+        #[skip_serializing_none]
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            name: &'a str,
+            description: Option<&'a str>,
+        }
+
+        self.client
+            .post("/api/user/api-keys")
+            .json(&Payload {
+                name: name.as_ref(),
+                description,
+            })
+            .ok()
+            .await
+    }
+
+    /// Revokes an API key.
+    pub async fn revoke_api_key(&self, api_key_id: i64) -> Result<UserApiKey, Error> {
+        self.client
+            .delete(format!("/api/user/api-keys/{api_key_id}"))
             .ok()
             .await
     }

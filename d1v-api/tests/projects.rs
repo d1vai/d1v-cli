@@ -1,4 +1,5 @@
-use d1v_api::Client;
+mod common;
+
 use d1v_api::api::projects::{
     AssetFile, ColumnIdentity, CreatePayBankAccount, DbColumn, DeploymentEnvironment, Direction,
     Engine, Granularity, LocalImportFile, MessageType, PayPermission, SessionType, TokenScope,
@@ -9,13 +10,7 @@ use httpmock::prelude::*;
 use jiff::Timestamp;
 use serde_json::json;
 
-fn authed_client(server: &MockServer) -> Client {
-    Client::builder()
-        .base_url(server.base_url())
-        .token("token123")
-        .build()
-        .unwrap()
-}
+use crate::common::authed_client;
 
 fn project_json() -> serde_json::Value {
     json!({
