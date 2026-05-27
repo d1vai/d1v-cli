@@ -13,8 +13,8 @@ use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
-    BaseUrlCandidate, Context, auth, base_url, config, db, debug, deploy, env, github, i18n,
-    logging, project, session, t, upgrade, user, workspace,
+    BaseUrlCandidate, Context, api_key, auth, base_url, config, db, debug, deploy, env, github,
+    i18n, logging, project, session, t, upgrade, user, workspace,
 };
 
 #[derive(Parser)]
@@ -102,6 +102,11 @@ enum Command {
         #[command(subcommand)]
         command: env::EnvCommand,
     },
+    /// Manage API keys
+    ApiKey {
+        #[command(subcommand)]
+        command: api_key::ApiKeyCommand,
+    },
     /// Manage AI runtime sessions
     Session {
         #[command(subcommand)]
@@ -138,7 +143,8 @@ impl Command {
             | Command::Db { .. }
             | Command::Deploy { .. }
             | Command::Session { .. }
-            | Command::Env { .. } => true,
+            | Command::Env { .. }
+            | Command::ApiKey { .. } => true,
             Command::Init(..) => false,
             Command::Pull(..) | Command::Push(..) => true,
         }
@@ -176,11 +182,14 @@ enum AuthCommand {
     /// Log in with email and verification code
     Login {
         /// Use password instead of verification code
-        #[arg(short, long, conflicts_with = "with_token")]
+        #[arg(short, long, conflicts_with = "with_token", conflicts_with = "api_key")]
         password: bool,
         /// Log in with an authentication token
-        #[arg(long)]
+        #[arg(long, conflicts_with = "api_key")]
         with_token: bool,
+        /// Log in with an API key
+        #[arg(long)]
+        api_key: bool,
     },
     /// Log out and clear stored credentials
     Logout,
@@ -242,8 +251,11 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
             AuthCommand::Login {
                 password,
                 with_token,
+                api_key,
             } => {
-                if with_token {
+                if api_key {
+                    auth::login_with_api_key(&ctx)
+                } else if with_token {
                     auth::login_with_token(&ctx)
                 } else if password {
                     auth::login(&ctx, true).await
@@ -263,6 +275,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
         Command::Env { command } => env::run(&ctx, command).await,
+        Command::ApiKey { command } => api_key::run(&ctx, command).await,
         Command::Init(args) => workspace::init(&ctx, args).await,
         Command::Pull(args) => workspace::pull(&ctx, args).await,
         Command::Push(args) => workspace::push(&ctx, args).await,

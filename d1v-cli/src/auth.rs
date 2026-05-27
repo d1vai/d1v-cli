@@ -31,12 +31,14 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
 /// Presents an interactive menu to choose a login method, then executes it.
 pub async fn login_interactive(ctx: &Context) -> Result<()> {
     enum Method {
+        ApiKey,
         Code,
         Password,
         Token,
     }
 
     let method = Select::new(t!("auth-method-prompt"))
+        .option(SelectOption::new(Method::ApiKey, t!("auth-method-api-key")))
         .option(SelectOption::new(Method::Code, t!("auth-method-code")))
         .option(SelectOption::new(
             Method::Password,
@@ -47,6 +49,7 @@ pub async fn login_interactive(ctx: &Context) -> Result<()> {
         .prompt()?;
 
     match method {
+        Method::ApiKey => login_with_api_key(ctx),
         Method::Code => login(ctx, false).await,
         Method::Password => login(ctx, true).await,
         Method::Token => login_with_token(ctx),
@@ -73,6 +76,31 @@ pub fn login_with_token(ctx: &Context) -> Result<()> {
     ctx.tokens.save(&token)?;
     ctx.client.token(token);
     debug!("login with token successful");
+    ctx.success(t!("auth-login-success"));
+
+    Ok(())
+}
+
+pub fn login_with_api_key(ctx: &Context) -> Result<()> {
+    let api_key = if stdin().is_terminal() {
+        Password::new(t!("auth-api-key-prompt"))
+            .with_validator(|s| {
+                if s.is_empty() {
+                    Err(t!("auth-api-key-empty"))
+                } else {
+                    Ok(())
+                }
+            })
+            .prompt()?
+    } else {
+        let mut buf = String::new();
+        stdin().read_line(&mut buf)?;
+        SecretString::from(buf.trim())
+    };
+
+    ctx.tokens.save(&api_key)?;
+    ctx.client.token(api_key);
+    debug!("login with API key successful");
     ctx.success(t!("auth-login-success"));
 
     Ok(())

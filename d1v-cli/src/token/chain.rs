@@ -93,6 +93,7 @@ impl Default for TokenChain {
     fn default() -> Self {
         Self::new(
             vec![
+                Box::new(EnvProvider::new("D1V_API_KEY")),
                 Box::new(EnvProvider::new("D1V_AUTH_TOKEN")),
                 Box::new(KeyringProvider::new(keyring::SERVICE, keyring::USER)),
                 Box::new(ConfigProvider),

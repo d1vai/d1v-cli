@@ -24,6 +24,35 @@ auth-method-prompt = 登录方式
 auth-method-code = 验证码
 auth-method-password = 密码
 auth-method-token = 认证令牌
+auth-method-api-key = API 密钥
+auth-api-key-prompt = API 密钥:
+auth-api-key-empty = API 密钥不能为空。
+
+## API 密钥
+api-key-label-id = ID
+api-key-label-name = 名称
+api-key-label-prefix = 前缀
+api-key-label-description = 描述
+api-key-label-created = 创建时间
+api-key-label-last-used = 最近使用
+api-key-empty-list = 未找到 API 密钥。
+api-key-not-found-id = 未找到 ID 为 { $id } 的 API 密钥。
+api-key-not-found-name = 未找到名称为 "{ $name }" 的 API 密钥。
+api-key-create-name-required = 需要提供 API 密钥名称。请传入名称或以交互方式运行。
+api-key-create-name-empty = API 密钥名称不能为空。
+api-key-create-name-prompt = API 密钥名称:
+api-key-create-desc-prompt = 描述（可选）:
+api-key-create-success = 已创建 API 密钥 "{ $name }" ({ $prefix })。
+api-key-create-once-warning = ⚠ 此密钥将不会再显示。请立即复制。
+api-key-revoke-confirm-required = 非交互模式下吊销 API 密钥需要 --yes 标志。
+api-key-revoke-confirm-prompt = 确认吊销 API 密钥 "{ $name }" ({ $prefix })？
+api-key-revoke-confirm-yes = 确认吊销
+api-key-revoke-confirm-no = 保留
+api-key-revoke-success = 已吊销 API 密钥 "{ $name }"。
+api-key-save-prompt = 保存此 API 密钥？
+api-key-save-yes = 保存为当前凭证
+api-key-save-skip = 不保存，退出
+api-key-save-saved = API 密钥已保存为当前凭证。
 
 ## 调试
 debug-label-version = 版本:

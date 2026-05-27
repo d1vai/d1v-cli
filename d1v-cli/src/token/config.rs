@@ -1,4 +1,4 @@
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 
 use super::{Result, TokenError, TokenSource, TokenStore};
 use crate::config::Config;
@@ -12,7 +12,8 @@ impl TokenSource for ConfigProvider {
     }
 
     fn lookup(&self) -> Result<Option<SecretString>> {
-        Ok(Config::load()?.token)
+        let config = Config::load()?;
+        Ok(config.api_key.or(config.token))
     }
 }
 
@@ -23,13 +24,18 @@ impl TokenStore for ConfigProvider {
 
     fn save(&self, token: &SecretString) -> Result {
         let mut config = Config::load()?;
-        config.token = Some(token.clone());
+        if token.expose_secret().starts_with("sk-") {
+            config.api_key = Some(token.clone());
+        } else {
+            config.token = Some(token.clone());
+        }
         config.save().map_err(TokenError::Config)
     }
 
     fn delete(&self) -> Result {
         let mut config = Config::load()?;
-        if config.token.is_some() {
+        if config.api_key.is_some() || config.token.is_some() {
+            config.api_key = None;
             config.token = None;
             config.save()?;
         }

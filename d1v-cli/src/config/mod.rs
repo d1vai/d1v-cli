@@ -49,6 +49,12 @@ pub struct Config {
     )]
     pub token: Option<SecretString>,
 
+    #[serde(
+        serialize_with = "serialize_token",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub api_key: Option<SecretString>,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 
@@ -86,6 +92,7 @@ impl Default for Config {
         Self {
             base_url: None,
             token: None,
+            api_key: None,
             language: None,
             #[cfg(feature = "record")]
             record: RecordConfig::default(),

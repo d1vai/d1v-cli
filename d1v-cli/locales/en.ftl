@@ -24,6 +24,35 @@ auth-method-prompt = Login method
 auth-method-code = Verification code
 auth-method-password = Password
 auth-method-token = Authentication token
+auth-method-api-key = API key
+auth-api-key-prompt = API key:
+auth-api-key-empty = API key cannot be empty.
+
+## API keys
+api-key-label-id = id
+api-key-label-name = name
+api-key-label-prefix = prefix
+api-key-label-description = description
+api-key-label-created = created
+api-key-label-last-used = last used
+api-key-empty-list = No API keys found.
+api-key-not-found-id = API key with id { $id } not found.
+api-key-not-found-name = API key "{ $name }" not found.
+api-key-create-name-required = API key name is required. Pass a name or run interactively.
+api-key-create-name-empty = API key name cannot be empty.
+api-key-create-name-prompt = API key name:
+api-key-create-desc-prompt = Description (optional):
+api-key-create-success = Created API key "{ $name }" ({ $prefix }).
+api-key-create-once-warning = ⚠ This key will NOT be shown again. Copy it now.
+api-key-revoke-confirm-required = The --yes flag is required to revoke an API key non-interactively.
+api-key-revoke-confirm-prompt = Revoke API key "{ $name }" ({ $prefix })?
+api-key-revoke-confirm-yes = Yes, revoke it
+api-key-revoke-confirm-no = No, keep it
+api-key-revoke-success = Revoked API key "{ $name }".
+api-key-save-prompt = Save this API key?
+api-key-save-yes = Save as current credential
+api-key-save-skip = Don't save, exit
+api-key-save-saved = API key saved as current credential.
 
 ## Debug
 debug-label-version = version:
