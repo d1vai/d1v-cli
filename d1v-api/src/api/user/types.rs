@@ -102,6 +102,8 @@ pub struct UserApiKey {
     pub created_at: Option<Timestamp>,
     #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub last_used_at: Option<Timestamp>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
