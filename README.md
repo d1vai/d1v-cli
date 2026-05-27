@@ -70,6 +70,7 @@ d1v uninstall
 
 | Variable          | Description          |
 | ----------------- | -------------------- |
+| `D1V_API_KEY`     | API key              |
 | `D1V_AUTH_TOKEN`  | Auth token           |
 | `D1V_BASE_URL`    | API base URL         |
 | `D1V_FORMAT`      | Output format        |
@@ -172,7 +173,7 @@ d1v auth login
 
 ### Container Integration Ensure
 
-When a container runtime injects `D1V_AUTH_TOKEN`, `D1V_BASE_URL`, and `D1V_PROJECT_ID`, agents can enable project integrations on demand without a browser login:
+When a container runtime injects `D1V_API_KEY` (or `D1V_AUTH_TOKEN`), `D1V_BASE_URL`, and `D1V_PROJECT_ID`, agents can enable project integrations on demand without a browser login:
 
 ```sh
 d1v project ensure database

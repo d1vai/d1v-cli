@@ -70,6 +70,7 @@ d1v uninstall
 
 | 变量              | 描述          |
 | ----------------- | ------------- |
+| `D1V_API_KEY`     | API 密钥      |
 | `D1V_AUTH_TOKEN`  | 认证令牌      |
 | `D1V_BASE_URL`    | API 基础地址  |
 | `D1V_FORMAT`      | 输出格式      |
@@ -172,7 +173,7 @@ d1v auth login
 
 ### 容器内按需启用集成
 
-当容器运行时注入了 `D1V_AUTH_TOKEN`、`D1V_BASE_URL`、`D1V_PROJECT_ID` 之后，agent 可以直接按需启用项目集成，不需要再走浏览器登录：
+当容器运行时注入了 `D1V_API_KEY`（或 `D1V_AUTH_TOKEN`）、`D1V_BASE_URL`、`D1V_PROJECT_ID` 之后，agent 可以直接按需启用项目集成，不需要再走浏览器登录：
 
 ```sh
 d1v project ensure database
