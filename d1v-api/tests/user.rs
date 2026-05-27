@@ -837,7 +837,7 @@ async fn create_api_key() {
         .await
         .unwrap();
     assert_eq!(result.item.name, "my-key");
-    assert_eq!(result.api_key, "d1v_xxx");
+    assert_eq!(result.api_key.expose_secret(), "d1v_xxx");
     mock.assert();
 }
 

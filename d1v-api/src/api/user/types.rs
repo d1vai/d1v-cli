@@ -2,8 +2,8 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 
 use jiff::Timestamp;
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 use crate::time::deserialize_optional_timestamp;
 
@@ -104,8 +104,8 @@ pub struct UserApiKey {
     pub last_used_at: Option<Timestamp>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CreatedApiKey {
-    pub api_key: String,
+    pub api_key: SecretString,
     pub item: UserApiKey,
 }
