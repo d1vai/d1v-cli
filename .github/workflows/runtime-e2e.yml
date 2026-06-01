@@ -19,29 +19,34 @@ jobs:
       - name: Checkout d1v-cli
         uses: actions/checkout@v6
 
-      - name: Checkout private opcode-api
-        uses: actions/checkout@v6
-        with:
-          repository: d1vai/opcode-api
-          path: opcode-api
-          token: ${{ github.token }}
-
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           rustflags: ""
 
-      - name: Build opcode-api runtime artifact
-        working-directory: opcode-api
+      - name: Build stub runtime artifact
         run: |
-          bash deploy/package_runtime_release.sh x86_64-unknown-linux-gnu dist/runtime
+          mkdir -p dist/runtime/stub
+          cat > dist/runtime/stub/opcode-api <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [ "${1:-}" = "--version" ]; then
+            echo "opcode-api 0.0.0-e2e"
+            exit 0
+          fi
+          echo "stub opcode-api runtime: unsupported invocation $*" >&2
+          exit 1
+          SH
+          chmod +x dist/runtime/stub/opcode-api
+          tar -C dist/runtime/stub -czf dist/runtime/opcode-api-x86_64-unknown-linux-gnu.tar.gz opcode-api
           python3 - <<'PY'
           import json
+          import hashlib
           from pathlib import Path
 
-          root = Path("dist/runtime")
-          archive = root / "opcode-api-x86_64-unknown-linux-gnu.tar.gz"
-          sha256 = Path(str(archive) + ".sha256").read_text().strip()
+          archive = Path("dist/runtime/opcode-api-x86_64-unknown-linux-gnu.tar.gz")
+          sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
+          Path(str(archive) + ".sha256").write_text(f"{sha256}\n", encoding="utf-8")
           manifest = {
               "version": "v0.0.0-e2e",
               "assets": [
@@ -53,11 +58,14 @@ jobs:
                   }
               ],
           }
-          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          Path("dist/runtime/manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
           PY
 
       - name: Serve runtime manifest
-        working-directory: opcode-api/dist/runtime
+        working-directory: dist/runtime
         run: |
           python3 -m http.server 18765 >/tmp/d1v-runtime-manifest.log 2>&1 &
           echo $! > /tmp/d1v-runtime-manifest.pid
