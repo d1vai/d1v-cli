@@ -19,6 +19,76 @@
 
 运行 `d1v --help` 查看所有可用命令。
 
+## 本地 Runtime
+
+D1V 现在同时支持云端 runtime 和本地 runtime。
+
+职责划分：
+
+- `opcode-api`：本地 runtime server
+- `d1v-cli`：安装器、启动器、守护器、接入器
+- `backend_admin`：控制面与 runtime 路由器
+- `d1vai`：统一前端
+
+前端不会直连用户机器。本地 agent 会主动向 D1V 云端建立出站连接。
+
+### 本地 Runtime 快速开始
+
+1. 初始化 runtime home：
+
+```sh
+d1v agent init-home --path ~/d1v-home
+```
+
+2. 在 Web UI 生成 pairing code，然后在本机执行：
+
+```sh
+d1v agent pair --code <pairing-code>
+```
+
+3. 启动本地 runtime：
+
+```sh
+d1v agent start
+```
+
+4. 创建或绑定本地项目目录：
+
+```sh
+d1v agent project create --project-id <project_id> --name my-app
+d1v agent project import --path ~/work/my-app --project-id <project_id>
+d1v agent project bind --project-id <project_id> --path ~/work/my-app
+```
+
+兼容入口：
+
+```sh
+d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
+```
+
+### 本地 Runtime 行为规则
+
+- runtime 切换只影响新 session。
+- 已经开始的 session 会固定在原 runtime 上。
+- 如果项目绑定到本地 runtime，但设备离线，平台会返回明确错误，不会静默回退到云端。
+- 创建项目、导入项目这类 runtime binding 尚未形成的 provisioning 流程，仍可能直接走 cloud opcode。
+
+### 隐私边界
+
+当前阶段：
+
+- 只允许已配对设备
+- 仅出站 relay
+- pairing code 短时有效
+- 平台保存设备 public key
+
+当前限制：
+
+- relay 链路还不是零知识
+- 平台侧仍会按现有 D1V 逻辑持久化必要的 metadata 与 chat/session 记录
+
+更完整的架构说明见 [docs/d1v-agent-architecture.md](../docs/d1v-agent-architecture.md)。
+
 ## 安装
 
 推荐方式：

@@ -1,5 +1,6 @@
 pub mod api_key;
 pub mod auth;
+pub mod agent;
 pub mod banner;
 pub mod base_url;
 pub mod config;
@@ -17,6 +18,7 @@ pub mod project;
 pub mod prompt;
 #[cfg(feature = "record")]
 pub mod recorder;
+pub mod runtime_install;
 pub mod session;
 pub mod symbols;
 pub mod text;

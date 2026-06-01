@@ -61,6 +61,9 @@ indicatif = "0.18"
 flate2 = "1.1"
 tar = "0.4"
 futures-util = "0.3"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+url = "2.5"
+base64 = "0.22"
 
 [dev-dependencies]
 indoc = "2"

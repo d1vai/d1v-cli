@@ -19,6 +19,76 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 Run `d1v --help` for all available commands.
 
+## Local Runtime
+
+D1V supports a local runtime in addition to the existing cloud runtime.
+
+Role split:
+
+- `opcode-api`: the local runtime server
+- `d1v-cli`: installer, launcher, supervisor, connector
+- `backend_admin`: control plane and runtime router
+- `d1vai`: unified frontend
+
+The frontend never connects directly to the user machine. The local agent opens an outbound connection to D1V cloud.
+
+### Local Runtime Quickstart
+
+1. Initialize a runtime home:
+
+```sh
+d1v agent init-home --path ~/d1v-home
+```
+
+2. Generate a pairing code in the web UI, then pair the machine:
+
+```sh
+d1v agent pair --code <pairing-code>
+```
+
+3. Start the local runtime:
+
+```sh
+d1v agent start
+```
+
+4. Create or bind local project directories:
+
+```sh
+d1v agent project create --project-id <project_id> --name my-app
+d1v agent project import --path ~/work/my-app --project-id <project_id>
+d1v agent project bind --project-id <project_id> --path ~/work/my-app
+```
+
+Backward-compatible entry:
+
+```sh
+d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
+```
+
+### Local Runtime Behavior
+
+- Runtime switching affects new sessions only.
+- Existing sessions stay pinned to the runtime where they started.
+- If a project is bound to local runtime and the device is offline, requests return an explicit local-runtime error instead of silently falling back to cloud.
+- Project creation/import flows may still use cloud opcode directly before runtime binding exists.
+
+### Privacy Boundary
+
+Current phase:
+
+- paired devices only
+- outbound-only relay
+- short-lived pairing code
+- stored device public key
+
+Current limitation:
+
+- relay traffic is not zero-knowledge
+- platform metadata and chat/session records still follow existing D1V persistence behavior
+
+For deeper architecture details, see [docs/d1v-agent-architecture.md](../docs/d1v-agent-architecture.md).
+
 ## Install
 
 Recommended:

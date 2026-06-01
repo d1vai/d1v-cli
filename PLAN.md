@@ -1,711 +1,218 @@
-# Goal: Add Project-Scoped Integration Ensure Flow For Container Runtimes
-
-## Current Execution
-
-- Background: container agents need a lightweight, discoverable way to enable project integrations on demand without re-reading state files or hand-crafting backend API calls. Backend now exposes an idempotent `POST /api/projects/{project_id}/integrations/ensure` route that accepts project tokens and syncs workspace env updates.
-- User outcome: inside a containerized project runtime, the agent should be able to run a single `d1v` command that resolves project scope from env or workspace state, uses a project token from `D1V_AUTH_TOKEN`, and enables `database`, `pay`, and/or `analytics` without duplicating already-enabled work.
-- Runtime integration requirements:
-  - prefer `D1V_PROJECT_ID`, then `.d1v/project.json`, then explicit `--project-id`
-  - keep text output human-readable and `--format json` stable for automation
-  - work with project tokens injected by `opcode-api` child-process env
-  - document the command so container/runtime integration remains discoverable
-- Selected validators for this execution: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`
-
-## Current Todo
-
-- [ ] Add a project-scoped `ensure` command that resolves project id from env/workspace/flag and calls the backend ensure endpoint. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@auth-state-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- project ensure --help`; local smoke against a stub/live backend using `D1V_AUTH_TOKEN` and `D1V_PROJECT_ID`
-  - Status: in_progress
-  - Evidence: pending
-  - Notes: keep the command idempotent and friendly to agent automation.
-
-- [ ] Pin the Rust toolchain at MSRV 1.95 so local and container builds stop failing on upstream crate updates. `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- --help`
-  - Status: pending
-  - Evidence: pending
-  - Notes: prefer repository-level toolchain pinning over ad-hoc local overrides.
-
-- [ ] Update adoption docs and execution evidence for the new integration-ensure workflow. `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: README/PLAN review after implementation
-  - Status: pending
-  - Evidence: pending
-  - Notes: include the container-oriented `D1V_PROJECT_ID` / `D1V_AUTH_TOKEN` workflow.
-
-# Archived Execution: Add `d1v upgrade` Self-Update From GitHub Releases
-
-## Current Execution
-
-- Background: `d1v-cli` is currently distributed through GitHub Releases with a versioned tarball and `checksums.txt`, but the CLI itself cannot yet detect and install a newer release.
-- User outcome: `d1v upgrade` should check the latest release, report when the current binary is already up to date, and otherwise download, verify, and replace the current executable with visible progress.
-- UX requirements:
-  - default behavior is check-then-upgrade
-  - no authentication required
-  - text mode should show human-readable status and a download progress bar
-  - JSON mode must return stable machine-readable output without progress noise on stdout
-  - success output should include emoji copy
-- Selected validators for this execution: `@cli-ux-qa`, `@cli-json-qa`, `@docs-adoption-qa`
-
-## Current Todo
-
-- [x] Add `d1v upgrade` command surface and wire it into auth-free command dispatch. `@cli-ux-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- upgrade --help`
-  - Status: completed
-  - Evidence: `cargo run -p d1v-cli -- upgrade --help` prints the new top-level command with `--check`; command is auth-free and inherits global `--format`, `--color`, and `--lang` options.
-  - Notes: keep the command top-level because upgrade is operational, not project-scoped.
-
-- [x] Implement release lookup, version comparison, archive download, checksum verification, and in-place binary replacement. `@cli-ux-qa` `@cli-json-qa`
-  - Owner: main agent
-  - Verification: `cargo test -p d1v-cli`; `cargo run -p d1v-cli -- --format json upgrade --check`
-  - Status: completed
-  - Evidence: `cargo test -p d1v-cli` passed with 85 tests; `cargo run -p d1v-cli -- --format json upgrade --check` returned stable JSON only; isolated smoke copied `target/debug/d1v` into a temp dir, ran `d1v upgrade`, and the temp binary SHA-256 changed from `7d88889a...54bc` to `c7d9be67...57f7`, proving download + checksum + replace executed end to end.
-  - Notes: implementation reuses the GitHub Releases naming convention from `install.sh`, writes downloads into a side workspace next to the executable, and replaces the current binary in place. Residual risk: the current upstream release asset tagged `v0.1.2` still reports `d1v 0.1.0` via `--version`, so success copy intentionally reports the installed release tag rather than claiming the embedded binary version.
-
-- [x] Update adoption docs and execution log for the new upgrade path. `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: README command/docs review after implementation
-  - Status: completed
-  - Evidence: updated `README.md` and `README.zh-Hans.md` to document `d1v upgrade` in the install flow and diagnostics command list; this execution block now records command surface, validators, evidence, and residual risk.
-  - Notes: document both the default self-update flow and the up-to-date check behavior.
-
-- [x] Extend lifecycle support with uninstall and explicit target-version install/upgrade paths. `@cli-ux-qa` `@cli-json-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- uninstall --help`; `cargo run -p d1v-cli -- upgrade --help`; local lifecycle smoke in a temp install dir
-  - Status: completed
-  - Evidence: `cargo test -p d1v-cli` passed with 87 tests after adding explicit-target install logic and uninstall coverage helpers; `cargo run -p d1v-cli -- uninstall --help` and `cargo run -p d1v-cli -- upgrade --help` rendered the new flags; temp-binary smoke confirmed `d1v uninstall --keep-path` removes its own executable; `install.sh --uninstall` removed a temp install correctly; `cargo run -p d1v-cli -- --format json upgrade --check --version v0.1.2` returned stable JSON with `target_version`.
-  - Notes: avoid bundling unrelated existing diffs from `d1v-cli/src/workspace.rs`.
-
-- [x] Add repeatable install/upgrade/uninstall E2E coverage and use it against the published release. `@cli-ux-qa` `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: dedicated script covering specific-version install -> target-version upgrade -> uninstall
-  - Status: completed
-  - Evidence: added `scripts/test-install-upgrade-uninstall-e2e.sh`; local compatibility run `--initial-version v0.1.2 --target-version v0.1.2` passed and correctly fell back to installer upgrade/uninstall when the historical binary lacked those subcommands; published-release run `--initial-version v0.1.2 --target-version v0.1.3` passed end to end, including installer fallback upgrade from the historical binary and `d1v uninstall` on the new binary.
-  - Notes: final published-release run should use the freshly created tag after GitHub Release assets are available.
-
-- [x] Bump crate version and publish a new tagged release for release-backed validation. `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: push commit to `main`, create and push release tag, confirm GitHub Actions release succeeds
-  - Status: completed
-  - Evidence: pushed commit `de202d1` to `main`, tagged `v0.1.3`, and GitHub Release workflow run `25358392424` completed successfully; `gh release view v0.1.3` confirms release publication and assets, including `d1v-aarch64-apple-darwin.tar.gz`.
-  - Notes: `v0.1.3` now reports `d1v 0.1.3` correctly after install; the historical `v0.1.2` asset still self-reports `0.1.0`.
-
-- [ ] Fix Windows CI newline-sensitive git helper tests and platform-specific warnings. `@cli-ux-qa`
-  - Owner: main agent
-  - Verification: `cargo test -p d1v-cli`; inspect failed GitHub Actions run `25358392436`
-  - Status: in_progress
-  - Evidence: Windows CI run `25358392436` failed in `workspace::tests::git_helpers_pull_fast_forward_syncs_changes` and `git_helpers_push_head_to_remote_branch` because the checked-out file content was `v2\r\n` instead of `v2\n`; additional Windows-only warnings came from `upgrade.rs` items compiled out on non-Windows paths.
-  - Notes: keep the commit narrowly scoped so unrelated local `workspace.rs` formatting changes are not swept in accidentally.
-
-# Archived Long-Range Plan: Turn d1v-cli From Account Utility Into A Real Project Workflow CLI
-
-## Design Thinking And Demand Background
-
-- ICP: developers, founders, and internal operators who want to drive `d1v.ai` from terminal, scripts, CI, and remote shells without depending on the web UI for every project action.
-- Core pain: `d1v-cli` currently authenticates users and exposes account utilities, but it cannot yet create, inspect, run, deploy, import, or operate projects end to end.
-- Desired outcome: a CLI that covers the high-frequency workflow spine first: project lifecycle, AI execution sessions, deployment, GitHub import/bind handoff, and database operations.
-- New workflow priority: local-first workspace onboarding should become a primary entry path, not a secondary fallback. Users should be able to stand inside a desktop project, run `d1v init ./xxx`, then use `d1v pull` / `d1v push` style flows from the same directory.
-- Current architecture decision: `pull` / `push` should now be GitHub-first, not custom workspace-snapshot-first. The CLI should reuse project-linked GitHub repositories, GitHub App installation tokens, and real git behavior wherever possible.
-- CLI product standard for this cycle: every new command should be scriptable, discoverable via `--help`, usable in both human and automation contexts, and explicit about when the user must jump to web.
-- Scope constraint: do not mechanically mirror every `d1vai` screen. Prefer terminal-native flows and browser handoff for setup-heavy or highly visual experiences.
-
-## Validators For This Cycle
-
-- Reuse the validator registry from `AGENTS.md`.
-- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@project-lifecycle-qa`, `@session-runtime-qa`, `@deploy-release-qa`, `@db-workflow-qa`, `@github-integration-qa`, `@billing-analytics-qa`.
-
-## Current Product Read
-
-- Existing public surface is account-centric: `auth`, `user`, `config`, `debug`, and `banner`.
-- Existing strengths worth preserving: token chain precedence, keyring/config fallback, localized text rendering, and `--format json`.
-- Main product gap: missing project-centric command tree.
-- Main adoption gap: missing local-workspace entry point for users whose source of truth starts on disk rather than on GitHub.
-- Main design principle: deliver automation-first resource commands before CLI-only polish for secondary modules.
-
-## Command Surface Draft
-
-- `d1v auth ...`
-  - Keep current commands and semantics.
-- `d1v config ...`
-  - Keep current commands and semantics.
-- `d1v user ...`
-  - Keep current commands and semantics.
-- `d1v project list|get|create|update|delete`
-  - Support template selection, model selection, and `--auto-deploy`.
-- `d1v init <path>`
-  - Create or bind a `d1v` project from a local directory.
-  - Detect framework, package manager, env file patterns, and deployability before upload/sync.
-  - Default to safe import: manifest + key files + filtered source set, not blind full-directory upload.
-  - Write local workspace metadata so follow-up commands can run from inside the directory without repeatedly passing `project_id`.
-- `d1v pull`
-  - Sync the project-linked GitHub branch into the current local git workspace.
-  - Gate on project GitHub access readiness, dirty-worktree safety, and branch metadata before applying a fast-forward merge.
-  - Support text mode summary and `--format json` for automation.
-- `d1v push`
-  - Push local committed `HEAD` to the project-linked GitHub branch using short-lived GitHub App credentials.
-  - Refuse to proceed when the workspace has uncommitted changes or project GitHub access is not ready.
-- `d1v session run|continue|history|status|cancel`
-  - `run` starts an AI development session against a project.
-  - `continue` reuses an active or selected session.
-  - `history` returns chat/session history.
-  - `status` shows active session state and latest runtime/deploy hints.
-- `d1v deploy preview|prod|status|logs|history`
-  - `preview` triggers preview deploy.
-  - `prod` triggers production deploy.
-  - `status` shows latest deployment state and URLs.
-  - `logs` returns deployment log output for a selected deployment.
-- `d1v github status|bind|repos|import`
-  - `bind` should either complete a backend connect flow or open the correct browser page.
-  - Preferred browser handoff targets:
-    - `https://d1v.ai/setting?tab=github`
-    - GitHub App install/connect page when available from API
-  - `repos` lists importable repositories after binding.
-  - `import` imports a selected repository and supports root-directory configuration.
-  - `import` remains important, but should no longer be the only serious onboarding path.
-- `d1v db schema|tables|rows|migrate`
-  - `schema` reads current structure.
-  - `tables` supports create/rename/delete.
-  - `rows` supports list/insert/update/delete with JSON payloads.
-  - `migrate` supports `plan|validate|approve|execute|history`.
-- `d1v pay products|transactions|webhooks`
-  - First CLI slice should favor operational and automation use cases.
-- `d1v analytics overview|events|sessions|export`
-  - Favor tabular output and JSON export, not chart parity with web.
-
-## Priority Roadmap
-
-- [ ] Define and ship the local-workspace onboarding spine: `d1v init <path>` plus local metadata binding. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@project-lifecycle-qa` `@docs-adoption-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- init --help`; smoke flow for `d1v init ./example` on a sample app; verify resulting local metadata lets later commands resolve project context automatically
-  - Status: pending
-  - Evidence: pending
-  - Notes: this should be treated as a top-tier workflow, on par with `project create` and `github import`, because many real projects start as local folders on desktop machines. First version should prefer scanning + safe filtered sync over blind archive upload.
-
-- [ ] Define and ship workspace sync read/write path: `d1v pull` + `d1v push`. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@docs-adoption-qa` `@github-integration-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- pull --help`; `cargo run -p d1v-cli -- push --help`; Rust git-helper tests for fast-forward pull and branch push; backend CLI GitHub access API tests
-  - Status: in_progress
-  - Evidence: added backend `GET /api/github-app/projects/{project_id}/cli-access`; reused `POST /api/github-app/projects/{project_id}/git-credential`; wired `d1v pull` and `d1v push` to real git fetch/merge and push flows with temporary credential storage; verified `cargo test -p d1v-cli -p d1v-api`
-  - Notes: this is now GitHub-first. The backend stays responsible for project/repository authorization and short-lived credentials; the CLI stays responsible for local git safety checks and execution.
-
-- [ ] Define and ship the project-lifecycle spine: `project list|get|create|update|delete`. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@project-lifecycle-qa`
-  - Owner: main agent
-  - Verification: `cargo run -p d1v-cli -- project --help`; at least one smoke command per read/write path; `--format json` output reviewed for stable field names
-  - Status: in_progress
-  - Evidence: command surface wired into `src/main.rs`; added `d1v-api` project client plus `d1v project list|get|create|update|delete|templates`; `create` now supports direct create or one-step prompt/template flow; verified `cargo test` passes and `cargo run -q -p d1v-cli -- project --help` renders the expanded command tree
-  - Notes: this is the minimum bar for `d1v-cli` to stop being account-only.
-
-- [ ] Define and ship the AI runtime spine: `session run|continue|history|status|cancel`. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@session-runtime-qa`
-  - Owner: main agent
-  - Verification: local smoke flow covering start -> inspect status -> continue -> inspect history; verify interactive and non-interactive behavior
-  - Status: in_progress
-  - Evidence: added `d1v-api` session client plus `d1v session run|continue|history|status|cancel`; verified `cargo test` passes and `cargo run -q -p d1v-cli -- session --help` renders the new command tree
-  - Notes: stdout/stderr separation matters because long-running sessions will be scripted.
-
-- [ ] Define and ship deployment operations: `deploy preview|prod|status|logs|history`. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@deploy-release-qa`
-  - Owner: main agent
-  - Verification: help output review plus local smoke coverage for latest deployment status and one trigger path
-  - Status: in_progress
-  - Evidence: added `d1v-api` deployment client plus `d1v deploy preview|prod|status|history|logs`; verified `cargo test` passes and `cargo run -q -p d1v-cli -- deploy --help` renders the new command tree
-  - Notes: prefer explicit resource IDs and URLs in JSON mode; human mode should summarize latest deploy clearly.
-
-- [ ] Design GitHub binding and import around CLI-first handoff semantics. `@cli-ux-qa` `@docs-adoption-qa` `@github-integration-qa`
-  - Owner: main agent
-  - Verification: final help/copy reviewed for three cases: already bound, needs `d1v.ai` settings handoff, needs GitHub App install handoff
-  - Status: in_progress
-  - Evidence: added `d1v-api` GitHub App client plus `d1v github status|bind|installations|repos|import`; `bind` resolves OAuth connect URL when needed, otherwise falls back to install/settings URLs; `repos` is keyed by `--installation-id`; `import` maps the backend GitHub App import response including deployability hints; new CLI sync contract uses `cli-access` to surface binding requirements, repo URLs, target branch, and whether platform-managed repos can proceed without an explicit user GitHub bind
-  - Notes: `bind` must either call API-backed connect state or open the browser to `https://d1v.ai/setting?tab=github`; if installation must happen on GitHub, the command should surface the install URL directly instead of hiding it. For `pull` / `push`, prefer real GitHub permissions and GitHub App installation tokens over a parallel custom sync protocol.
-
-- [ ] Design database operations for terminal-native workflows: schema, rows, and migrations before visual parity. `@cli-ux-qa` `@cli-json-qa` `@api-backend-qa` `@db-workflow-qa`
-  - Owner: main agent
-  - Verification: command tree reviewed against expected workflows; smoke coverage for one schema read, one row read, and one migration planning path
-  - Status: in_progress
-  - Evidence: added `d1v-api` DB/migration client plus `d1v db schema|data|branches|tables|rows|token|migrate`; table and row write paths accept JSON payload flags; migration subcommands cover `plan|validate|approve|auto-review|manual-approve|execute|history|detail`; project-token automation path now exposed as `d1v db token issue|refresh`; verified `cargo test` passes and `cargo run -q -p d1v-cli -- db --help`, `db rows --help`, `db migrate --help` render the expected command tree
-  - Notes: avoid web-style naming; optimize for composable subcommands and JSON payloads. Real authenticated smoke execution against live DB/migration APIs is still pending, so this item remains open until at least one schema read, one row read, and one migration plan are exercised end to end.
-
-- [ ] Add secondary operations only after the core spine exists: `pay products|transactions|webhooks` and `analytics overview|events|sessions|export`. `@cli-ux-qa` `@cli-json-qa` `@billing-analytics-qa`
-  - Owner: main agent
-  - Verification: command tree and output contract review; at least one read-path smoke command per module
-  - Status: pending
-  - Evidence: pending
-  - Notes: payment banking/withdraw and analytics report builders can remain later-phase if API maturity or UX fit is weak.
-
-- [ ] Keep docs and migration guidance aligned with the shipped command surface. `@docs-adoption-qa` `@cli-ux-qa`
-  - Owner: main agent
-  - Verification: README/PLAN examples updated to reflect final command names and browser handoff behavior
-  - Status: in_progress
-  - Evidence: updated `README.md` and `README.zh-Hans.md` with current project/session/deploy/github/db command families, GitHub browser handoff guidance, and a post-login DB/migration smoke checklist; `PLAN.md` remains the execution log for shipped command scope and verification status
-  - Notes: users should understand when CLI is sufficient and when web setup is still required. Live smoke examples are documented, but cannot be marked complete until they are exercised with a real authenticated account.
-
-## Design Rules For Future d1v-cli Work
-
-- Prefer nouns as top-level resources: `project`, `session`, `deploy`, `github`, `db`, `pay`, `analytics`.
-- Allow a small number of workspace-native top-level verbs when they represent the user mental model better than resource nesting: `init`, `pull`, and later `push`.
-- Prefer terminal verbs that map to backend actions directly: `list`, `get`, `create`, `update`, `delete`, `status`, `history`, `logs`, `run`, `import`.
-- Keep human-readable summaries in text mode and stable machine contracts in JSON mode.
-- Avoid hiding web-only prerequisites. If the user must complete setup in browser, the command should say so and ideally open the right page.
-- Do not chase UI parity for charts, canvases, or relationship graphs. CLI should expose data, state, and operations.
-- Local-file workflows must default to safe filtering: support `.d1vignore`, skip common heavy/build directories, warn on secrets, and preview payload size before upload or sync.
-
-## Local-First Workflow Draft
-
-- Primary happy path:
-  - `cd ~/Desktop/my-app`
-  - `d1v init .`
-  - `d1v session run --prompt "understand this project and prepare a deploy plan"`
-  - `d1v pull`
-- `d1v init <path>` expected behaviors:
-  - Resolve absolute path and refuse obviously invalid targets.
-  - Detect framework and package manager from files like `package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `requirements.txt`, `Dockerfile`, `remix.config.*`, `next.config.*`.
-  - Build a candidate manifest: project name, runtime hints, start/build commands, lockfiles, env example files, database clues.
-  - Apply `.d1vignore` plus built-in excludes such as `.git`, `node_modules`, `dist`, `build`, `.next`, `target`, large binaries, and secret-like files.
-  - Present a preview before first upload: file count, total size, excluded paths, risky files.
-  - Create or bind the remote project, then persist local metadata such as project id and workspace binding in a local state file.
-- `d1v pull` expected behaviors:
-  - Resolve bound project from current directory metadata.
-  - Ask backend for latest workspace snapshot or patch set.
-  - Show changed files summary before apply unless `--yes`.
-  - Warn when local files are dirty or diverged.
-  - Support dry run mode for CI or scripted inspection.
-- Suggested local metadata:
-  - `.d1v/project.json` for project binding, remote workspace id, last sync revision, framework guess, and ignore profile version.
-  - `.d1vignore` for user-controlled excludes beyond defaults.
-
-## Local-First Priority Opinion
-
-- P0: `d1v init <path>` with directory scan, ignore model, preview, and remote binding
-- P0: `d1v pull` with dirty-state detection and safe apply preview
-- P1: `d1v status` should auto-resolve current workspace context from `.d1v/project.json`
-- P1: `d1v session run` should accept current-directory project binding without explicit `project_id`
-- P1: `d1v push` for local-to-cloud sync after the pull model is stable
-- P2: full archive upload mode for edge cases where filtered sync is insufficient
-
-## Full Execution Plan For Local-First Workspace Flow
-
-### Product Goal
-
-- Make local directory onboarding a first-class workflow:
-  - `d1v init ./xxx`
-  - `cd ./xxx`
-  - `d1v session run ...`
-  - `d1v pull`
-  - later `d1v push`
-- Reduce onboarding friction for users whose project source of truth starts on desktop or local disk.
-- Preserve GitHub import as an important path, but no longer require GitHub as the prerequisite for serious CLI usage.
-
-### Scope Definition
-
-- In scope for first serious release:
-  - local directory detection
-  - safe manifest generation
-  - filtered upload
-  - remote project binding
-  - workspace snapshot versioning
-  - cloud-to-local sync via `pull`
-  - local metadata persistence
-  - dirty-worktree checks
-  - dry run / preview output
-- Out of scope for first release:
-  - binary-large-media optimized sync
-  - IDE live file watcher sync
-  - Git conflict engine parity
-  - bi-directional collaborative merge UI
-  - arbitrary full-home-directory import
-
-### User-Facing Command Design
-
-- `d1v init <path>`
-  - Create a new remote project from a local directory, or bind the directory to an existing remote project.
-  - Default mode should be interactive in TTY and explicit in non-interactive mode.
-  - Core flags:
-    - `--name <name>`
-    - `--project-id <id>` for binding existing project
-    - `--prompt <text>` for one-step AI understanding during import
-    - `--template-repo <repo>`
-    - `--auto-deploy`
-    - `--include <glob>`
-    - `--exclude <glob>`
-    - `--yes`
-    - `--dry-run`
-    - `--json`
-- `d1v pull`
-  - Sync latest cloud workspace changes into the current bound local directory.
-  - Core flags:
-    - `--project-id <id>` override local binding
-    - `--revision <rev>` pull a specific remote revision
-    - `--dry-run`
-    - `--yes`
-    - `--force`
-    - `--json`
-- `d1v push`
-  - Sync eligible local changes to the remote workspace after pull semantics are stable.
-  - Core flags:
-    - `--dry-run`
-    - `--yes`
-    - `--force`
-    - `--message <text>`
-    - `--json`
-- `d1v status`
-  - Should auto-resolve current workspace metadata and display:
-    - bound project id
-    - local path
-    - current revision
-    - dirty local changes
-    - pending pull / pending push state
-
-### Local Metadata Design
-
-- Add `.d1v/project.json`
-  - Proposed shape:
-    - `project_id`
-    - `workspace_id`
-    - `root_path`
-    - `framework`
-    - `package_manager`
-    - `remote_revision`
-    - `last_pull_revision`
-    - `last_push_revision`
-    - `created_by_cli_version`
-    - `ignore_profile_version`
-    - `bound_at`
-    - `updated_at`
-- Add optional `.d1vignore`
-  - Merges with built-in ignore rules.
-  - Built-in defaults should exclude:
-    - `.git`
-    - `.DS_Store`
-    - `node_modules`
-    - `.next`
-    - `dist`
-    - `build`
-    - `coverage`
-    - `target`
-    - `.venv`
-    - `venv`
-    - `__pycache__`
-    - large archives
-    - secret-like files unless explicitly included
-- Keep `.d1v/manifest.json` optional as a cache artifact for debugging and support.
-
-### Local Scanner Design
-
-- Scanner responsibilities:
-  - resolve path
-  - detect project root
-  - walk file tree with ignore rules
-  - classify files by kind:
-    - config
-    - source
-    - lockfile
-    - env example
-    - asset
-    - binary
-    - risky secret-like file
-  - infer framework/runtime:
-    - Remix
-    - Next.js
-    - Vite
-    - Node generic
-    - Rust
-    - Python
-    - Dockerized app
-  - infer package manager:
-    - pnpm
-    - npm
-    - yarn
-    - bun
-    - cargo
-    - pip/uv/poetry
-  - infer likely commands:
-    - install
-    - dev
-    - build
-    - start
-    - test
-- Scanner outputs:
-  - manifest summary
-  - file inventory
-  - included file list
-  - excluded file list
-  - risky file warnings
-  - estimated upload size
-
-### Sync Model Recommendation
-
-- Do not start with blind archive upload as the default sync protocol.
-- Preferred first sync protocol:
-  - Step 1: upload manifest and file index
-  - Step 2: backend decides which files it needs
-  - Step 3: CLI uploads only missing or changed files
-  - Step 4: backend writes a normalized workspace snapshot and returns a revision id
-- For `pull`:
-  - Step 1: CLI sends current project binding and local revision
-  - Step 2: backend returns changed file manifest since that revision
-  - Step 3: CLI previews patch summary
-  - Step 4: CLI applies files after confirmation
-- Later optional fallback:
-  - `--archive` or `--full-upload` for rare cases where indexed sync is insufficient
-
-### Backend Data Model Additions
-
-- Add workspace-level sync concepts:
-  - `workspace_id`
-  - `workspace_revision`
-  - `workspace_snapshot`
-  - `workspace_file`
-  - `workspace_sync_event`
-- Suggested entities:
-  - `project_workspaces`
-    - `id`
-    - `project_id`
-    - `source_type` (`local`, `github`, `generated`)
-    - `root_label`
-    - `created_by_user_id`
-    - `created_at`
-    - `updated_at`
-  - `workspace_revisions`
-    - `id`
-    - `workspace_id`
-    - `base_revision_id`
-    - `source_event` (`init`, `pull`, `push`, `session_apply`, `github_import`)
-    - `summary`
-    - `file_count`
-    - `total_size`
-    - `created_by`
-    - `created_at`
-  - `workspace_files`
-    - `workspace_revision_id`
-    - `path`
-    - `sha256`
-    - `size`
-    - `content_type`
-    - `storage_key`
-    - `is_binary`
-  - `workspace_sync_events`
-    - `id`
-    - `workspace_id`
-    - `direction` (`client_to_cloud`, `cloud_to_client`)
-    - `status`
-    - `started_at`
-    - `finished_at`
-    - `actor_user_id`
-    - `client_version`
-
-### Backend API Additions
-
-- Project binding and workspace discovery:
-  - `POST /api/projects/init-local`
-    - Purpose: create a new project from a local manifest or bind a local directory to an existing project.
-    - Request:
-      - `project_id?`
-      - `name?`
-      - `description?`
-      - `prompt?`
-      - `template_repo?`
-      - `auto_deploy?`
-      - `manifest`
-      - `client`
-    - Response:
-      - `project`
-      - `workspace`
-      - `required_upload_strategy`
-      - `remote_revision`
-  - `GET /api/projects/{project_id}/workspace`
-    - Purpose: resolve current workspace metadata for CLI status and binding checks.
-
-- Manifest and file planning:
-  - `POST /api/workspaces/{workspace_id}/upload-plan`
-    - Purpose: accept local file index and tell the CLI which files must be uploaded.
-    - Request:
-      - `base_revision?`
-      - `files[] { path, sha256, size, executable?, binary? }`
-    - Response:
-      - `upload_files[]`
-      - `skip_files[]`
-      - `max_chunk_size`
-      - `upload_mode`
-      - `proposed_revision`
-  - `POST /api/workspaces/{workspace_id}/commit-upload`
-    - Purpose: finalize uploaded files into a new workspace revision.
-    - Request:
-      - `proposed_revision`
-      - `uploaded_files[]`
-      - `summary`
-    - Response:
-      - `workspace_revision`
-      - `project_state`
-
-- File upload:
-  - `POST /api/workspaces/{workspace_id}/files/presign`
-    - Purpose: issue signed upload URLs for file blobs.
-    - Request:
-      - `files[] { path, sha256, size, content_type }`
-    - Response:
-      - `uploads[] { path, upload_url, headers, storage_key }`
-  - Optional direct upload fallback:
-    - `POST /api/workspaces/{workspace_id}/files`
-    - For smaller files or simpler early implementation.
-
-- Pull planning and apply:
-  - `POST /api/workspaces/{workspace_id}/pull-plan`
-    - Purpose: compute cloud-to-local changes from a client revision.
-    - Request:
-      - `local_revision`
-      - `client_files?`
-    - Response:
-      - `target_revision`
-      - `changes[] { path, status, sha256, size, binary }`
-      - `conflicts[]`
-      - `warnings[]`
-  - `GET /api/workspaces/{workspace_id}/revisions/{revision_id}/files`
-    - Purpose: list files for a target revision.
-  - `POST /api/workspaces/{workspace_id}/download-plan`
-    - Purpose: return signed URLs or inline content references for changed files.
-    - Response:
-      - `downloads[] { path, url, sha256, size, mode }`
-
-- Push planning:
-  - `POST /api/workspaces/{workspace_id}/push-plan`
-    - Purpose: compute whether local changes can be applied cleanly on top of remote revision.
-    - Request:
-      - `base_revision`
-      - `files[]`
-      - `summary`
-    - Response:
-      - `can_push`
-      - `upload_files[]`
-      - `conflicts[]`
-      - `warnings[]`
-
-- Revision history and diagnostics:
-  - `GET /api/workspaces/{workspace_id}/revisions`
-  - `GET /api/workspaces/{workspace_id}/sync-events`
-  - `GET /api/workspaces/{workspace_id}/diff?from=...&to=...`
-
-### CLI Execution Flow: `d1v init <path>`
-
-- Phase 1: local preflight
-  - validate path
-  - detect repo root / app root
-  - load `.d1vignore`
-  - scan files
-  - build manifest
-  - print preview
-- Phase 2: remote binding
-  - if `--project-id` is present, bind existing project
-  - otherwise create project from manifest/prompt/template
-  - receive workspace id and initial revision
-- Phase 3: upload plan
-  - send file index
-  - receive changed file set
-  - upload required files
-  - commit upload
-- Phase 4: local persistence
-  - write `.d1v/project.json`
-  - optionally write starter `.d1vignore`
-  - print next-step commands
-
-### CLI Execution Flow: `d1v pull`
-
-- Phase 1: local preflight
-  - resolve `.d1v/project.json`
-  - detect local dirty files
-  - detect local revision
-- Phase 2: plan
-  - ask backend for pull plan
-  - render file summary and conflicts
-- Phase 3: apply
-  - if `--dry-run`, stop here
-  - if conflicts exist and no `--force`, stop
-  - download changed files
-  - write files safely
-  - update `.d1v/project.json`
-- Phase 4: report
-  - print changed file count, new revision, next actions
-
-### CLI Execution Flow: `d1v push`
-
-- Phase 1: local diff scan
-  - compare local files against last bound revision
-- Phase 2: push plan
-  - backend validates base revision and mergeability
-- Phase 3: upload changed files
-  - same blob upload path as `init`
-- Phase 4: finalize revision
-  - backend commits new remote revision
-  - local metadata updated
-
-### Safety Rules
-
-- Always preview first on first import unless `--yes`.
-- Never upload ignored files by accident.
-- Warn explicitly on:
-  - `.env`
-  - `.pem`
-  - `.key`
-  - service account json
-  - SSH keys
-  - files over size threshold
-- Support `--dry-run` on `init`, `pull`, and `push`.
-- Support machine-readable output with `--format json`.
-- Prefer content-addressed blob storage and checksum verification.
-
-### Verification Plan
-
-- Unit-level:
-  - ignore matcher
-  - framework detector
-  - manifest builder
-  - dirty-state detector
-  - revision metadata read/write
-- Integration-level:
-  - `d1v init ./fixtures/remix-app --dry-run`
-  - `d1v init ./fixtures/next-app --json`
-  - bind existing project into local folder
-  - `d1v pull --dry-run`
-  - `d1v push --dry-run`
-- End-to-end:
-  - create local sample app
-  - `d1v init .`
-  - start session that edits cloud workspace
-  - `d1v pull`
-  - edit local file
-  - `d1v push`
-  - validate resulting remote revision and local metadata
-
-### Delivery Phases
-
-- Phase 0: design and contracts
-  - finalize `.d1v/project.json`
-  - finalize ignore behavior
-  - finalize backend sync model
-- Phase 1: `init` MVP
-  - local scan
-  - manifest upload
-  - new project creation
-  - metadata write
-- Phase 2: `pull` MVP
-  - pull plan
-  - download changed files
-  - dirty state warning
-- Phase 3: `push` MVP
-  - local diff
-  - upload changed files
-  - revision commit
-- Phase 4: polish
-  - better conflict reporting
-  - resumable transfer
-  - binary handling strategy
-  - Git-aware UX improvements
-
-## Open Product Questions
-
-- Should `d1v init <path>` always create a new remote project first, or should it also support binding an existing project into a local directory?
-- Should local metadata live in `.d1v/project.json`, `.d1v/config.toml`, or git-compatible local config to reduce repo noise?
-- Should `d1v pull` write files directly, or stage them into a preview area unless `--apply` is passed?
-- Should `session run` stream assistant output inline by default, or only show session IDs unless `--follow` is set?
-- Should `project create` accept free-form prompt only, or also explicit template/model flags from day one?
-- Should GitHub `bind` be a pure browser launcher first, with API-backed device-style binding later?
-- Should migration approval steps stay explicit subcommands, or should `db migrate execute` optionally chain `plan -> validate -> approval -> execute` in one guarded flow?
+# Goal: Make D1V Local Runtime A First-Class Managed Runtime
+
+## 设计思想与需求背景
+
+### 目标用户与根本诉求
+
+- ICP 是希望把 `d1v.ai` 作为统一控制面、同时把“实际运行机器”放在云端或自己设备上的开发者、团队与内部运营者。
+- 当前系统默认把 runtime 等同于 AWS 容器；这限制了高隐私、已有本地代码库、已有本地依赖环境、多设备协作、以及低延迟开发场景。
+- 终态目标不是“把本地电脑临时接进现有云容器流程”，而是把 runtime 抽象统一掉：
+  - 云 pod 是一种 runtime
+  - 用户本地机器上的 `opcode-api` 也是一种 runtime
+  - 前端只面向项目与 runtime 能力
+  - backend 始终是唯一控制面
+  - `d1v-cli` 只是 installer / launcher / supervisor / connector
+  - `opcode-api` 才是本地 runtime 的真实服务面
+
+### 终态架构原则
+
+- 统一 runtime contract：cloud/local 都实现同一套 runtime API 与 session/storage/execute contract。
+- 统一 project identity：平台主键仍是云端 `UserProject.id`，本地项目通过 binding 关联，不另造第二套平台项目体系。
+- 统一 routing：前端永远不直连用户机器；backend 根据 project runtime binding 统一路由 execute / ws / storage / deploy / session。
+- 本地项目发现应下沉到 `opcode-api`：CLI 不应长期承担本地项目 catalog 真相。
+- 本地能力应以“受控 runtime server”形式存在，而不是“CLI 里堆业务逻辑”。
+
+### 为什么要这样做
+
+- 对用户：
+  - 可以把本地机器当成一台真正可管理的 runtime machine
+  - 可在本地 home 下创建、导入、发现项目
+  - 绑定云端项目后继续复用已有 execute / deploy / session / env / db 等能力
+- 对架构：
+  - 避免前端和 backend 分别维护 cloud/local 两套项目语义
+  - 避免 `d1v-cli` 膨胀成第二个本地应用层
+  - 为未来多设备、离线恢复、审计、权限、设备认证、runtime capability negotiation 留出清晰边界
+
+### 关键终态划分
+
+- `opcode-api`
+  - 本地 runtime 的真实服务面
+  - 负责 project catalog / session catalog / execute / storage / ws / health / capabilities
+  - 支持 `standalone` 与 `cloud-managed` 两种模式
+- `d1v-cli`
+  - 负责 `init-home` / `pair` / `start` / `status`
+  - 负责启动、守护、配置、连接本地 `opcode-api`
+  - 不负责长期维护项目真相
+- `backend_admin`
+  - 负责设备、项目、binding、权限、审计、runtime routing、统一 websocket 代理、通知、计费、部署控制
+- `d1vai`
+  - 负责 devices、runtime binding、local project discovery、runtime-aware session UX
+  - 所有交互都走平台 API
+
+### 本轮重写后的执行标准
+
+- 以终态为导向规划，不再把 local runtime 当成临时补丁。
+- 所有 Todo 必须：
+  - 说明产出
+  - 写清验收要求
+  - 标注负责的验收员
+- 所有实现必须尽量复用既有云端逻辑，而不是复制一套 local-only 流程。
+
+## 验收员定义
+
+- `@runtime-contract-qa`
+  - 检查 cloud/local runtime API 是否统一、字段是否稳定、接口语义是否一致。
+- `@local-runtime-qa`
+  - 检查本地 home、项目发现、path binding、execute/session/storage 在本地 runtime 下是否行为正确。
+- `@backend-routing-qa`
+  - 检查 backend 是否真正 project-aware runtime routing，且没有遗漏直接走 cloud opcode client 的路径。
+- `@frontend-runtime-ux-qa`
+  - 检查前端是否能正确展示设备、本地项目、runtime 状态、绑定关系，并形成完整用户闭环。
+- `@ops-reliability-qa`
+  - 检查 agent start、opcode-api 守护、断线重连、session pinning、离线恢复、错误提示是否可靠。
+- `@security-privacy-qa`
+  - 检查设备认证、token 使用范围、最小暴露面、敏感信息持久化边界是否符合预期。
+- `@migration-compat-qa`
+  - 检查向后兼容、旧命令保留、旧 binding 迁移、已有项目不回归。
+
+## Todo List
+
+- [x] 把 local project/session catalog 从 CLI 临时逻辑下沉到 `opcode-api` 原生接口。 `@runtime-contract-qa` `@local-runtime-qa` `@migration-compat-qa`
+  - 产出：
+    - `opcode-api` 新增本地 runtime catalog API
+    - 至少包含 project list / project detail / session list / health / capabilities
+    - 明确 `standalone` 与 `cloud-managed` 模式
+  - 验收要求：
+    - 本地 runtime 不依赖 CLI 扫目录即可返回 home 下项目列表
+    - 返回结构足够支撑前端列项目、列 session、做 binding
+    - API 语义与云端 runtime 保持兼容，backend 能统一代理
+    - 旧 CLI 临时扫描逻辑可保留过渡，但新主路径必须优先走 `opcode-api`
+
+- [x] 为 `opcode-api` 增加 cloud-managed runtime mode。 `@runtime-contract-qa` `@ops-reliability-qa` `@security-privacy-qa`
+  - 产出：
+    - 启动参数或配置支持 `mode=standalone|cloud-managed`
+    - 支持 `runtime-home`、`device-id`、`cloud-control-url`、必要 token/config 注入
+  - 验收要求：
+    - 本地 `opcode-api` 能在 cloud-managed mode 下启动并上报健康状态
+    - 未配置 cloud 管理信息时仍可 standalone 工作
+    - 不把用户账户语义硬编码进 `opcode-api`
+    - 模式切换边界清晰，日志能识别当前模式
+
+- [x] 把 `d1v-cli` 收敛为 launcher / supervisor / connector。 `@local-runtime-qa` `@ops-reliability-qa` `@migration-compat-qa`
+  - 产出：
+    - 稳定命令面：`init-home`、`pair`、`start`、`status`、`agent project ...`
+    - CLI 对本地项目发现改为调用本地 `opcode-api`
+    - 启动与守护逻辑清晰，配置文件 schema 明确
+  - 验收要求：
+    - `d1v agent start` 可在 opcode-api 未运行时拉起并接入 backend
+    - token 过期、端口冲突、home 不存在、binary 缺失等错误可解释
+    - 兼容命令 `init-runtime` 保留但明确标记为兼容入口
+    - CLI 不再承担 project catalog 的 source-of-truth 角色
+
+- [x] 在 `backend_admin` 建立统一 runtime router，替换零散的 direct opcode client 路径。 `@backend-routing-qa` `@runtime-contract-qa` `@migration-compat-qa`
+  - 产出：
+    - 统一 `get_project_runtime_client` / runtime router 抽象
+    - execute / cancel / session ws / storage / model config / deploy / git ops 等项目级能力全部 project-aware
+  - 验收要求：
+    - 不再存在关键项目路径绕过 runtime binding 直接打到 cloud opcode
+    - 创建项目、导入项目、仓库迁移等 provisioning 阶段允许保留 cloud opcode 直连，因为此时项目 runtime binding 尚未形成；这些路径不计入 steady-state router 漏项
+    - local runtime 与 cloud runtime 都能复用同一条项目级控制路径
+    - runtime 切换只影响新 session，旧 session 固定在原 runtime
+    - `WorkerRuntime` 或等价记录里能识别 runtime_type / device_id / session pinning 元数据
+
+- [x] 完成 device home 与 local project binding 的正式模型与迁移收口。 `@backend-routing-qa` `@migration-compat-qa`
+  - 产出：
+    - device 上的 `runtime_home`
+    - project binding 上的 `local_project_path`
+    - 明确 binding mode 与 sync policy 的后续扩展位
+  - 验收要求：
+    - device home 与 project path 不再语义混淆
+    - 同设备多项目、本地路径改变、目录删除、重复绑定等场景有稳定行为
+    - 旧字段兼容可读，迁移后老数据不导致 execute 回归
+
+- [x] 在前端补齐“本地项目发现 -> 创建/绑定云端项目 -> 切换 runtime -> execute”的完整闭环。 `@frontend-runtime-ux-qa` `@backend-routing-qa` `@local-runtime-qa`
+  - 产出：
+    - Devices 页面可查看在线设备、device home、本地项目列表
+    - Project runtime binding UI 可选择设备与本地项目
+    - 支持从本地发现项创建云端项目并自动绑定
+    - 支持把本地发现项绑定到已有云端项目
+  - 验收要求：
+    - 用户不需要手敲命令即可在前端完成常见绑定流程
+    - 绑定后继续使用现有项目页 chat/execute/session/deploy 逻辑
+    - 本地项目未绑定、设备离线、path 缺失、session 固定在旧 runtime 等情况有明确提示
+    - 不新增第二套 local-only 项目 UX
+
+- [x] 把 local session catalog 接入前端现有 session/history/reconnect 逻辑。 `@runtime-contract-qa` `@frontend-runtime-ux-qa` `@backend-routing-qa`
+  - 产出：
+    - 本地 runtime 的 session list / session detail 可经 backend 暴露
+    - 前端 session status / history / reconnect 尽量复用现有组件
+  - 验收要求：
+    - 本地 runtime 下 active session、history、cancel、ws reconnect 可用
+    - session 展示不要求用户理解底层 runtime 来源
+    - reconnect 不因 runtime 是 local 而走第二套前端协议
+
+- [x] 完成 local runtime execute 端到端 smoke 与 websocket tunnel 端到端验收。 `@local-runtime-qa` `@ops-reliability-qa` `@backend-routing-qa`
+  - 产出：
+    - fake agent / fake local runtime 或真实本地 runtime 的 E2E 测试
+    - 覆盖 execute -> ws -> result -> cancel -> reconnect
+  - 验收要求：
+    - 至少有一条可重复自动化跑通的 local runtime 会话测试
+    - websocket open/send/close、binary/text、session completion、cancel 都被覆盖
+    - 设备断线、backend 重连、runtime 重启后行为可验证
+
+- [x] 为 local runtime 补齐可靠性与恢复策略。 `@ops-reliability-qa` `@backend-routing-qa`
+  - 产出：
+    - agent relay 重连
+    - opcode-api 健康检查与自动拉起策略
+    - session pinning 与 runtime offline fallback 规则
+  - 验收要求：
+    - 本地机器休眠、网络切换、backend 重启后，agent 能恢复连接
+    - 运行中的 session 不会因 runtime 切换被错误迁移
+    - local runtime 离线时，平台能给出明确错误，而不是静默失败
+    - 新 session 是否允许 fallback 到 cloud 必须有明确策略，且默认值固定
+
+- [x] 为 local runtime 补齐安全与隐私边界。 `@security-privacy-qa` `@ops-reliability-qa`
+  - 产出：
+    - 设备公私钥或等价设备认证机制
+    - backend 只接受已配对 device 连接
+    - 最小持久化原则与审计边界说明
+  - 验收要求：
+    - 前端不直连用户机器
+    - 本地项目内容不因 relay 被不必要持久化到平台
+    - token、device identity、pairing code 生命周期有明确边界
+    - 高隐私模式下哪些内容仍会进平台数据库必须明确
+
+- [x] 统一文档、README、架构文档与 PLAN 的表述，避免 local runtime 被理解成“CLI 魔法功能”。 `@migration-compat-qa` `@frontend-runtime-ux-qa`
+  - 产出：
+    - README / docs / 架构文档统一说明：
+      - `opcode-api` 是本地 runtime server
+      - `d1v-cli` 是启动与接入器
+      - backend 是控制面
+    - 用户流程文档覆盖：
+      - init-home
+      - pair
+      - start
+      - create/import/bind
+      - 前端绑定与 execute
+  - 验收要求：
+    - 新同学仅看文档即可理解四层职责边界
+    - 文档中的命令面、页面路径、接口名称与实现一致
+    - 不再把 CLI 扫目录的过渡逻辑描述成长期架构
+
+## 默认决策与实现假设
+
+- 平台项目主键继续使用云端 `UserProject.id`。
+- local project discovery 是 runtime 能力，不是平台第二套项目体系。
+- 前端永远不直连用户机器。
+- runtime 切换默认只影响新 session。
+- local runtime 发现、session list、execute、storage、ws 都应优先通过 `opcode-api` 暴露。
+- `d1v-cli` 中已存在的临时项目发现逻辑只作为过渡兼容，不作为终态设计。
+- 短期不引入复杂 ZKP；优先设备认证、最小暴露面、受控 relay、审计与清晰隐私边界。
+
+## 近期执行顺序
+
+1. `opcode-api` 接手 local project/session catalog。
+2. `backend_admin` 完成统一 runtime router。
+3. `d1v-cli` 收敛为 launcher/supervisor/connector。
+4. `d1vai` 补完整绑定与执行闭环。
+5. 补 E2E 与可靠性、安全验收。

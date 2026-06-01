@@ -13,8 +13,8 @@ use d1v_cli::error::{Error, Result};
 use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
-    BaseUrlCandidate, Context, api_key, auth, base_url, config, db, debug, deploy, env, github,
-    i18n, logging, project, session, t, upgrade, user, workspace,
+    BaseUrlCandidate, Context, agent, api_key, auth, base_url, config, db, debug, deploy, env,
+    github, i18n, logging, project, runtime_install, session, t, upgrade, user, workspace,
 };
 
 #[derive(Parser)]
@@ -112,6 +112,16 @@ enum Command {
         #[command(subcommand)]
         command: session::SessionCommand,
     },
+    /// Manage local device agent runtime
+    Agent {
+        #[command(subcommand)]
+        command: agent::AgentCommand,
+    },
+    /// Manage local opcode-api runtime installation
+    Runtime {
+        #[command(subcommand)]
+        command: RuntimeCommand,
+    },
     /// Initialize a local directory as a d1v workspace
     Init(workspace::InitArgs),
     /// Inspect local workspace pull readiness
@@ -134,6 +144,7 @@ impl Command {
             Command::Auth { .. }
             | Command::Config { .. }
             | Command::Debug
+            | Command::Runtime { .. }
             | Command::Upgrade(..)
             | Command::Uninstall(..)
             | Command::Banner => false,
@@ -144,11 +155,22 @@ impl Command {
             | Command::Deploy { .. }
             | Command::Session { .. }
             | Command::Env { .. }
+            Command::Agent { .. } => true,
             | Command::ApiKey { .. } => true,
             Command::Init(..) => false,
             Command::Pull(..) | Command::Push(..) => true,
         }
     }
+}
+
+#[derive(Subcommand)]
+enum RuntimeCommand {
+    /// Install opcode-api runtime binary
+    Install(runtime_install::InstallRuntimeArgs),
+    /// Upgrade opcode-api runtime binary
+    Upgrade(runtime_install::UpgradeRuntimeArgs),
+    /// Inspect runtime installation and health
+    Doctor(runtime_install::DoctorArgs),
 }
 
 #[derive(Subcommand)]
@@ -274,8 +296,17 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Db { command } => db::run(&ctx, command).await,
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
+<<<<<<< HEAD
         Command::Env { command } => env::run(&ctx, command).await,
         Command::ApiKey { command } => api_key::run(&ctx, command).await,
+=======
+        Command::Agent { command } => agent::run(&ctx, command).await,
+        Command::Runtime { command } => match command {
+            RuntimeCommand::Install(args) => runtime_install::run_install(&ctx, args).await,
+            RuntimeCommand::Upgrade(args) => runtime_install::run_upgrade(&ctx, args).await,
+            RuntimeCommand::Doctor(args) => runtime_install::run_doctor(&ctx, args).await,
+        },
+>>>>>>> fcceca1 (feat: add local runtime installer workflow)
         Command::Init(args) => workspace::init(&ctx, args).await,
         Command::Pull(args) => workspace::pull(&ctx, args).await,
         Command::Push(args) => workspace::push(&ctx, args).await,
