@@ -448,16 +448,18 @@ async fn open_local_ws_tunnel(
     opcode_base: String,
     tunnel_id: String,
     session_id: String,
+    websocket_path: Option<String>,
     sender: mpsc::UnboundedSender<Message>,
 ) {
-    let ws_url = format!(
-        "{}/ws/claude/{}",
-        opcode_base
-            .replace("http://", "ws://")
-            .replace("https://", "wss://")
-            .trim_end_matches('/'),
-        session_id
-    );
+    let ws_base = opcode_base
+        .replace("http://", "ws://")
+        .replace("https://", "wss://")
+        .trim_end_matches('/')
+        .to_string();
+    let ws_path = websocket_path
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("/ws/claude/{}", session_id));
+    let ws_url = format!("{}{}", ws_base, ws_path);
 
     match connect_async(ws_url.as_str()).await {
         Ok((socket, _)) => {
@@ -649,10 +651,21 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
+                        let websocket_path = payload
+                            .get("websocket_path")
+                            .and_then(|v| v.as_str())
+                            .map(str::to_string);
                         let sender = out_tx.clone();
                         let opcode_base = config.opcode_base_url.clone();
                         tokio::spawn(async move {
-                            open_local_ws_tunnel(opcode_base, tunnel_id, session_id, sender).await;
+                            open_local_ws_tunnel(
+                                opcode_base,
+                                tunnel_id,
+                                session_id,
+                                websocket_path,
+                                sender,
+                            )
+                            .await;
                         });
                     }
                     "ws_send" => {

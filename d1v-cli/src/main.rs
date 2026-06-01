@@ -155,7 +155,7 @@ impl Command {
             | Command::Deploy { .. }
             | Command::Session { .. }
             | Command::Env { .. }
-            Command::Agent { .. } => true,
+            | Command::Agent { .. }
             | Command::ApiKey { .. } => true,
             Command::Init(..) => false,
             Command::Pull(..) | Command::Push(..) => true,
@@ -296,17 +296,14 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Db { command } => db::run(&ctx, command).await,
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
-<<<<<<< HEAD
         Command::Env { command } => env::run(&ctx, command).await,
         Command::ApiKey { command } => api_key::run(&ctx, command).await,
-=======
         Command::Agent { command } => agent::run(&ctx, command).await,
         Command::Runtime { command } => match command {
             RuntimeCommand::Install(args) => runtime_install::run_install(&ctx, args).await,
             RuntimeCommand::Upgrade(args) => runtime_install::run_upgrade(&ctx, args).await,
             RuntimeCommand::Doctor(args) => runtime_install::run_doctor(&ctx, args).await,
         },
->>>>>>> fcceca1 (feat: add local runtime installer workflow)
         Command::Init(args) => workspace::init(&ctx, args).await,
         Command::Pull(args) => workspace::pull(&ctx, args).await,
         Command::Push(args) => workspace::push(&ctx, args).await,
