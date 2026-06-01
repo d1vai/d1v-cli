@@ -17,9 +17,7 @@ use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::output::Format;
 
-const DEFAULT_RUNTIME_REPO: &str = "d1vai/opcode-api";
-const DEFAULT_RUNTIME_MANIFEST_URL: &str =
-    "https://download.d1v.ai/runtime/opcode-api/manifest.json";
+const DEFAULT_RUNTIME_REPO: &str = "d1vai/opcode-api-runtime";
 const RUNTIME_ARCHIVE_BASENAME: &str = "opcode-api";
 const RUNTIME_CHECKSUM_FILE: &str = "checksums.txt";
 
@@ -308,13 +306,8 @@ async fn fetch_release_info(
     let current_version = installed_runtime_version(&executable_path).await;
     let target = current_target()?;
     let explicit_manifest = std::env::var("D1V_OPCODE_INSTALL_MANIFEST_URL").ok();
-    if version.is_none() {
-        match fetch_manifest_release_info(&executable_path, current_version.clone(), &target).await
-        {
-            Ok(release) => return Ok(release),
-            Err(err) if explicit_manifest.is_some() => return Err(err),
-            Err(_) => {}
-        }
+    if version.is_none() && explicit_manifest.is_some() {
+        return fetch_manifest_release_info(&executable_path, current_version, &target).await;
     }
     fetch_github_release_info(version, executable_path, current_version, &target).await
 }
@@ -325,7 +318,7 @@ async fn fetch_manifest_release_info(
     target: &str,
 ) -> Result<ReleaseInfo> {
     let manifest_url = std::env::var("D1V_OPCODE_INSTALL_MANIFEST_URL")
-        .unwrap_or_else(|_| DEFAULT_RUNTIME_MANIFEST_URL.to_string());
+        .map_err(|_| other(anyhow::anyhow!("missing D1V_OPCODE_INSTALL_MANIFEST_URL")))?;
     let client = http_client_for_url("d1v-cli-runtime-installer", &manifest_url, "*/*")?;
     let manifest = client
         .get(&manifest_url)
@@ -788,13 +781,13 @@ mod tests {
     #[test]
     fn resolves_relative_urls_against_manifest() {
         let url = resolve_url(
-            "https://download.d1v.ai/runtime/opcode-api/manifest.json",
+            "https://runtime.example.com/opcode-api/manifest.json",
             "v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz",
         )
         .unwrap();
         assert_eq!(
             url,
-            "https://download.d1v.ai/runtime/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
+            "https://runtime.example.com/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
         );
     }
 
@@ -802,7 +795,7 @@ mod tests {
     fn derives_archive_name_from_url() {
         assert_eq!(
             archive_file_name(
-                "https://download.d1v.ai/runtime/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
+                "https://runtime.example.com/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
             ),
             "opcode-api-aarch64-apple-darwin.tar.gz"
         );
@@ -813,7 +806,7 @@ mod tests {
         assert!(is_loopback_url("http://127.0.0.1:18765/manifest.json"));
         assert!(is_loopback_url("http://localhost:18765/manifest.json"));
         assert!(!is_loopback_url(
-            "https://download.d1v.ai/runtime/opcode-api/manifest.json"
+            "https://runtime.example.com/opcode-api/manifest.json"
         ));
     }
 }
