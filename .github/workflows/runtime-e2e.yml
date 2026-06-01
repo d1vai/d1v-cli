@@ -36,25 +36,25 @@ jobs:
         run: |
           bash deploy/package_runtime_release.sh x86_64-unknown-linux-gnu dist/runtime
           python3 - <<'PY'
-import json
-from pathlib import Path
+          import json
+          from pathlib import Path
 
-root = Path("dist/runtime")
-archive = root / "opcode-api-x86_64-unknown-linux-gnu.tar.gz"
-sha256 = Path(str(archive) + ".sha256").read_text().strip()
-manifest = {
-    "version": "v0.0.0-e2e",
-    "assets": [
-        {
-            "target": "x86_64-unknown-linux-gnu",
-            "url": archive.name,
-            "sha256": sha256,
-            "archive_name": archive.name,
-        }
-    ],
-}
-(root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-PY
+          root = Path("dist/runtime")
+          archive = root / "opcode-api-x86_64-unknown-linux-gnu.tar.gz"
+          sha256 = Path(str(archive) + ".sha256").read_text().strip()
+          manifest = {
+              "version": "v0.0.0-e2e",
+              "assets": [
+                  {
+                      "target": "x86_64-unknown-linux-gnu",
+                      "url": archive.name,
+                      "sha256": sha256,
+                      "archive_name": archive.name,
+                  }
+              ],
+          }
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
 
       - name: Serve runtime manifest
         working-directory: opcode-api/dist/runtime
