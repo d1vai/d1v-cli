@@ -199,6 +199,36 @@
     - 文档中的命令面、页面路径、接口名称与实现一致
     - 不再把 CLI 扫目录的过渡逻辑描述成长期架构
 
+- [x] 建立 `opcode-api` 私有源码、公开二进制资产的 runtime 分发链路。 `@ops-reliability-qa` `@security-privacy-qa` `@migration-compat-qa`
+  - 产出：
+    - `opcode-api` release packaging 脚本与 runtime manifest workflow
+    - `d1v-cli` runtime installer 优先读取 manifest/CDN 资产，避免依赖公开源码仓库 release 页面
+    - manifest 支持 target/url/sha256，便于将来切到对象存储或 CDN
+  - 验收要求：
+    - 用户安装 runtime 时不需要访问 `opcode-api` 源码仓库
+    - 公网仅暴露二进制包、manifest、checksum，不暴露源码与提交历史
+    - CLI 在 manifest 显式配置时不再静默 fallback 到错误的公开源
+
+- [x] 提升 `d1v-cli` 本地 runtime 安装与接入体验。 `@local-runtime-qa` `@ops-reliability-qa` `@frontend-runtime-ux-qa`
+  - 产出：
+    - `scripts/install-opcode-runtime.sh` 安装引导脚本
+    - `agent start` 本地 health check / 端口冲突 / 日志路径 / 版本提示优化
+    - `agent init-home` 从必须登录改为纯本地可执行
+  - 验收要求：
+    - 用户可在未登录状态先初始化本地 home
+    - 本地 loopback health/relay 不受代理环境变量污染
+    - runtime 启动失败时能明确提示日志位置和冲突端口
+
+- [x] 为安装、代理接入、cloud/local runtime 补自动化 workflow 与脚本化 E2E。 `@ops-reliability-qa` `@backend-routing-qa` `@local-runtime-qa`
+  - 产出：
+    - `d1v-cli` runtime install + relay attach workflow
+    - root backend cloud/local container E2E workflow
+    - 本地 agent relay E2E 脚本与 local runtime execute 回归测试
+  - 验收要求：
+    - 安装 runtime、初始化 home、agent relay attach、项目 execute 都有自动化覆盖
+    - cloud container smoke 与 local container smoke 都能独立回归
+    - 新增测试能覆盖代理环境、端口冲突、local runtime execute 主路径
+
 ## 默认决策与实现假设
 
 - 平台项目主键继续使用云端 `UserProject.id`。

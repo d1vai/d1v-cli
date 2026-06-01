@@ -34,10 +34,11 @@ The frontend never connects directly to the user machine. The local agent opens 
 
 ### Local Runtime Quickstart
 
-1. Initialize a runtime home:
+1. Install and inspect the local runtime:
 
 ```sh
-d1v agent init-home --path ~/d1v-home
+d1v runtime doctor
+bash scripts/install-opcode-runtime.sh --home ~/d1v-home
 ```
 
 2. Generate a pairing code in the web UI, then pair the machine:

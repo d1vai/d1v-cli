@@ -34,10 +34,11 @@ D1V 现在同时支持云端 runtime 和本地 runtime。
 
 ### 本地 Runtime 快速开始
 
-1. 初始化 runtime home：
+1. 安装并检查本地 runtime：
 
 ```sh
-d1v agent init-home --path ~/d1v-home
+d1v runtime doctor
+bash scripts/install-opcode-runtime.sh --home ~/d1v-home
 ```
 
 2. 在 Web UI 生成 pairing code，然后在本机执行：

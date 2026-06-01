@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
+use std::fs::OpenOptions;
+use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
@@ -20,18 +22,20 @@ use url::Url;
 use crate::Context;
 use crate::config::Config;
 use crate::error::Result;
+use crate::runtime_install;
 use crate::text::{Line, Text};
 use crate::theme;
 use crate::token::TokenSource;
-use crate::runtime_install;
 use crate::workspace;
 
 const DEFAULT_HOME_DIR: &str = ".d1v/agent/home";
 const DEFAULT_OPCODE_HEALTH: &str = "http://127.0.0.1:9191/health";
 const DEFAULT_OPCODE_BASE: &str = "http://127.0.0.1:9191";
 
-type TunnelWriter =
-    futures_util::stream::SplitSink<WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>, Message>;
+type TunnelWriter = futures_util::stream::SplitSink<
+    WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
+    Message,
+>;
 
 static TUNNELS: std::sync::LazyLock<Mutex<HashMap<String, Arc<Mutex<TunnelWriter>>>>> =
     std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -173,7 +177,10 @@ fn save_agent_config(config: &AgentConfig) -> Result {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(path, serde_json::to_vec_pretty(config).map_err(|e| anyhow!(e))?)?;
+    fs::write(
+        path,
+        serde_json::to_vec_pretty(config).map_err(|e| anyhow!(e))?,
+    )?;
     Ok(())
 }
 
@@ -253,11 +260,7 @@ async fn put_device_home(ctx: &Context, device_id: &str, home_root: &str) -> Res
     Ok(())
 }
 
-async fn put_project_runtime(
-    ctx: &Context,
-    project_id: &str,
-    device_id: &str,
-) -> Result {
+async fn put_project_runtime(ctx: &Context, project_id: &str, device_id: &str) -> Result {
     let client = authed_http_client(ctx).await?;
     let resp = client
         .put(format!(
@@ -278,11 +281,7 @@ async fn put_project_runtime(
     Ok(())
 }
 
-async fn put_project_binding(
-    ctx: &Context,
-    project_id: &str,
-    workspace_root: &str,
-) -> Result {
+async fn put_project_binding(ctx: &Context, project_id: &str, workspace_root: &str) -> Result {
     let client = authed_http_client(ctx).await?;
     let resp = client
         .put(format!(
@@ -330,7 +329,9 @@ async fn complete_pairing(ctx: &Context, code: &str, config: &AgentConfig) -> Re
 }
 
 fn upsert_binding(config: &mut AgentConfig, project_id: &str, workspace_root: &str) {
-    config.project_bindings.retain(|item| item.project_id != project_id);
+    config
+        .project_bindings
+        .retain(|item| item.project_id != project_id);
     config.project_bindings.push(ProjectBinding {
         project_id: project_id.to_string(),
         workspace_root: workspace_root.to_string(),
@@ -362,9 +363,27 @@ async fn maybe_spawn_opcode(
     opcode_bin: Option<&Path>,
     cloud_control_url: &str,
 ) -> Result<Option<Child>> {
-    let health = reqwest::get(DEFAULT_OPCODE_HEALTH).await;
-    if let Ok(resp) = health && resp.status().is_success() {
+    if opcode_is_healthy().await {
+        if let Ok(Some(version)) = runtime_install::available_runtime_update(None).await {
+            ctx.info(format!(
+                "opcode-api runtime update available: {version} (run `d1v runtime upgrade`)"
+            ));
+        }
         return Ok(None);
+    }
+    if wait_for_existing_opcode_health().await {
+        if let Ok(Some(version)) = runtime_install::available_runtime_update(None).await {
+            ctx.info(format!(
+                "opcode-api runtime update available: {version} (run `d1v runtime upgrade`)"
+            ));
+        }
+        return Ok(None);
+    }
+    if opcode_port_is_occupied() {
+        return Err(anyhow!(
+            "port 9191 is already in use but is not serving opcode-api; stop the conflicting process and retry"
+        )
+        .into());
     }
 
     let bin = if let Some(path) = opcode_bin {
@@ -375,38 +394,114 @@ async fn maybe_spawn_opcode(
         runtime_install::ensure_runtime_installed(ctx, None).await?
     };
 
-    let workspace_root = config
-        .home_root
-        .clone()
-        .unwrap_or_else(|| Config::dir().map(|p| p.join("agent/home").display().to_string()).unwrap_or_else(|_| DEFAULT_HOME_DIR.to_string()));
+    let workspace_root = config.home_root.clone().unwrap_or_else(|| {
+        Config::dir()
+            .map(|p| p.join("agent/home").display().to_string())
+            .unwrap_or_else(|_| DEFAULT_HOME_DIR.to_string())
+    });
+    let log_path = runtime_log_path(config)?;
+    if let Some(parent) = log_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)?;
+    let log_file_err = log_file.try_clone()?;
+    ctx.info(format!(
+        "starting opcode-api runtime with logs at {}",
+        log_path.display()
+    ));
 
     let child = Command::new(bin)
         .env("WORKSPACE_ROOT", workspace_root)
         .env("OPCODE_RUNTIME_MODE", "cloud-managed")
         .env("OPCODE_DEVICE_ID", &config.device_id)
         .env("OPCODE_CLOUD_CONTROL_URL", cloud_control_url)
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::from(log_file))
+        .stderr(Stdio::from(log_file_err))
         .spawn()?;
 
     for _ in 0..20 {
-        let health = reqwest::get(DEFAULT_OPCODE_HEALTH).await;
-        if let Ok(resp) = health && resp.status().is_success() {
+        if opcode_is_healthy().await {
+            if let Ok(Some(version)) = runtime_install::available_runtime_update(None).await {
+                ctx.info(format!(
+                    "opcode-api runtime update available: {version} (run `d1v runtime upgrade`)"
+                ));
+            }
             return Ok(Some(child));
         }
         sleep(Duration::from_secs(1)).await;
     }
 
-    Err(anyhow!("opcode-api did not become healthy on {}", DEFAULT_OPCODE_HEALTH).into())
+    if opcode_port_is_occupied() {
+        return Err(anyhow!(
+            "opcode-api failed to become healthy on {}. Check logs at {}",
+            DEFAULT_OPCODE_HEALTH,
+            log_path.display()
+        )
+        .into());
+    }
+
+    Err(anyhow!(
+        "opcode-api did not become healthy on {}. Check logs at {}",
+        DEFAULT_OPCODE_HEALTH,
+        log_path.display()
+    )
+    .into())
+}
+
+async fn opcode_is_healthy() -> bool {
+    let client = match reqwest::Client::builder().no_proxy().build() {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+    let health = client.get(DEFAULT_OPCODE_HEALTH).send().await;
+    matches!(health, Ok(resp) if resp.status().is_success())
+}
+
+async fn wait_for_existing_opcode_health() -> bool {
+    if !opcode_port_is_occupied() {
+        return false;
+    }
+    for _ in 0..10 {
+        if opcode_is_healthy().await {
+            return true;
+        }
+        sleep(Duration::from_millis(300)).await;
+    }
+    false
+}
+
+fn opcode_port_is_occupied() -> bool {
+    let addr: SocketAddr = "127.0.0.1:9191".parse().expect("valid socket addr");
+    TcpStream::connect_timeout(&addr, Duration::from_millis(300)).is_ok()
+}
+
+fn runtime_log_path(config: &AgentConfig) -> Result<PathBuf> {
+    let base = config
+        .home_root
+        .as_deref()
+        .map(PathBuf::from)
+        .or_else(|| Config::dir().ok().map(|dir| dir.join("agent/home")))
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_HOME_DIR));
+    Ok(base.join("logs").join("opcode-api.log"))
 }
 async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json::Value {
-    let method = payload.get("method").and_then(|v| v.as_str()).unwrap_or("GET");
+    let method = payload
+        .get("method")
+        .and_then(|v| v.as_str())
+        .unwrap_or("GET");
     let path = payload.get("path").and_then(|v| v.as_str()).unwrap_or("/");
     let query = payload.get("query").cloned().unwrap_or_else(|| json!({}));
     let json_body = payload.get("json").cloned();
-    let timeout = payload.get("timeout").and_then(|v| v.as_f64()).unwrap_or(90.0);
+    let timeout = payload
+        .get("timeout")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(90.0);
 
     let client = match reqwest::Client::builder()
+        .no_proxy()
         .timeout(Duration::from_secs_f64(timeout))
         .build()
     {
@@ -430,8 +525,9 @@ async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json
             let status = resp.status();
             let body = match resp.bytes().await {
                 Ok(bytes) if bytes.is_empty() => serde_json::Value::Null,
-                Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes)
-                    .unwrap_or_else(|_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()})),
+                Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes).unwrap_or_else(
+                    |_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()}),
+                ),
                 Err(err) => json!({"error": err.to_string()}),
             };
             json!({
@@ -468,7 +564,10 @@ async fn open_local_ws_tunnel(
             let _ = sender.send(Message::Text(
                 json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"open"}).to_string(),
             ));
-            TUNNELS.lock().await.insert(tunnel_id.clone(), write.clone());
+            TUNNELS
+                .lock()
+                .await
+                .insert(tunnel_id.clone(), write.clone());
 
             while let Some(message) = read.next().await {
                 match message {
@@ -536,15 +635,15 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
         AgentCommand::Project { command } => match command {
             AgentProjectCommand::Create(args) => {
                 let mut config = load_agent_config()?;
-                let home_root = config
-                    .home_root
-                    .clone()
-                    .ok_or_else(|| anyhow!("agent home is not initialized; run `d1v agent init-home` first"))?;
+                let home_root = config.home_root.clone().ok_or_else(|| {
+                    anyhow!("agent home is not initialized; run `d1v agent init-home` first")
+                })?;
                 let path = args
                     .path
                     .unwrap_or_else(|| PathBuf::from(&home_root).join("projects").join(&args.name));
                 fs::create_dir_all(&path)?;
-                init_workspace_binding(ctx, &args.project_id, &path, Some(args.name.clone())).await?;
+                init_workspace_binding(ctx, &args.project_id, &path, Some(args.name.clone()))
+                    .await?;
                 let root = canonical_string(&path);
                 upsert_binding(&mut config, &args.project_id, &root);
                 save_agent_config(&config)?;
@@ -582,13 +681,9 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
         },
         AgentCommand::Start(args) => {
             let config = load_agent_config()?;
-            let _child = maybe_spawn_opcode(
-                ctx,
-                &config,
-                args.opcode_bin.as_deref(),
-                &base_url(ctx),
-            )
-            .await?;
+            let _child =
+                maybe_spawn_opcode(ctx, &config, args.opcode_bin.as_deref(), &base_url(ctx))
+                    .await?;
             let token = ctx
                 .tokens
                 .lookup()?
@@ -603,9 +698,7 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
             url.query_pairs_mut()
                 .append_pair("token", token.expose_secret())
                 .append_pair("device_id", &config.device_id);
-            let (ws, _) = connect_async(url.as_str())
-                .await
-                .map_err(|e| anyhow!(e))?;
+            let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
             let (mut sink, mut stream) = ws.split();
             let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
 
@@ -622,10 +715,9 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
                 if !message.is_text() {
                     continue;
                 }
-                let payload: serde_json::Value = serde_json::from_str(
-                    message.to_text().map_err(|e| anyhow!(e))?,
-                )
-                .map_err(|e| anyhow!(e))?;
+                let payload: serde_json::Value =
+                    serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
+                        .map_err(|e| anyhow!(e))?;
                 match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
                     "request" => {
                         let response = relay_local_http(&config.opcode_base_url, &payload).await;
@@ -686,7 +778,9 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
                                 payload.get("bytes_base64").and_then(|v| v.as_str())
                             {
                                 writer
-                                    .send(Message::Binary(STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into()))
+                                    .send(Message::Binary(
+                                        STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into(),
+                                    ))
                                     .await
                                     .map_err(|e| anyhow!(e))?;
                             }
@@ -725,11 +819,17 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
             };
             ctx.present(
                 Text::new()
-                    .line(Line::styled("Agent configuration".to_string(), theme::ansi::success()))
+                    .line(Line::styled(
+                        "Agent configuration".to_string(),
+                        theme::ansi::success(),
+                    ))
                     .line(Line::raw(format!("  Device ID: {}", config.device_id)))
                     .line(Line::raw(format!("  Device Name: {}", config.device_name)))
                     .line(Line::raw(format!("  Home Root: {}", home_root)))
-                    .line(Line::raw(format!("  Opcode Base URL: {}", config.opcode_base_url)))
+                    .line(Line::raw(format!(
+                        "  Opcode Base URL: {}",
+                        config.opcode_base_url
+                    )))
                     .line(Line::raw(format!("  Project Bindings: {}", bindings))),
                 &config,
             )?;

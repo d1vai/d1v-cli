@@ -148,6 +148,10 @@ impl Command {
             | Command::Upgrade(..)
             | Command::Uninstall(..)
             | Command::Banner => false,
+            Command::Agent { command } => !matches!(
+                command,
+                agent::AgentCommand::InitHome(_) | agent::AgentCommand::Status
+            ),
             Command::User { command } => command.requires_auth(),
             Command::Project { .. }
             | Command::Github { .. }
@@ -155,7 +159,6 @@ impl Command {
             | Command::Deploy { .. }
             | Command::Session { .. }
             | Command::Env { .. }
-            | Command::Agent { .. }
             | Command::ApiKey { .. } => true,
             Command::Init(..) => false,
             Command::Pull(..) | Command::Push(..) => true,

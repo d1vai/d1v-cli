@@ -7,16 +7,19 @@ use flate2::read::GzDecoder;
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::header::{ACCEPT, HeaderMap, HeaderValue, USER_AGENT};
 use semver::Version;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tar::Archive;
+use url::Url;
 
+use crate::Context;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::output::Format;
-use crate::Context;
 
 const DEFAULT_RUNTIME_REPO: &str = "d1vai/opcode-api";
+const DEFAULT_RUNTIME_MANIFEST_URL: &str =
+    "https://download.d1v.ai/runtime/opcode-api/manifest.json";
 const RUNTIME_ARCHIVE_BASENAME: &str = "opcode-api";
 const RUNTIME_CHECKSUM_FILE: &str = "checksums.txt";
 
@@ -66,12 +69,28 @@ enum RuntimeInstallResult {
         healthy: bool,
         configured_home: Option<String>,
         configured_device_id: Option<String>,
+        current_version: Option<String>,
+        latest_version: Option<String>,
     },
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, Deserialize)]
 struct GitHubRelease {
     tag_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RuntimeManifest {
+    version: String,
+    assets: Vec<RuntimeManifestAsset>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RuntimeManifestAsset {
+    target: String,
+    url: String,
+    sha256: String,
+    archive_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -79,10 +98,11 @@ struct ReleaseInfo {
     current_version: Option<String>,
     target_version: String,
     executable_path: PathBuf,
-    repo: String,
+    source_label: String,
     archive_name: String,
     archive_url: String,
-    checksum_url: String,
+    checksum_url: Option<String>,
+    checksum_sha256: Option<String>,
 }
 
 struct WorkingPaths {
@@ -150,8 +170,19 @@ pub async fn run_upgrade(ctx: &Context, args: UpgradeRuntimeArgs) -> Result<()> 
 pub async fn run_doctor(ctx: &Context, _args: DoctorArgs) -> Result<()> {
     let binary = default_runtime_binary_path()?;
     let exists = binary.exists();
-    let health = reqwest::get("http://127.0.0.1:9191/health").await;
+    let health_client = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .map_err(other)?;
+    let health = health_client
+        .get("http://127.0.0.1:9191/health")
+        .send()
+        .await;
     let healthy = matches!(health, Ok(resp) if resp.status().is_success());
+    let current_version = installed_runtime_version(&binary).await;
+    let latest_version = available_runtime_update(Some(&binary))
+        .await?
+        .or_else(|| current_version.as_ref().and_then(|_| None));
 
     let config = crate::agent::load_runtime_doctor_config()?;
     let result = RuntimeInstallResult::Doctor {
@@ -160,12 +191,22 @@ pub async fn run_doctor(ctx: &Context, _args: DoctorArgs) -> Result<()> {
         healthy,
         configured_home: config.home_root,
         configured_device_id: Some(config.device_id),
+        current_version: current_version.clone(),
+        latest_version: latest_version.clone(),
     };
 
     if matches!(ctx.output.format, Format::Text) {
         ctx.message(format!("opcode-api binary: {}", binary.display()));
         ctx.message(format!("installed: {}", if exists { "yes" } else { "no" }));
         ctx.message(format!("healthy: {}", if healthy { "yes" } else { "no" }));
+        if let Some(version) = current_version {
+            ctx.message(format!("version: {version}"));
+        }
+        if let Some(version) = latest_version {
+            ctx.message(format!(
+                "update available: {version} (run `d1v runtime upgrade`)"
+            ));
+        }
         if let Some(home) = result_configured_home(&result) {
             ctx.message(format!("agent home: {}", home));
         }
@@ -178,7 +219,10 @@ pub async fn run_doctor(ctx: &Context, _args: DoctorArgs) -> Result<()> {
     ctx.present(crate::text::Text::new(), &result)
 }
 
-pub async fn ensure_runtime_installed(ctx: &Context, destination: Option<&Path>) -> Result<PathBuf> {
+pub async fn ensure_runtime_installed(
+    ctx: &Context,
+    destination: Option<&Path>,
+) -> Result<PathBuf> {
     let binary = destination
         .map(PathBuf::from)
         .unwrap_or(default_runtime_binary_path()?);
@@ -197,6 +241,17 @@ pub async fn ensure_runtime_installed(ctx: &Context, destination: Option<&Path>)
     .await?;
 
     Ok(binary)
+}
+
+pub async fn available_runtime_update(destination: Option<&Path>) -> Result<Option<String>> {
+    let release = fetch_release_info(None, destination).await?;
+    let Some(current) = release.current_version.as_deref() else {
+        return Ok(Some(release.target_version));
+    };
+    if requires_install(current, &release.target_version, false) {
+        return Ok(Some(release.target_version));
+    }
+    Ok(None)
 }
 
 pub fn default_runtime_binary_path() -> Result<PathBuf> {
@@ -242,15 +297,76 @@ async fn install_release(ctx: &Context, release: &ReleaseInfo) -> Result<()> {
     ctx.present(crate::text::Text::new(), &result)
 }
 
-async fn fetch_release_info(version: Option<&str>, destination: Option<&Path>) -> Result<ReleaseInfo> {
-    let repo = std::env::var("D1V_OPCODE_INSTALL_REPO")
-        .unwrap_or_else(|_| DEFAULT_RUNTIME_REPO.to_string());
+async fn fetch_release_info(
+    version: Option<&str>,
+    destination: Option<&Path>,
+) -> Result<ReleaseInfo> {
     let executable_path = match destination {
         Some(path) => path.to_path_buf(),
         None => default_runtime_binary_path()?,
     };
     let current_version = installed_runtime_version(&executable_path).await;
     let target = current_target()?;
+    let explicit_manifest = std::env::var("D1V_OPCODE_INSTALL_MANIFEST_URL").ok();
+    if version.is_none() {
+        match fetch_manifest_release_info(&executable_path, current_version.clone(), &target).await
+        {
+            Ok(release) => return Ok(release),
+            Err(err) if explicit_manifest.is_some() => return Err(err),
+            Err(_) => {}
+        }
+    }
+    fetch_github_release_info(version, executable_path, current_version, &target).await
+}
+
+async fn fetch_manifest_release_info(
+    executable_path: &Path,
+    current_version: Option<String>,
+    target: &str,
+) -> Result<ReleaseInfo> {
+    let manifest_url = std::env::var("D1V_OPCODE_INSTALL_MANIFEST_URL")
+        .unwrap_or_else(|_| DEFAULT_RUNTIME_MANIFEST_URL.to_string());
+    let client = http_client_for_url("d1v-cli-runtime-installer", &manifest_url, "*/*")?;
+    let manifest = client
+        .get(&manifest_url)
+        .send()
+        .await
+        .map_err(other)?
+        .error_for_status()
+        .map_err(other)?
+        .json::<RuntimeManifest>()
+        .await
+        .map_err(other)?;
+    let asset = manifest
+        .assets
+        .into_iter()
+        .find(|asset| asset.target == target)
+        .ok_or_else(|| other(anyhow::anyhow!("missing runtime asset for target {target}")))?;
+    let archive_url = resolve_url(&manifest_url, &asset.url)?;
+    let archive_name = asset
+        .archive_name
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| archive_file_name(&archive_url));
+    Ok(ReleaseInfo {
+        current_version,
+        target_version: normalize_tag(&manifest.version),
+        executable_path: executable_path.to_path_buf(),
+        source_label: manifest_url,
+        archive_name,
+        archive_url,
+        checksum_url: None,
+        checksum_sha256: Some(asset.sha256),
+    })
+}
+
+async fn fetch_github_release_info(
+    version: Option<&str>,
+    executable_path: PathBuf,
+    current_version: Option<String>,
+    target: &str,
+) -> Result<ReleaseInfo> {
+    let repo = std::env::var("D1V_OPCODE_INSTALL_REPO")
+        .unwrap_or_else(|_| DEFAULT_RUNTIME_REPO.to_string());
     let archive_name = format!("{RUNTIME_ARCHIVE_BASENAME}-{target}.tar.gz");
     let target_version = match version {
         Some(version) => normalize_tag(version),
@@ -262,10 +378,11 @@ async fn fetch_release_info(version: Option<&str>, destination: Option<&Path>) -
         current_version,
         target_version,
         executable_path,
-        repo,
+        source_label: repo,
         archive_name: archive_name.clone(),
         archive_url: format!("{base_url}/{archive_name}"),
-        checksum_url: format!("{base_url}/{RUNTIME_CHECKSUM_FILE}"),
+        checksum_url: Some(format!("{base_url}/{RUNTIME_CHECKSUM_FILE}")),
+        checksum_sha256: None,
     })
 }
 
@@ -307,7 +424,11 @@ async fn download_archive(
     paths: &WorkingPaths,
     show_progress: bool,
 ) -> Result<PathBuf> {
-    let client = github_client("d1v-cli-runtime-installer")?;
+    let client = http_client_for_url(
+        "d1v-cli-runtime-installer",
+        &release.archive_url,
+        "application/octet-stream",
+    )?;
     let response = client
         .get(&release.archive_url)
         .send()
@@ -347,9 +468,25 @@ async fn download_archive(
 }
 
 async fn verify_checksum(archive_path: &Path, release: &ReleaseInfo) -> Result<()> {
-    let client = github_client("d1v-cli-runtime-installer")?;
+    let actual = sha256_file(archive_path)?;
+    if let Some(expected) = &release.checksum_sha256 {
+        if actual.eq_ignore_ascii_case(expected) {
+            return Ok(());
+        }
+        return Err(Error::Other(anyhow::anyhow!(
+            "checksum verification failed for {} from {}",
+            release.archive_name,
+            release.source_label
+        )));
+    }
+
+    let checksum_url = release
+        .checksum_url
+        .as_ref()
+        .ok_or_else(|| other(anyhow::anyhow!("missing checksum url")))?;
+    let client = http_client_for_url("d1v-cli-runtime-installer", checksum_url, "text/plain")?;
     let checksum_body = client
-        .get(&release.checksum_url)
+        .get(checksum_url)
         .send()
         .await
         .map_err(other)?
@@ -365,7 +502,6 @@ async fn verify_checksum(archive_path: &Path, release: &ReleaseInfo) -> Result<(
             release.archive_name
         ))
     })?;
-    let actual = sha256_file(archive_path)?;
 
     if actual.eq_ignore_ascii_case(&expected) {
         return Ok(());
@@ -374,7 +510,7 @@ async fn verify_checksum(archive_path: &Path, release: &ReleaseInfo) -> Result<(
     Err(Error::Other(anyhow::anyhow!(
         "checksum verification failed for {} from {}",
         release.archive_name,
-        release.repo
+        release.source_label
     )))
 }
 
@@ -447,20 +583,62 @@ fn current_target() -> Result<String> {
 }
 
 fn github_client(user_agent: &str) -> Result<reqwest::Client> {
+    generic_http_client_with_accept(user_agent, "application/vnd.github+json")
+}
+
+fn http_client_for_url(user_agent: &str, url: &str, accept: &str) -> Result<reqwest::Client> {
+    let mut builder = generic_http_client_builder(user_agent, accept)?;
+    if is_loopback_url(url) {
+        builder = builder.no_proxy();
+    }
+    builder.build().map_err(other)
+}
+
+fn generic_http_client_with_accept(user_agent: &str, accept: &str) -> Result<reqwest::Client> {
+    generic_http_client_builder(user_agent, accept)?
+        .build()
+        .map_err(other)
+}
+
+fn generic_http_client_builder(user_agent: &str, accept: &str) -> Result<reqwest::ClientBuilder> {
     let mut headers = HeaderMap::new();
     headers.insert(
         ACCEPT,
-        HeaderValue::from_static("application/vnd.github+json"),
+        HeaderValue::from_str(accept).map_err(|err| Error::Other(anyhow::Error::new(err)))?,
     );
     headers.insert(
         USER_AGENT,
         HeaderValue::from_str(user_agent).map_err(|err| Error::Other(anyhow::Error::new(err)))?,
     );
 
-    reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .map_err(other)
+    Ok(reqwest::Client::builder().default_headers(headers))
+}
+
+fn resolve_url(base: &str, value: &str) -> Result<String> {
+    if value.starts_with("http://") || value.starts_with("https://") {
+        return Ok(value.to_string());
+    }
+    let base = Url::parse(base).map_err(other)?;
+    Ok(base.join(value).map_err(other)?.to_string())
+}
+
+fn archive_file_name(url: &str) -> String {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| {
+            parsed
+                .path_segments()
+                .and_then(|segments| segments.last().map(str::to_string))
+        })
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("{RUNTIME_ARCHIVE_BASENAME}.tar.gz"))
+}
+
+fn is_loopback_url(url: &str) -> bool {
+    Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_string))
+        .is_some_and(|host| host == "127.0.0.1" || host == "localhost")
 }
 
 fn parse_checksum(body: &str, archive_name: &str) -> Option<String> {
@@ -560,7 +738,9 @@ fn requires_install(current: &str, target: &str, explicit_version: bool) -> bool
 
 fn result_configured_home(result: &RuntimeInstallResult) -> Option<&str> {
     match result {
-        RuntimeInstallResult::Doctor { configured_home, .. } => configured_home.as_deref(),
+        RuntimeInstallResult::Doctor {
+            configured_home, ..
+        } => configured_home.as_deref(),
         _ => None,
     }
 }
@@ -603,5 +783,37 @@ mod tests {
     fn compares_versions() {
         assert!(is_upgrade_available("0.1.0", "v0.2.0"));
         assert!(!is_upgrade_available("v0.2.0", "0.2.0"));
+    }
+
+    #[test]
+    fn resolves_relative_urls_against_manifest() {
+        let url = resolve_url(
+            "https://download.d1v.ai/runtime/opcode-api/manifest.json",
+            "v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz",
+        )
+        .unwrap();
+        assert_eq!(
+            url,
+            "https://download.d1v.ai/runtime/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
+        );
+    }
+
+    #[test]
+    fn derives_archive_name_from_url() {
+        assert_eq!(
+            archive_file_name(
+                "https://download.d1v.ai/runtime/opcode-api/v0.1.0/opcode-api-aarch64-apple-darwin.tar.gz"
+            ),
+            "opcode-api-aarch64-apple-darwin.tar.gz"
+        );
+    }
+
+    #[test]
+    fn detects_loopback_urls() {
+        assert!(is_loopback_url("http://127.0.0.1:18765/manifest.json"));
+        assert!(is_loopback_url("http://localhost:18765/manifest.json"));
+        assert!(!is_loopback_url(
+            "https://download.d1v.ai/runtime/opcode-api/manifest.json"
+        ));
     }
 }

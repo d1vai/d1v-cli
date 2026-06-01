@@ -1,6 +1,6 @@
+pub mod agent;
 pub mod api_key;
 pub mod auth;
-pub mod agent;
 pub mod banner;
 pub mod base_url;
 pub mod config;

@@ -1,0 +1,90 @@
+name: Runtime E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "d1v-cli/**"
+      - "d1v-api/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/runtime-e2e.yml"
+
+jobs:
+  runtime-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout d1v-cli
+        uses: actions/checkout@v6
+
+      - name: Checkout private opcode-api
+        uses: actions/checkout@v6
+        with:
+          repository: d1vai/opcode-api
+          path: opcode-api
+          token: ${{ secrets.OPCODE_API_READ_TOKEN }}
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Build opcode-api runtime artifact
+        working-directory: opcode-api
+        run: |
+          bash deploy/package_runtime_release.sh x86_64-unknown-linux-gnu dist/runtime
+          python3 - <<'PY'
+import json
+from pathlib import Path
+
+root = Path("dist/runtime")
+archive = root / "opcode-api-x86_64-unknown-linux-gnu.tar.gz"
+sha256 = Path(str(archive) + ".sha256").read_text().strip()
+manifest = {
+    "version": "v0.0.0-e2e",
+    "assets": [
+        {
+            "target": "x86_64-unknown-linux-gnu",
+            "url": archive.name,
+            "sha256": sha256,
+            "archive_name": archive.name,
+        }
+    ],
+}
+(root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+PY
+
+      - name: Serve runtime manifest
+        working-directory: opcode-api/dist/runtime
+        run: |
+          python3 -m http.server 18765 >/tmp/d1v-runtime-manifest.log 2>&1 &
+          echo $! > /tmp/d1v-runtime-manifest.pid
+
+      - name: Build d1v-cli
+        run: cargo build --release -p d1v-cli
+
+      - name: Bootstrap local runtime install
+        env:
+          D1V_OPCODE_INSTALL_MANIFEST_URL: http://127.0.0.1:18765/manifest.json
+          D1V_INSTALL_PACKAGES: never
+        run: |
+          chmod +x scripts/install-opcode-runtime.sh
+          scripts/install-opcode-runtime.sh --home "$RUNNER_TEMP/d1v-agent-home"
+
+      - name: Verify installed runtime binary
+        run: ~/.d1v/bin/opcode-api --version
+
+      - name: Install Python test dependency
+        run: python3 -m pip install aiohttp
+
+      - name: Run agent relay e2e
+        run: python3 scripts/test-agent-relay-e2e.py target/release/d1v
+
+      - name: Stop runtime manifest server
+        if: always()
+        run: |
+          if [ -f /tmp/d1v-runtime-manifest.pid ]; then
+            kill "$(cat /tmp/d1v-runtime-manifest.pid)" || true
+          fi
