@@ -78,6 +78,7 @@ jobs:
           D1V_OPCODE_INSTALL_MANIFEST_URL: http://127.0.0.1:18765/manifest.json
           D1V_INSTALL_PACKAGES: never
         run: |
+          export PATH="$PWD/target/release:$PATH"
           chmod +x scripts/install-opcode-runtime.sh
           scripts/install-opcode-runtime.sh --home "$RUNNER_TEMP/d1v-agent-home"
 
