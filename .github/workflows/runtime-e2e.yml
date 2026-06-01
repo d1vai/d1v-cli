@@ -24,7 +24,7 @@ jobs:
         with:
           repository: d1vai/opcode-api
           path: opcode-api
-          token: ${{ secrets.OPCODE_API_READ_TOKEN }}
+          token: ${{ github.token }}
 
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
