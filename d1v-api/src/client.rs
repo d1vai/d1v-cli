@@ -9,7 +9,7 @@ use serde::de::DeserializeOwned;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::debug;
-use url::Url;
+use url::{Host, Url};
 
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -79,6 +79,7 @@ impl ClientBuilder {
 
     pub fn build(self) -> Result<Client, Error> {
         let mut headers = HeaderMap::new();
+        let base_url = Url::parse(&self.base_url)?;
 
         #[cfg(feature = "mock")]
         if let Ok(scenario) = std::env::var("D1V_TEST_SCENARIO")
@@ -93,13 +94,31 @@ impl ClientBuilder {
             headers.insert("X-D1V-Client", value);
         }
 
+        let mut builder = self.inner.default_headers(headers);
+        if is_loopback_url(&base_url) {
+            // Local runtimes and local backends should never be routed through
+            // desktop/system HTTP proxies such as Clash/Surge.
+            builder = builder.no_proxy();
+        }
+
         Ok(Client {
             inner: Arc::new(ClientInner {
-                http: self.inner.default_headers(headers).build()?,
-                base_url: Url::parse(&self.base_url)?,
+                http: builder.build()?,
+                base_url,
                 token: RwLock::new(self.token),
             }),
         })
+    }
+}
+
+fn is_loopback_url(url: &Url) -> bool {
+    match url.host() {
+        Some(Host::Domain(host)) => {
+            host.eq_ignore_ascii_case("localhost") || host.eq_ignore_ascii_case("loopback")
+        }
+        Some(Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
     }
 }
 

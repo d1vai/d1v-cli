@@ -41,7 +41,13 @@ d1v runtime doctor
 bash scripts/install-opcode-runtime.sh --home ~/d1v-home
 ```
 
-2. 在 Web UI 生成 pairing code，然后在本机执行：
+2. 绑定设备：
+
+```sh
+d1v agent pair
+```
+
+或者继续使用 Web UI 里生成的 pairing code：
 
 ```sh
 d1v agent pair --code <pairing-code>

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::fs::OpenOptions;
 use std::net::{SocketAddr, TcpStream};
@@ -7,7 +8,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::anyhow;
+use anyhow::{Context as AnyhowContext, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use clap::{Args, Subcommand};
 use futures_util::{SinkExt, StreamExt};
@@ -17,7 +18,7 @@ use serde_json::json;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
-use url::Url;
+use url::{Host, Url};
 
 use crate::Context;
 use crate::config::Config;
@@ -73,7 +74,7 @@ pub struct InitHomeArgs {
 #[derive(Args)]
 pub struct PairArgs {
     #[arg(long)]
-    pub code: String,
+    pub code: Option<String>,
     #[arg(long)]
     pub name: Option<String>,
 }
@@ -235,15 +236,29 @@ async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client> {
             .parse()
             .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
     );
-    Ok(reqwest::Client::builder()
+    let mut builder = reqwest::Client::builder()
         .default_headers(headers)
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| anyhow!(e))?)
+        .timeout(Duration::from_secs(60));
+    if is_loopback_base_url(&base_url(ctx)) {
+        builder = builder.no_proxy();
+    }
+    Ok(builder.build().map_err(|e| anyhow!(e))?)
 }
 
 fn base_url(ctx: &Context) -> String {
     ctx.client.base_url().trim_end_matches('/').to_string()
+}
+
+fn is_loopback_base_url(raw: &str) -> bool {
+    let Ok(url) = Url::parse(raw) else {
+        return false;
+    };
+    match url.host() {
+        Some(Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
+        Some(Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(Host::Ipv6(ip)) => ip.is_loopback(),
+        None => false,
+    }
 }
 
 async fn put_device_home(ctx: &Context, device_id: &str, home_root: &str) -> Result {
@@ -328,6 +343,25 @@ async fn complete_pairing(ctx: &Context, code: &str, config: &AgentConfig) -> Re
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+struct PairStartResponse {
+    pairing_code: String,
+}
+
+async fn start_pairing(ctx: &Context) -> Result<String> {
+    let client = authed_http_client(ctx).await?;
+    let response = client
+        .post(format!("{}/api/devices/pair/start", base_url(ctx)))
+        .send()
+        .await
+        .map_err(|e| anyhow!(e))?
+        .json::<d1v_api::response::Response>()
+        .await
+        .map_err(|e| anyhow!(e))?;
+    let payload: PairStartResponse = response.ok().map_err(|e| anyhow!(e))?;
+    Ok(payload.pairing_code)
+}
+
 fn upsert_binding(config: &mut AgentConfig, project_id: &str, workspace_root: &str) {
     config
         .project_bindings
@@ -393,6 +427,8 @@ async fn maybe_spawn_opcode(
     } else {
         runtime_install::ensure_runtime_installed(ctx, None).await?
     };
+
+    ensure_system_cli_tools(ctx)?;
 
     let workspace_root = config.home_root.clone().unwrap_or_else(|| {
         Config::dir()
@@ -487,6 +523,172 @@ fn runtime_log_path(config: &AgentConfig) -> Result<PathBuf> {
         .unwrap_or_else(|| PathBuf::from(DEFAULT_HOME_DIR));
     Ok(base.join("logs").join("opcode-api.log"))
 }
+
+struct RequiredCliTool {
+    label: &'static str,
+    binary: &'static str,
+    env_override: Option<&'static str>,
+    common_paths: &'static [&'static str],
+}
+
+const REQUIRED_CLI_TOOLS: &[RequiredCliTool] = &[
+    RequiredCliTool {
+        label: "Claude Code",
+        binary: "claude",
+        env_override: None,
+        common_paths: &[
+            "/usr/local/bin/claude",
+            "/opt/homebrew/bin/claude",
+            "~/.local/bin/claude",
+        ],
+    },
+    RequiredCliTool {
+        label: "Codex",
+        binary: "codex",
+        env_override: Some("CODEX_BIN"),
+        common_paths: &[
+            "/usr/local/bin/codex",
+            "/opt/homebrew/bin/codex",
+            "~/.local/bin/codex",
+        ],
+    },
+];
+
+enum InstallAction {
+    Shell {
+        program: &'static str,
+        args: Vec<&'static str>,
+        display: &'static str,
+    },
+    Unsupported {
+        reason: String,
+    },
+}
+
+fn find_binary_on_path(binary: &str) -> Option<PathBuf> {
+    let path = env::var_os("PATH")?;
+    env::split_paths(&path)
+        .map(|dir| dir.join(binary))
+        .find(|candidate| candidate.is_file())
+}
+
+fn expand_home_path(path: &str) -> Option<PathBuf> {
+    if let Some(suffix) = path.strip_prefix("~/") {
+        return dirs::home_dir().map(|home| home.join(suffix));
+    }
+    Some(PathBuf::from(path))
+}
+
+fn resolve_tool_binary(tool: &RequiredCliTool) -> Option<PathBuf> {
+    if let Some(env_name) = tool.env_override {
+        if let Ok(value) = env::var(env_name) {
+            let candidate = PathBuf::from(value);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    if let Some(path) = find_binary_on_path(tool.binary) {
+        return Some(path);
+    }
+
+    tool.common_paths
+        .iter()
+        .filter_map(|path| expand_home_path(path))
+        .find(|candidate| candidate.is_file())
+}
+
+fn install_action_for_tool(tool: &RequiredCliTool) -> InstallAction {
+    match tool.binary {
+        "claude" => InstallAction::Shell {
+            program: "sh",
+            args: vec!["-lc", "curl -fsSL https://claude.ai/install.sh | bash"],
+            display: "curl -fsSL https://claude.ai/install.sh | bash",
+        },
+        "codex" => match std::env::consts::OS {
+            "macos" | "linux" => InstallAction::Shell {
+                program: "sh",
+                args: vec!["-lc", "curl -fsSL https://chatgpt.com/codex/install.sh | sh"],
+                display: "curl -fsSL https://chatgpt.com/codex/install.sh | sh",
+            },
+            "windows" => InstallAction::Unsupported {
+                reason: "Codex on Windows should follow the official Windows guide or WSL flow: https://developers.openai.com/codex/windows".to_string(),
+            },
+            other => InstallAction::Unsupported {
+                reason: format!(
+                    "Codex automatic install is not configured for OS `{other}`. Follow https://developers.openai.com/codex/cli"
+                ),
+            },
+        },
+        _ => InstallAction::Unsupported {
+            reason: format!("no installer configured for {}", tool.label),
+        },
+    }
+}
+
+fn run_install_action(action: &InstallAction) -> Result {
+    match action {
+        InstallAction::Shell { program, args, display } => {
+            let status = Command::new(program)
+                .args(args)
+                .status()
+                .with_context(|| format!("failed to run installer command: {display}"))?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(anyhow!("installer command exited with status {status}: {display}").into())
+            }
+        }
+        InstallAction::Unsupported { reason } => Err(anyhow!(reason.clone()).into()),
+    }
+}
+
+fn ensure_system_cli_tools(ctx: &Context) -> Result {
+    for tool in REQUIRED_CLI_TOOLS {
+        if let Some(path) = resolve_tool_binary(tool) {
+            ctx.info(format!("found {} at {}", tool.label, path.display()));
+            continue;
+        }
+
+        let action = install_action_for_tool(tool);
+        if matches!(action, InstallAction::Shell { display, .. } if display.contains("curl"))
+            && find_binary_on_path("curl").is_none()
+        {
+            return Err(anyhow!(
+                "{} is not installed and curl is missing. Install curl first, then rerun `d1v agent start`.",
+                tool.label
+            )
+            .into());
+        }
+
+        match &action {
+            InstallAction::Shell { display, .. } => {
+                ctx.info(format!("{} not found; installing with `{}`", tool.label, display));
+            }
+            InstallAction::Unsupported { reason } => {
+                return Err(anyhow!("{} not found. {}", tool.label, reason).into());
+            }
+        }
+
+        run_install_action(&action)?;
+
+        if let Some(path) = resolve_tool_binary(tool) {
+            ctx.success(format!("installed {} at {}", tool.label, path.display()));
+            continue;
+        }
+
+        return Err(anyhow!(
+            "{} installer completed but `{}` is still not available on PATH/common locations.",
+            tool.label,
+            tool.binary
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
 async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json::Value {
     let method = payload
         .get("method")
@@ -627,7 +829,11 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
             if let Some(name) = args.name {
                 config.device_name = name;
             }
-            complete_pairing(ctx, &args.code, &config).await?;
+            let pairing_code = match args.code {
+                Some(code) => code,
+                None => start_pairing(ctx).await?,
+            };
+            complete_pairing(ctx, &pairing_code, &config).await?;
             save_agent_config(&config)?;
             ctx.success(format!("Paired device {}", config.device_id));
             Ok(())

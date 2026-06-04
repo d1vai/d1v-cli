@@ -41,7 +41,13 @@ d1v runtime doctor
 bash scripts/install-opcode-runtime.sh --home ~/d1v-home
 ```
 
-2. Generate a pairing code in the web UI, then pair the machine:
+2. Pair the machine:
+
+```sh
+d1v agent pair
+```
+
+Or keep using a pairing code generated in the web UI:
 
 ```sh
 d1v agent pair --code <pairing-code>
