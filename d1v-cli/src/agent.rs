@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
+use std::io::Write;
 
 use anyhow::{Context as AnyhowContext, anyhow};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -41,6 +42,13 @@ type TunnelWriter = futures_util::stream::SplitSink<
 
 static TUNNELS: std::sync::LazyLock<Mutex<HashMap<String, Arc<Mutex<TunnelWriter>>>>> =
     std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn append_debug_log(message: &str) {
+    let path = std::env::temp_dir().join("d1v-expose-debug.log");
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{message}");
+    }
+}
 
 #[derive(Subcommand)]
 pub enum AgentCommand {
@@ -1067,11 +1075,16 @@ async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json
                     return json!({"status_code": 502, "message": err.to_string(), "body": null});
                 }
             };
+            eprintln!(
+                "d1v-agent relay_local_http upstream status={} bytes={}",
+                status.as_u16(),
+                bytes.len()
+            );
             let body = if bytes.is_empty() {
                 serde_json::Value::Null
             } else {
                 serde_json::from_slice::<serde_json::Value>(&bytes)
-                    .unwrap_or_else(|_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()}))
+                    .unwrap_or(serde_json::Value::Null)
             };
             json!({
                 "status_code": status.as_u16(),
@@ -1157,6 +1170,11 @@ pub(crate) async fn run_agent_relay_forever(
     config: AgentConfig,
     auth_token: String,
 ) -> Result {
+    append_debug_log(&format!(
+        "run_agent_relay_forever start device_id={} base_url={}",
+        config.device_id,
+        base_url(ctx)
+    ));
     let mut url = Url::parse(
         &base_url(ctx)
             .replace("http://", "ws://")
@@ -1169,7 +1187,9 @@ pub(crate) async fn run_agent_relay_forever(
         .append_pair("device_id", &config.device_id);
 
     loop {
+        append_debug_log(&format!("connect_async begin url={}", url));
         let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
+        append_debug_log("connect_async connected");
         let (mut sink, mut stream) = ws.split();
         let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
 
@@ -1186,27 +1206,67 @@ pub(crate) async fn run_agent_relay_forever(
             let message = match message {
                 Ok(message) => message,
                 Err(err) => {
+                    append_debug_log(&format!("stream error err={err}"));
                     ctx.info(format!("agent relay disconnected: {err}; reconnecting"));
                     reconnect = true;
                     break;
                 }
             };
             if !message.is_text() {
+                append_debug_log("received non-text websocket frame");
                 continue;
             }
             let payload: serde_json::Value =
                 serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
                     .map_err(|e| anyhow!(e))?;
+            if let Some(kind) = payload.get("type").and_then(|v| v.as_str()) {
+                append_debug_log(&format!("received frame type={kind}"));
+                ctx.info(format!("agent relay received frame type={kind}"));
+            }
             match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
                 "request" => {
+                    ctx.info(format!(
+                        "agent relay forwarding http request path={} target_base_url={}",
+                        payload.get("path").and_then(|v| v.as_str()).unwrap_or("/"),
+                        payload
+                            .get("target_base_url")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&config.opcode_base_url)
+                    ));
                     let response = relay_local_http(&config.opcode_base_url, &payload).await;
+                    append_debug_log(&format!(
+                        "http response status={} body_base64_len={}",
+                        response
+                            .get("status_code")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(500),
+                        response
+                            .get("body_base64")
+                            .and_then(|v| v.as_str())
+                            .map(|v| v.len())
+                            .unwrap_or(0)
+                    ));
                     let envelope = json!({
                         "type": "response",
                         "request_id": payload.get("request_id").cloned().unwrap_or(serde_json::Value::Null),
                         "status_code": response.get("status_code").cloned().unwrap_or(json!(500)),
                         "message": response.get("message").cloned().unwrap_or(json!("error")),
+                        "headers": response.get("headers").cloned().unwrap_or_else(|| json!({})),
+                        "body_base64": response.get("body_base64").cloned().unwrap_or(serde_json::Value::Null),
                         "body": response.get("body").cloned().unwrap_or(serde_json::Value::Null),
                     });
+                    ctx.info(format!(
+                        "agent relay sending http response status={} body_base64_len={}",
+                        response
+                            .get("status_code")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(500),
+                        response
+                            .get("body_base64")
+                            .and_then(|v| v.as_str())
+                            .map(|v| v.len())
+                            .unwrap_or(0)
+                    ));
                     out_tx
                         .send(Message::Text(envelope.to_string()))
                         .map_err(|e| anyhow!(e))?;
@@ -1286,6 +1346,7 @@ pub(crate) async fn run_agent_relay_forever(
             }
         }
         writer.abort();
+        append_debug_log(&format!("loop end reconnect={reconnect}"));
         if !reconnect {
             ctx.info("agent relay connection closed; reconnecting");
         }
