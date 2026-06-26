@@ -125,12 +125,12 @@ pub struct InitRuntimeArgs {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct AgentConfig {
-    device_id: String,
-    device_name: String,
-    home_root: Option<String>,
-    opcode_base_url: String,
-    project_bindings: Vec<ProjectBinding>,
+pub(crate) struct AgentConfig {
+    pub(crate) device_id: String,
+    pub(crate) device_name: String,
+    pub(crate) home_root: Option<String>,
+    pub(crate) opcode_base_url: String,
+    pub(crate) project_bindings: Vec<ProjectBinding>,
 }
 
 pub(crate) struct RuntimeDoctorConfig {
@@ -147,7 +147,7 @@ pub(crate) fn load_runtime_doctor_config() -> Result<RuntimeDoctorConfig> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct ProjectBinding {
+pub(crate) struct ProjectBinding {
     project_id: String,
     workspace_root: String,
 }
@@ -160,7 +160,7 @@ fn agent_config_path() -> Result<PathBuf> {
     Ok(agent_dir()?.join("config.json"))
 }
 
-fn load_agent_config() -> Result<AgentConfig> {
+pub(crate) fn load_agent_config() -> Result<AgentConfig> {
     let path = agent_config_path()?;
     if !path.exists() {
         return Ok(AgentConfig {
@@ -174,7 +174,7 @@ fn load_agent_config() -> Result<AgentConfig> {
     Ok(serde_json::from_str(&fs::read_to_string(path)?).map_err(|e| anyhow!(e))?)
 }
 
-fn save_agent_config(config: &AgentConfig) -> Result {
+pub(crate) fn save_agent_config(config: &AgentConfig) -> Result {
     let path = agent_config_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -219,7 +219,7 @@ fn ensure_home_layout(path: &Path) -> Result {
     Ok(())
 }
 
-async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client> {
+pub(crate) async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client> {
     let token = ctx
         .tokens
         .lookup()?
@@ -246,7 +246,7 @@ async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client> {
     Ok(builder.build().map_err(|e| anyhow!(e))?)
 }
 
-fn base_url(ctx: &Context) -> String {
+pub(crate) fn base_url(ctx: &Context) -> String {
     ctx.client.base_url().trim_end_matches('/').to_string()
 }
 
@@ -315,10 +315,13 @@ async fn put_project_binding(ctx: &Context, project_id: &str, workspace_root: &s
     Ok(())
 }
 
-async fn register_customer_runtime_node(ctx: &Context, config: &AgentConfig) -> Result {
+pub(crate) async fn register_customer_runtime_node(ctx: &Context, config: &AgentConfig) -> Result {
     let client = authed_http_client(ctx).await?;
     let resp = client
-        .post(format!("{}/api/devices/runtime-node/register", base_url(ctx)))
+        .post(format!(
+            "{}/api/devices/runtime-node/register",
+            base_url(ctx)
+        ))
         .json(&json!({
             "node_id": format!("customer-{}", config.device_id),
             "region": "local",
@@ -334,7 +337,11 @@ async fn register_customer_runtime_node(ctx: &Context, config: &AgentConfig) -> 
         .await
         .map_err(|e| anyhow!(e))?;
     if !resp.status().is_success() {
-        return Err(anyhow!("failed to register customer runtime node: {}", resp.status()).into());
+        return Err(anyhow!(
+            "failed to register customer runtime node: {}",
+            resp.status()
+        )
+        .into());
     }
     Ok(())
 }
@@ -417,7 +424,10 @@ async fn ensure_customer_auto_expose(ctx: &Context, config: &AgentConfig) -> Res
     let client = authed_http_client(ctx).await?;
     for port in detect_local_expose_ports(config) {
         let resp = client
-            .post(format!("{}/api/devices/runtime-node/exposes", base_url(ctx)))
+            .post(format!(
+                "{}/api/devices/runtime-node/exposes",
+                base_url(ctx)
+            ))
             .json(&json!({
                 "node_id": format!("customer-{}", config.device_id),
                 "container_port": port,
@@ -429,7 +439,11 @@ async fn ensure_customer_auto_expose(ctx: &Context, config: &AgentConfig) -> Res
             .await
             .map_err(|e| anyhow!(e))?;
         if !resp.status().is_success() {
-            return Err(anyhow!("failed to create customer expose binding: {}", resp.status()).into());
+            return Err(anyhow!(
+                "failed to create customer expose binding: {}",
+                resp.status()
+            )
+            .into());
         }
     }
     Ok(())
@@ -470,10 +484,18 @@ async fn ensure_customer_auto_expose_once(
         .await
         .map_err(|e| anyhow!(e))?;
     if !list_resp.status().is_success() {
-        return Err(anyhow!("failed to list customer expose bindings: {}", list_resp.status()).into());
+        return Err(anyhow!(
+            "failed to list customer expose bindings: {}",
+            list_resp.status()
+        )
+        .into());
     }
     let value: serde_json::Value = list_resp.json().await.map_err(|e| anyhow!(e))?;
-    let rows = value.get("data").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let rows = value
+        .get("data")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let config = AgentConfig {
         device_id: device_id.clone(),
         device_name: String::new(),
@@ -487,7 +509,10 @@ async fn ensure_customer_auto_expose_once(
                 .get("container_port")
                 .and_then(|v| v.as_u64())
                 .unwrap_or_default() as u16;
-            let status = item.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+            let status = item
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default();
             container_port == port && matches!(status, "pending" | "active")
         });
         if already_present {
@@ -507,13 +532,17 @@ async fn ensure_customer_auto_expose_once(
             .await
             .map_err(|e| anyhow!(e))?;
         if !resp.status().is_success() {
-            return Err(anyhow!("failed to create customer expose binding: {}", resp.status()).into());
+            return Err(anyhow!(
+                "failed to create customer expose binding: {}",
+                resp.status()
+            )
+            .into());
         }
     }
     Ok(())
 }
 
-async fn heartbeat_customer_runtime_node_loop(
+pub(crate) async fn heartbeat_customer_runtime_node_loop(
     api_base_url: String,
     auth_token: String,
     device_id: String,
@@ -539,7 +568,10 @@ async fn heartbeat_customer_runtime_node_loop(
         .map_err(|e| anyhow!(e))?;
     loop {
         let resp = client
-            .post(format!("{}/api/devices/runtime-node/heartbeat", api_base_url))
+            .post(format!(
+                "{}/api/devices/runtime-node/heartbeat",
+                api_base_url
+            ))
             .json(&json!({
                 "node_id": format!("customer-{}", device_id),
                 "status": "online",
@@ -549,7 +581,11 @@ async fn heartbeat_customer_runtime_node_loop(
             .await
             .map_err(|e| anyhow!(e))?;
         if !resp.status().is_success() {
-            return Err(anyhow!("failed to heartbeat customer runtime node: {}", resp.status()).into());
+            return Err(anyhow!(
+                "failed to heartbeat customer runtime node: {}",
+                resp.status()
+            )
+            .into());
         }
         sleep(Duration::from_secs(15)).await;
     }
@@ -573,7 +609,7 @@ async fn ensure_customer_auto_expose_loop(
     }
 }
 
-async fn complete_pairing(ctx: &Context, code: &str, config: &AgentConfig) -> Result {
+pub(crate) async fn complete_pairing(ctx: &Context, code: &str, config: &AgentConfig) -> Result {
     let client = authed_http_client(ctx).await?;
     let resp = client
         .post(format!("{}/api/devices/pair/complete", base_url(ctx)))
@@ -607,7 +643,7 @@ struct PairStartResponse {
     pairing_code: String,
 }
 
-async fn start_pairing(ctx: &Context) -> Result<String> {
+pub(crate) async fn start_pairing(ctx: &Context) -> Result<String> {
     let client = authed_http_client(ctx).await?;
     let response = client
         .post(format!("{}/api/devices/pair/start", base_url(ctx)))
@@ -967,7 +1003,9 @@ async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json
         .unwrap_or("GET");
     let path = payload.get("path").and_then(|v| v.as_str()).unwrap_or("/");
     let query = payload.get("query").cloned().unwrap_or_else(|| json!({}));
+    let headers = payload.get("headers").cloned().unwrap_or_else(|| json!({}));
     let json_body = payload.get("json").cloned();
+    let body_base64 = payload.get("body_base64").and_then(|v| v.as_str());
     let timeout = payload
         .get("timeout")
         .and_then(|v| v.as_f64())
@@ -989,23 +1027,57 @@ async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json
     if let Some(map) = query.as_object() {
         req = req.query(map);
     }
+    if let Some(map) = headers.as_object() {
+        for (key, value) in map {
+            let Some(value) = value.as_str() else {
+                continue;
+            };
+            req = req.header(key, value);
+        }
+    }
     if let Some(body) = json_body {
         req = req.json(&body);
+    } else if let Some(encoded) = body_base64 {
+        match STANDARD.decode(encoded) {
+            Ok(bytes) => {
+                req = req.body(bytes);
+            }
+            Err(err) => {
+                return json!({"status_code": 400, "message": err.to_string(), "body": null});
+            }
+        }
     }
 
     match req.send().await {
         Ok(resp) => {
             let status = resp.status();
-            let body = match resp.bytes().await {
-                Ok(bytes) if bytes.is_empty() => serde_json::Value::Null,
-                Ok(bytes) => serde_json::from_slice::<serde_json::Value>(&bytes).unwrap_or_else(
-                    |_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()}),
-                ),
-                Err(err) => json!({"error": err.to_string()}),
+            let headers: serde_json::Map<String, serde_json::Value> = resp
+                .headers()
+                .iter()
+                .filter_map(|(key, value)| {
+                    value
+                        .to_str()
+                        .ok()
+                        .map(|value| (key.as_str().to_string(), json!(value)))
+                })
+                .collect();
+            let bytes = match resp.bytes().await {
+                Ok(bytes) => bytes,
+                Err(err) => {
+                    return json!({"status_code": 502, "message": err.to_string(), "body": null});
+                }
+            };
+            let body = if bytes.is_empty() {
+                serde_json::Value::Null
+            } else {
+                serde_json::from_slice::<serde_json::Value>(&bytes)
+                    .unwrap_or_else(|_| json!({"raw": String::from_utf8_lossy(&bytes).to_string()}))
             };
             json!({
                 "status_code": status.as_u16(),
                 "message": status.canonical_reason().unwrap_or("ok"),
+                "headers": headers,
+                "body_base64": STANDARD.encode(&bytes),
                 "body": body,
             })
         }
@@ -1078,6 +1150,147 @@ async fn open_local_ws_tunnel(
     let _ = sender.send(Message::Text(
         json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"close"}).to_string(),
     ));
+}
+
+pub(crate) async fn run_agent_relay_forever(
+    ctx: &Context,
+    config: AgentConfig,
+    auth_token: String,
+) -> Result {
+    let mut url = Url::parse(
+        &base_url(ctx)
+            .replace("http://", "ws://")
+            .replace("https://", "wss://"),
+    )
+    .map_err(|e| anyhow!(e))?;
+    url.set_path("/api/agent/connect");
+    url.query_pairs_mut()
+        .append_pair("token", &auth_token)
+        .append_pair("device_id", &config.device_id);
+
+    loop {
+        let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
+        let (mut sink, mut stream) = ws.split();
+        let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
+
+        let writer = tokio::spawn(async move {
+            while let Some(message) = out_rx.recv().await {
+                if sink.send(message).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let mut reconnect = false;
+        while let Some(message) = stream.next().await {
+            let message = match message {
+                Ok(message) => message,
+                Err(err) => {
+                    ctx.info(format!("agent relay disconnected: {err}; reconnecting"));
+                    reconnect = true;
+                    break;
+                }
+            };
+            if !message.is_text() {
+                continue;
+            }
+            let payload: serde_json::Value =
+                serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
+                    .map_err(|e| anyhow!(e))?;
+            match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
+                "request" => {
+                    let response = relay_local_http(&config.opcode_base_url, &payload).await;
+                    let envelope = json!({
+                        "type": "response",
+                        "request_id": payload.get("request_id").cloned().unwrap_or(serde_json::Value::Null),
+                        "status_code": response.get("status_code").cloned().unwrap_or(json!(500)),
+                        "message": response.get("message").cloned().unwrap_or(json!("error")),
+                        "body": response.get("body").cloned().unwrap_or(serde_json::Value::Null),
+                    });
+                    out_tx
+                        .send(Message::Text(envelope.to_string()))
+                        .map_err(|e| anyhow!(e))?;
+                }
+                "ws_open" => {
+                    let tunnel_id = payload
+                        .get("tunnel_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let session_id = payload
+                        .get("session_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let target_base_url = payload
+                        .get("target_base_url")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    let websocket_path = payload
+                        .get("websocket_path")
+                        .and_then(|v| v.as_str())
+                        .map(str::to_string);
+                    let sender = out_tx.clone();
+                    let opcode_base = config.opcode_base_url.clone();
+                    tokio::spawn(async move {
+                        open_local_ws_tunnel(
+                            opcode_base,
+                            tunnel_id,
+                            session_id,
+                            target_base_url,
+                            websocket_path,
+                            sender,
+                        )
+                        .await;
+                    });
+                }
+                "ws_send" => {
+                    let tunnel_id = payload
+                        .get("tunnel_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let writer = TUNNELS.lock().await.get(&tunnel_id).cloned();
+                    if let Some(writer) = writer {
+                        let mut writer = writer.lock().await;
+                        if let Some(text) = payload.get("text").and_then(|v| v.as_str()) {
+                            writer
+                                .send(Message::Text(text.to_string()))
+                                .await
+                                .map_err(|e| anyhow!(e))?;
+                        } else if let Some(encoded) =
+                            payload.get("bytes_base64").and_then(|v| v.as_str())
+                        {
+                            writer
+                                .send(Message::Binary(
+                                    STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into(),
+                                ))
+                                .await
+                                .map_err(|e| anyhow!(e))?;
+                        }
+                    }
+                }
+                "ws_close" => {
+                    let tunnel_id = payload
+                        .get("tunnel_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let writer = TUNNELS.lock().await.remove(&tunnel_id);
+                    if let Some(writer) = writer {
+                        let mut writer = writer.lock().await;
+                        let _ = writer.send(Message::Close(None)).await;
+                    }
+                }
+                _ => {}
+            }
+        }
+        writer.abort();
+        if !reconnect {
+            ctx.info("agent relay connection closed; reconnecting");
+        }
+        sleep(Duration::from_secs(2)).await;
+    }
 }
 
 pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
@@ -1193,141 +1406,7 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
                 )
                 .await;
             });
-            let mut url = Url::parse(
-                &base_url(ctx)
-                    .replace("http://", "ws://")
-                    .replace("https://", "wss://"),
-            )
-            .map_err(|e| anyhow!(e))?;
-            url.set_path("/api/agent/connect");
-            url.query_pairs_mut()
-                .append_pair("token", token.expose_secret())
-                .append_pair("device_id", &config.device_id);
-
-            #[allow(unreachable_code)]
-            loop {
-                let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
-                let (mut sink, mut stream) = ws.split();
-                let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
-
-                let writer = tokio::spawn(async move {
-                    while let Some(message) = out_rx.recv().await {
-                        if sink.send(message).await.is_err() {
-                            break;
-                        }
-                    }
-                });
-
-                let mut reconnect = false;
-                while let Some(message) = stream.next().await {
-                    let message = match message {
-                        Ok(message) => message,
-                        Err(err) => {
-                            ctx.info(format!("agent relay disconnected: {err}; reconnecting"));
-                            reconnect = true;
-                            break;
-                        }
-                    };
-                    if !message.is_text() {
-                        continue;
-                    }
-                    let payload: serde_json::Value =
-                        serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
-                            .map_err(|e| anyhow!(e))?;
-                    match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
-                        "request" => {
-                            let response = relay_local_http(&config.opcode_base_url, &payload).await;
-                            let envelope = json!({
-                                "type": "response",
-                                "request_id": payload.get("request_id").cloned().unwrap_or(serde_json::Value::Null),
-                                "status_code": response.get("status_code").cloned().unwrap_or(json!(500)),
-                                "message": response.get("message").cloned().unwrap_or(json!("error")),
-                                "body": response.get("body").cloned().unwrap_or(serde_json::Value::Null),
-                            });
-                            out_tx
-                                .send(Message::Text(envelope.to_string()))
-                                .map_err(|e| anyhow!(e))?;
-                        }
-                        "ws_open" => {
-                            let tunnel_id = payload
-                                .get("tunnel_id")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let session_id = payload
-                                .get("session_id")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let target_base_url = payload
-                                .get("target_base_url")
-                                .and_then(|v| v.as_str())
-                                .map(str::to_string);
-                            let websocket_path = payload
-                                .get("websocket_path")
-                                .and_then(|v| v.as_str())
-                                .map(str::to_string);
-                            let sender = out_tx.clone();
-                            let opcode_base = config.opcode_base_url.clone();
-                            tokio::spawn(async move {
-                                open_local_ws_tunnel(
-                                    opcode_base,
-                                    tunnel_id,
-                                    session_id,
-                                    target_base_url,
-                                    websocket_path,
-                                    sender,
-                                )
-                                .await;
-                            });
-                        }
-                        "ws_send" => {
-                            let tunnel_id = payload
-                                .get("tunnel_id")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let writer = TUNNELS.lock().await.get(&tunnel_id).cloned();
-                            if let Some(writer) = writer {
-                                let mut writer = writer.lock().await;
-                                if let Some(text) = payload.get("text").and_then(|v| v.as_str()) {
-                                    writer
-                                        .send(Message::Text(text.to_string()))
-                                        .await
-                                        .map_err(|e| anyhow!(e))?;
-                                } else if let Some(encoded) =
-                                    payload.get("bytes_base64").and_then(|v| v.as_str())
-                                {
-                                    writer
-                                        .send(Message::Binary(
-                                            STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into(),
-                                        ))
-                                        .await
-                                        .map_err(|e| anyhow!(e))?;
-                                }
-                            }
-                        }
-                        "ws_close" => {
-                            let tunnel_id = payload
-                                .get("tunnel_id")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let writer = TUNNELS.lock().await.remove(&tunnel_id);
-                            if let Some(writer) = writer {
-                                let mut writer = writer.lock().await;
-                                let _ = writer.send(Message::Close(None)).await;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                writer.abort();
-                if !reconnect {
-                    ctx.info("agent relay connection closed; reconnecting");
-                }
-                sleep(Duration::from_secs(2)).await;
-            }
+            run_agent_relay_forever(ctx, config, token.expose_secret().to_string()).await
         }
         AgentCommand::Status => {
             let config = load_agent_config()?;
@@ -1406,8 +1485,12 @@ localhost:3000\n\
 
     #[test]
     fn configured_auto_expose_candidate_ports_uses_env_override() {
-        unsafe { env::set_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS", "3000,5173,3000"); }
+        unsafe {
+            env::set_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS", "3000,5173,3000");
+        }
         assert_eq!(configured_auto_expose_candidate_ports(), vec![3000, 5173]);
-        unsafe { env::remove_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS"); }
+        unsafe {
+            env::remove_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS");
+        }
     }
 }

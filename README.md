@@ -82,18 +82,27 @@ d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
 
 ### Public Expose
 
-Platform nodes can expose HTTP services through node ingress:
+CLI free expose does not require a running node agent:
 
 ```sh
-d1v expose 3000 --node-id <platform-node-id>
+d1v expose 3000
 d1v expose list
 d1v expose close <binding_id>
 ```
 
+Platform node ingress stays on a separate command path:
+
+```sh
+d1v node expose 3000 --node-id <platform-node-id>
+d1v node expose list
+d1v node expose close <binding_id>
+```
+
 Current expose modes:
 
-- `cloudflare_tunnel`: returns a public `https://*.node.d1v.ai` URL
-- `reverse_relay`: returns a backend relay URL for local/customer devices without public ingress
+- `cli_free_relay`: returns a public `https://*.cli-free.d1v.ai` URL for login-backed temporary CLI relays
+- `cloudflare_tunnel`: returns a public `https://*.node.d1v.ai` URL for platform nodes
+- `reverse_relay`: internal fallback mode used by local/customer relays behind the CLI-free entry
 
 `d1v expose` currently targets HTTP traffic. Browser terminal and session WebSocket flows still use the existing backend relay path.
 

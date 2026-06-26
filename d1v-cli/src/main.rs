@@ -14,7 +14,8 @@ use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
     BaseUrlCandidate, Context, agent, api_key, auth, base_url, config, db, debug, deploy, env,
-    expose, github, i18n, logging, project, runtime_install, session, t, upgrade, user, workspace,
+    expose, github, i18n, logging, node, project, runtime_install, session, t, upgrade, user,
+    workspace,
 };
 
 #[derive(Parser)]
@@ -99,6 +100,11 @@ enum Command {
     },
     /// Manage public ingress bindings
     Expose(expose::ExposeArgs),
+    /// Manage node-backed ingress bindings
+    Node {
+        #[command(subcommand)]
+        command: node::NodeCommand,
+    },
     /// Manage project environment variables
     Env {
         #[command(subcommand)]
@@ -150,6 +156,7 @@ impl Command {
             | Command::Upgrade(..)
             | Command::Uninstall(..)
             | Command::Banner => false,
+            Command::Node { .. } => false,
             Command::Agent { command } => !matches!(
                 command,
                 agent::AgentCommand::InitHome(_) | agent::AgentCommand::Status
@@ -302,6 +309,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Db { command } => db::run(&ctx, command).await,
         Command::Deploy { command } => deploy::run(&ctx, command).await,
         Command::Expose(args) => expose::run(&ctx, args).await,
+        Command::Node { command } => node::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
         Command::Env { command } => env::run(&ctx, command).await,
         Command::ApiKey { command } => api_key::run(&ctx, command).await,

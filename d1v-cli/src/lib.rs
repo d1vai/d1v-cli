@@ -14,6 +14,7 @@ pub mod github;
 pub mod i18n;
 pub mod localize;
 pub mod logging;
+pub mod node;
 pub mod output;
 pub mod project;
 pub mod prompt;
