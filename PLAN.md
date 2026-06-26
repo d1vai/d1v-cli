@@ -246,3 +246,81 @@
 3. `d1v-cli` 收敛为 launcher/supervisor/connector。
 4. `d1vai` 补完整绑定与执行闭环。
 5. 补 E2E 与可靠性、安全验收。
+
+## Public Expose Extension
+
+### 目标
+
+为 `d1v-cli` 增加最小的公网暴露命令面：
+
+- `d1v expose 3000`
+- `d1v expose list`
+- `d1v expose close <binding_id>`
+
+命令目标不是管理 Cloudflare，而是让用户拿到：
+
+- `https://abc123.node.d1v.ai`
+
+### CLI 设计原则
+
+- CLI 不持有 Cloudflare token。
+- CLI 不直接创建 DNS 记录。
+- CLI 只调用平台控制面或本地 runtime-agent 管理接口。
+- 节点域名分配必须由后端返回。
+
+### TODO 13: 新增 `d1v expose` 命令面
+
+- 在 `d1v-cli` 新增：
+  - `d1v expose <port>`
+  - `d1v expose list`
+  - `d1v expose close <binding_id>`
+- 最小参数：
+  - `--project-id`
+  - `--hostname`
+
+预期验证结果：
+
+- 用户执行 `d1v expose 3000` 后，CLI 直接打印最终域名。
+- list/close 能复用同一份 expose binding 真相。
+
+### TODO 14: 节点身份与域名提示
+
+- `d1v agent start` 成功后，如果设备注册为平台节点：
+  - 打印 `public_origin`
+  - 打印对应 `xxx.node.d1v.ai`
+- `d1v expose` 成功后，必须回显：
+  - `binding_id`
+  - `public_url`
+  - `target_port`
+
+预期验证结果：
+
+- 用户不需要额外去后台查域名。
+- 节点级域名和 expose 级域名都能在 CLI 第一时间看到。
+
+### TODO 15: 节点启动后的 expose supervisor 规划
+
+- `runtime-agent` 启动后，需要常驻一个后台线程：
+  - 读取本节点当前活跃容器端口
+  - 拉取后端分配给本节点的 expose bindings
+  - 更新本地 ingress 路由表
+- CLI 文档与命令帮助要明确：
+  - `d1v expose` 的真实生效依赖节点 supervisor
+  - expose 并非一次性 shell 脚本，而是长期托管状态
+
+预期验证结果：
+
+- 节点重启后，原 expose route 能恢复。
+- 容器端口变化后，公开域名仍可访问。
+
+### TODO 16: 浏览器终端与 expose 分层
+
+- CLI 文档明确：
+  - `d1v expose` 只负责 Web 服务暴露
+  - 浏览器 terminal 继续走平台 relay
+  - 后续若做 `d1v shell`，应作为独立命令面
+
+预期验证结果：
+
+- 命令面不会把“公开预览”和“容器终端”混成一件事。
+- 产品路径更容易扩展权限与审计。

@@ -80,6 +80,23 @@ d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
 - 如果项目绑定到本地 runtime，但设备离线，平台会返回明确错误，不会静默回退到云端。
 - 创建项目、导入项目这类 runtime binding 尚未形成的 provisioning 流程，仍可能直接走 cloud opcode。
 
+### Public Expose
+
+平台节点可以通过节点 ingress 暴露 HTTP 服务：
+
+```sh
+d1v expose 3000 --node-id <platform-node-id>
+d1v expose list
+d1v expose close <binding_id>
+```
+
+当前 expose 模式：
+
+- `cloudflare_tunnel`：返回公开的 `https://*.node.d1v.ai` URL
+- `reverse_relay`：针对没有公网入口的本地/用户设备，返回后端 relay URL
+
+`d1v expose` 当前只面向 HTTP 服务。浏览器 terminal 和 session WebSocket 仍然继续走现有后端 relay。
+
 ### 隐私边界
 
 当前阶段：

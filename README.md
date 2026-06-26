@@ -80,6 +80,23 @@ d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
 - If a project is bound to local runtime and the device is offline, requests return an explicit local-runtime error instead of silently falling back to cloud.
 - Project creation/import flows may still use cloud opcode directly before runtime binding exists.
 
+### Public Expose
+
+Platform nodes can expose HTTP services through node ingress:
+
+```sh
+d1v expose 3000 --node-id <platform-node-id>
+d1v expose list
+d1v expose close <binding_id>
+```
+
+Current expose modes:
+
+- `cloudflare_tunnel`: returns a public `https://*.node.d1v.ai` URL
+- `reverse_relay`: returns a backend relay URL for local/customer devices without public ingress
+
+`d1v expose` currently targets HTTP traffic. Browser terminal and session WebSocket flows still use the existing backend relay path.
+
 ### Privacy Boundary
 
 Current phase:

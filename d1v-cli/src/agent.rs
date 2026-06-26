@@ -32,6 +32,7 @@ use crate::workspace;
 const DEFAULT_HOME_DIR: &str = ".d1v/agent/home";
 const DEFAULT_OPCODE_HEALTH: &str = "http://127.0.0.1:9191/health";
 const DEFAULT_OPCODE_BASE: &str = "http://127.0.0.1:9191";
+const DEFAULT_AUTO_EXPOSE_CANDIDATE_PORTS: &[u16] = &[3000, 4173, 5173, 8000, 8787, 9000];
 
 type TunnelWriter = futures_util::stream::SplitSink<
     WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
@@ -312,6 +313,264 @@ async fn put_project_binding(ctx: &Context, project_id: &str, workspace_root: &s
         return Err(anyhow!("failed to bind project path: {}", resp.status()).into());
     }
     Ok(())
+}
+
+async fn register_customer_runtime_node(ctx: &Context, config: &AgentConfig) -> Result {
+    let client = authed_http_client(ctx).await?;
+    let resp = client
+        .post(format!("{}/api/devices/runtime-node/register", base_url(ctx)))
+        .json(&json!({
+            "node_id": format!("customer-{}", config.device_id),
+            "region": "local",
+            "version": "dev",
+            "total_slots": 1,
+            "cpu_cores": 0,
+            "memory_mb": 0,
+            "disk_gb": 0,
+            "capabilities": {"runtime": "opcode-api", "transport": "relay"},
+            "ingress_mode": "reverse_relay",
+        }))
+        .send()
+        .await
+        .map_err(|e| anyhow!(e))?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("failed to register customer runtime node: {}", resp.status()).into());
+    }
+    Ok(())
+}
+
+fn opcode_port_from_base_url(base: &str) -> u16 {
+    let Ok(url) = Url::parse(base) else {
+        return 9191;
+    };
+    if let Some(port) = url.port_or_known_default() {
+        return port;
+    }
+    9191
+}
+
+fn parse_listening_ports(output: &str) -> Vec<u16> {
+    let mut ports = Vec::new();
+    for raw in output.lines() {
+        let line = raw.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let candidate = line
+            .rsplit(':')
+            .next()
+            .and_then(|value| value.parse::<u16>().ok());
+        if let Some(port) = candidate {
+            if !ports.contains(&port) {
+                ports.push(port);
+            }
+        }
+    }
+    ports
+}
+
+fn configured_auto_expose_candidate_ports() -> Vec<u16> {
+    if let Ok(raw) = env::var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS") {
+        let mut ports = Vec::new();
+        for part in raw.split(',') {
+            let value = part.trim();
+            if value.is_empty() {
+                continue;
+            }
+            if let Ok(port) = value.parse::<u16>() {
+                if !ports.contains(&port) {
+                    ports.push(port);
+                }
+            }
+        }
+        if !ports.is_empty() {
+            return ports;
+        }
+    }
+    DEFAULT_AUTO_EXPOSE_CANDIDATE_PORTS.to_vec()
+}
+
+fn detect_local_expose_ports(config: &AgentConfig) -> Vec<u16> {
+    let mut ports = Vec::new();
+    let opcode_port = opcode_port_from_base_url(&config.opcode_base_url);
+    ports.push(opcode_port);
+
+    let candidates = configured_auto_expose_candidate_ports();
+    let result = Command::new("sh")
+        .arg("-lc")
+        .arg("lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $9}'")
+        .output();
+    if let Ok(output) = result {
+        if output.status.success() {
+            let discovered = parse_listening_ports(&String::from_utf8_lossy(&output.stdout));
+            for port in discovered {
+                if candidates.contains(&port) && !ports.contains(&port) {
+                    ports.push(port);
+                }
+            }
+        }
+    }
+    ports
+}
+
+async fn ensure_customer_auto_expose(ctx: &Context, config: &AgentConfig) -> Result {
+    let client = authed_http_client(ctx).await?;
+    for port in detect_local_expose_ports(config) {
+        let resp = client
+            .post(format!("{}/api/devices/runtime-node/exposes", base_url(ctx)))
+            .json(&json!({
+                "node_id": format!("customer-{}", config.device_id),
+                "container_port": port,
+                "host_port": port,
+                "protocol": "http",
+                "container_id": config.device_id,
+            }))
+            .send()
+            .await
+            .map_err(|e| anyhow!(e))?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("failed to create customer expose binding: {}", resp.status()).into());
+        }
+    }
+    Ok(())
+}
+
+async fn ensure_customer_auto_expose_once(
+    api_base_url: String,
+    auth_token: String,
+    device_id: String,
+    opcode_base_url: String,
+) -> Result {
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {}", auth_token)
+            .parse()
+            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
+    );
+    headers.insert(
+        reqwest::header::ACCEPT,
+        "application/json"
+            .parse()
+            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
+    );
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .no_proxy()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| anyhow!(e))?;
+
+    let list_resp = client
+        .get(format!(
+            "{}/api/devices/runtime-node/exposes?node_id=customer-{}",
+            api_base_url, device_id
+        ))
+        .send()
+        .await
+        .map_err(|e| anyhow!(e))?;
+    if !list_resp.status().is_success() {
+        return Err(anyhow!("failed to list customer expose bindings: {}", list_resp.status()).into());
+    }
+    let value: serde_json::Value = list_resp.json().await.map_err(|e| anyhow!(e))?;
+    let rows = value.get("data").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let config = AgentConfig {
+        device_id: device_id.clone(),
+        device_name: String::new(),
+        home_root: None,
+        opcode_base_url,
+        project_bindings: Vec::new(),
+    };
+    for port in detect_local_expose_ports(&config) {
+        let already_present = rows.iter().any(|item| {
+            let container_port = item
+                .get("container_port")
+                .and_then(|v| v.as_u64())
+                .unwrap_or_default() as u16;
+            let status = item.get("status").and_then(|v| v.as_str()).unwrap_or_default();
+            container_port == port && matches!(status, "pending" | "active")
+        });
+        if already_present {
+            continue;
+        }
+
+        let resp = client
+            .post(format!("{}/api/devices/runtime-node/exposes", api_base_url))
+            .json(&json!({
+                "node_id": format!("customer-{}", device_id),
+                "container_port": port,
+                "host_port": port,
+                "protocol": "http",
+                "container_id": device_id,
+            }))
+            .send()
+            .await
+            .map_err(|e| anyhow!(e))?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("failed to create customer expose binding: {}", resp.status()).into());
+        }
+    }
+    Ok(())
+}
+
+async fn heartbeat_customer_runtime_node_loop(
+    api_base_url: String,
+    auth_token: String,
+    device_id: String,
+) -> Result {
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {}", auth_token)
+            .parse()
+            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
+    );
+    headers.insert(
+        reqwest::header::ACCEPT,
+        "application/json"
+            .parse()
+            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
+    );
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .no_proxy()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| anyhow!(e))?;
+    loop {
+        let resp = client
+            .post(format!("{}/api/devices/runtime-node/heartbeat", api_base_url))
+            .json(&json!({
+                "node_id": format!("customer-{}", device_id),
+                "status": "online",
+                "used_slots": 0,
+            }))
+            .send()
+            .await
+            .map_err(|e| anyhow!(e))?;
+        if !resp.status().is_success() {
+            return Err(anyhow!("failed to heartbeat customer runtime node: {}", resp.status()).into());
+        }
+        sleep(Duration::from_secs(15)).await;
+    }
+}
+
+async fn ensure_customer_auto_expose_loop(
+    api_base_url: String,
+    auth_token: String,
+    device_id: String,
+    opcode_base_url: String,
+) -> Result {
+    loop {
+        let _ = ensure_customer_auto_expose_once(
+            api_base_url.clone(),
+            auth_token.clone(),
+            device_id.clone(),
+            opcode_base_url.clone(),
+        )
+        .await;
+        sleep(Duration::from_secs(15)).await;
+    }
 }
 
 async fn complete_pairing(ctx: &Context, code: &str, config: &AgentConfig) -> Result {
@@ -629,7 +888,11 @@ fn install_action_for_tool(tool: &RequiredCliTool) -> InstallAction {
 
 fn run_install_action(action: &InstallAction) -> Result {
     match action {
-        InstallAction::Shell { program, args, display } => {
+        InstallAction::Shell {
+            program,
+            args,
+            display,
+        } => {
             let status = Command::new(program)
                 .args(args)
                 .status()
@@ -664,7 +927,10 @@ fn ensure_system_cli_tools(ctx: &Context) -> Result {
 
         match &action {
             InstallAction::Shell { display, .. } => {
-                ctx.info(format!("{} not found; installing with `{}`", tool.label, display));
+                ctx.info(format!(
+                    "{} not found; installing with `{}`",
+                    tool.label, display
+                ));
             }
             InstallAction::Unsupported { reason } => {
                 return Err(anyhow!("{} not found. {}", tool.label, reason).into());
@@ -690,6 +956,11 @@ fn ensure_system_cli_tools(ctx: &Context) -> Result {
 }
 
 async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json::Value {
+    let target_base = payload
+        .get("target_base_url")
+        .and_then(|v| v.as_str())
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(base);
     let method = payload
         .get("method")
         .and_then(|v| v.as_str())
@@ -713,7 +984,7 @@ async fn relay_local_http(base: &str, payload: &serde_json::Value) -> serde_json
 
     let mut req = client.request(
         reqwest::Method::from_bytes(method.as_bytes()).unwrap_or(reqwest::Method::GET),
-        format!("{}{}", base.trim_end_matches('/'), path),
+        format!("{}{}", target_base.trim_end_matches('/'), path),
     );
     if let Some(map) = query.as_object() {
         req = req.query(map);
@@ -746,10 +1017,12 @@ async fn open_local_ws_tunnel(
     opcode_base: String,
     tunnel_id: String,
     session_id: String,
+    target_base_url: Option<String>,
     websocket_path: Option<String>,
     sender: mpsc::UnboundedSender<Message>,
 ) {
-    let ws_base = opcode_base
+    let ws_base = target_base_url
+        .unwrap_or(opcode_base)
         .replace("http://", "ws://")
         .replace("https://", "wss://")
         .trim_end_matches('/')
@@ -894,6 +1167,32 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
                 .tokens
                 .lookup()?
                 .ok_or_else(|| anyhow!("missing auth token"))?;
+            let _ = register_customer_runtime_node(ctx, &config).await;
+            let _ = ensure_customer_auto_expose(ctx, &config).await;
+            let heartbeat_device_id = config.device_id.clone();
+            let heartbeat_base_url = base_url(ctx);
+            let heartbeat_token = token.expose_secret().to_string();
+            let expose_device_id = config.device_id.clone();
+            let expose_base_url = heartbeat_base_url.clone();
+            let expose_token = heartbeat_token.clone();
+            let expose_opcode_base_url = config.opcode_base_url.clone();
+            tokio::spawn(async move {
+                let _ = heartbeat_customer_runtime_node_loop(
+                    heartbeat_base_url,
+                    heartbeat_token,
+                    heartbeat_device_id,
+                )
+                .await;
+            });
+            tokio::spawn(async move {
+                let _ = ensure_customer_auto_expose_loop(
+                    expose_base_url,
+                    expose_token,
+                    expose_device_id,
+                    expose_opcode_base_url,
+                )
+                .await;
+            });
             let mut url = Url::parse(
                 &base_url(ctx)
                     .replace("http://", "ws://")
@@ -904,111 +1203,131 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
             url.query_pairs_mut()
                 .append_pair("token", token.expose_secret())
                 .append_pair("device_id", &config.device_id);
-            let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
-            let (mut sink, mut stream) = ws.split();
-            let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
 
-            let writer = tokio::spawn(async move {
-                while let Some(message) = out_rx.recv().await {
-                    if sink.send(message).await.is_err() {
-                        break;
+            #[allow(unreachable_code)]
+            loop {
+                let (ws, _) = connect_async(url.as_str()).await.map_err(|e| anyhow!(e))?;
+                let (mut sink, mut stream) = ws.split();
+                let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Message>();
+
+                let writer = tokio::spawn(async move {
+                    while let Some(message) = out_rx.recv().await {
+                        if sink.send(message).await.is_err() {
+                            break;
+                        }
                     }
-                }
-            });
+                });
 
-            while let Some(message) = stream.next().await {
-                let message = message.map_err(|e| anyhow!(e))?;
-                if !message.is_text() {
-                    continue;
-                }
-                let payload: serde_json::Value =
-                    serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
-                        .map_err(|e| anyhow!(e))?;
-                match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
-                    "request" => {
-                        let response = relay_local_http(&config.opcode_base_url, &payload).await;
-                        let envelope = json!({
-                            "type": "response",
-                            "request_id": payload.get("request_id").cloned().unwrap_or(serde_json::Value::Null),
-                            "status_code": response.get("status_code").cloned().unwrap_or(json!(500)),
-                            "message": response.get("message").cloned().unwrap_or(json!("error")),
-                            "body": response.get("body").cloned().unwrap_or(serde_json::Value::Null),
-                        });
-                        out_tx
-                            .send(Message::Text(envelope.to_string()))
+                let mut reconnect = false;
+                while let Some(message) = stream.next().await {
+                    let message = match message {
+                        Ok(message) => message,
+                        Err(err) => {
+                            ctx.info(format!("agent relay disconnected: {err}; reconnecting"));
+                            reconnect = true;
+                            break;
+                        }
+                    };
+                    if !message.is_text() {
+                        continue;
+                    }
+                    let payload: serde_json::Value =
+                        serde_json::from_str(message.to_text().map_err(|e| anyhow!(e))?)
                             .map_err(|e| anyhow!(e))?;
-                    }
-                    "ws_open" => {
-                        let tunnel_id = payload
-                            .get("tunnel_id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let session_id = payload
-                            .get("session_id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let websocket_path = payload
-                            .get("websocket_path")
-                            .and_then(|v| v.as_str())
-                            .map(str::to_string);
-                        let sender = out_tx.clone();
-                        let opcode_base = config.opcode_base_url.clone();
-                        tokio::spawn(async move {
-                            open_local_ws_tunnel(
-                                opcode_base,
-                                tunnel_id,
-                                session_id,
-                                websocket_path,
-                                sender,
-                            )
-                            .await;
-                        });
-                    }
-                    "ws_send" => {
-                        let tunnel_id = payload
-                            .get("tunnel_id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let writer = TUNNELS.lock().await.get(&tunnel_id).cloned();
-                        if let Some(writer) = writer {
-                            let mut writer = writer.lock().await;
-                            if let Some(text) = payload.get("text").and_then(|v| v.as_str()) {
-                                writer
-                                    .send(Message::Text(text.to_string()))
-                                    .await
-                                    .map_err(|e| anyhow!(e))?;
-                            } else if let Some(encoded) =
-                                payload.get("bytes_base64").and_then(|v| v.as_str())
-                            {
-                                writer
-                                    .send(Message::Binary(
-                                        STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into(),
-                                    ))
-                                    .await
-                                    .map_err(|e| anyhow!(e))?;
+                    match payload.get("type").and_then(|v| v.as_str()).unwrap_or("") {
+                        "request" => {
+                            let response = relay_local_http(&config.opcode_base_url, &payload).await;
+                            let envelope = json!({
+                                "type": "response",
+                                "request_id": payload.get("request_id").cloned().unwrap_or(serde_json::Value::Null),
+                                "status_code": response.get("status_code").cloned().unwrap_or(json!(500)),
+                                "message": response.get("message").cloned().unwrap_or(json!("error")),
+                                "body": response.get("body").cloned().unwrap_or(serde_json::Value::Null),
+                            });
+                            out_tx
+                                .send(Message::Text(envelope.to_string()))
+                                .map_err(|e| anyhow!(e))?;
+                        }
+                        "ws_open" => {
+                            let tunnel_id = payload
+                                .get("tunnel_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let session_id = payload
+                                .get("session_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let target_base_url = payload
+                                .get("target_base_url")
+                                .and_then(|v| v.as_str())
+                                .map(str::to_string);
+                            let websocket_path = payload
+                                .get("websocket_path")
+                                .and_then(|v| v.as_str())
+                                .map(str::to_string);
+                            let sender = out_tx.clone();
+                            let opcode_base = config.opcode_base_url.clone();
+                            tokio::spawn(async move {
+                                open_local_ws_tunnel(
+                                    opcode_base,
+                                    tunnel_id,
+                                    session_id,
+                                    target_base_url,
+                                    websocket_path,
+                                    sender,
+                                )
+                                .await;
+                            });
+                        }
+                        "ws_send" => {
+                            let tunnel_id = payload
+                                .get("tunnel_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let writer = TUNNELS.lock().await.get(&tunnel_id).cloned();
+                            if let Some(writer) = writer {
+                                let mut writer = writer.lock().await;
+                                if let Some(text) = payload.get("text").and_then(|v| v.as_str()) {
+                                    writer
+                                        .send(Message::Text(text.to_string()))
+                                        .await
+                                        .map_err(|e| anyhow!(e))?;
+                                } else if let Some(encoded) =
+                                    payload.get("bytes_base64").and_then(|v| v.as_str())
+                                {
+                                    writer
+                                        .send(Message::Binary(
+                                            STANDARD.decode(encoded).map_err(|e| anyhow!(e))?.into(),
+                                        ))
+                                        .await
+                                        .map_err(|e| anyhow!(e))?;
+                                }
                             }
                         }
-                    }
-                    "ws_close" => {
-                        let tunnel_id = payload
-                            .get("tunnel_id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let writer = TUNNELS.lock().await.remove(&tunnel_id);
-                        if let Some(writer) = writer {
-                            let mut writer = writer.lock().await;
-                            let _ = writer.send(Message::Close(None)).await;
+                        "ws_close" => {
+                            let tunnel_id = payload
+                                .get("tunnel_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let writer = TUNNELS.lock().await.remove(&tunnel_id);
+                            if let Some(writer) = writer {
+                                let mut writer = writer.lock().await;
+                                let _ = writer.send(Message::Close(None)).await;
+                            }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
+                writer.abort();
+                if !reconnect {
+                    ctx.info("agent relay connection closed; reconnecting");
+                }
+                sleep(Duration::from_secs(2)).await;
             }
-            writer.abort();
-            Ok(())
         }
         AgentCommand::Status => {
             let config = load_agent_config()?;
@@ -1068,5 +1387,27 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
             ));
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_listening_ports_extracts_unique_ports() {
+        let input = "\
+127.0.0.1:3000\n\
+*:5173\n\
+localhost:3000\n\
+[::1]:8787\n";
+        assert_eq!(parse_listening_ports(input), vec![3000, 5173, 8787]);
+    }
+
+    #[test]
+    fn configured_auto_expose_candidate_ports_uses_env_override() {
+        unsafe { env::set_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS", "3000,5173,3000"); }
+        assert_eq!(configured_auto_expose_candidate_ports(), vec![3000, 5173]);
+        unsafe { env::remove_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS"); }
     }
 }
