@@ -9,34 +9,34 @@ on:
 jobs:
   build:
     name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - runner: [self-hosted, linux, x64, d1vai]
             target: x86_64-unknown-linux-gnu
             archive: tar.gz
-          - os: ubuntu-latest
+          - runner: [self-hosted, linux, x64, d1vai]
             target: aarch64-unknown-linux-gnu
             archive: tar.gz
             use_cross: true
-          - os: ubuntu-latest
+          - runner: [self-hosted, linux, x64, d1vai]
             target: x86_64-unknown-linux-musl
             archive: tar.gz
             use_cross: true
-          - os: ubuntu-latest
+          - runner: [self-hosted, linux, x64, d1vai]
             target: aarch64-unknown-linux-musl
             archive: tar.gz
             use_cross: true
-          - os: windows-latest
+          - runner: windows-latest
             target: x86_64-pc-windows-msvc
             archive: zip
-          - os: macos-latest
+          - runner: macos-latest
             target: x86_64-apple-darwin
             archive: tar.gz
-          - os: macos-latest
+          - runner: macos-latest
             target: aarch64-apple-darwin
             archive: tar.gz
 
@@ -100,7 +100,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, d1vai]
     permissions:
       contents: write
       id-token: write

@@ -14,7 +14,7 @@ on:
 jobs:
   publish:
     name: Publish to crates.io
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, d1vai]
     permissions:
       id-token: write   # Required for Trusted Publishing OIDC token exchange
     env:
