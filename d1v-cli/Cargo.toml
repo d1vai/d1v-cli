@@ -1,6 +1,6 @@
 [package]
 name = "d1v-cli"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 rust-version = "1.95"
 description = "Experimental command-line interface for d1v.ai"
@@ -19,7 +19,7 @@ record = ["d1v-api/record"]
 mock = ["d1v-api/mock"]
 
 [dependencies]
-d1v-api = { version = "0.1.6", path = "../d1v-api" }
+d1v-api = { version = "0.1.7", path = "../d1v-api" }
 anstyle = "1.0"
 anstream = "1.0"
 anyhow = "1.0"

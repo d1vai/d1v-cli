@@ -68,7 +68,7 @@ jobs:
         if: matrix.use_cross
         shell: bash
         run: |
-          cargo-binstall cross --no-confirm
+          cargo-binstall cross --no-confirm --force
           echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> "$GITHUB_PATH"
           command -v cross
 
