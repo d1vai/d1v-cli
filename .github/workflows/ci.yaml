@@ -50,12 +50,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
+        include:
+          - os: ubuntu-latest
+            runner: [self-hosted, linux, x64, d1vai]
+          - os: windows-latest
+            runner: windows-latest
+          - os: macos-latest
+            runner: macos-latest
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
