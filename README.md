@@ -100,8 +100,8 @@ d1v node expose close <binding_id>
 
 Current expose modes:
 
-- `cli_free_relay`: returns a public `https://*.cli-free.d1v.ai` URL for login-backed temporary CLI relays
-- `cloudflare_tunnel`: returns a public `https://*.node.d1v.ai` URL for platform nodes
+- `cli_free_relay`: returns a public `https://*.cli-free.d1v.dev` URL for login-backed temporary CLI relays
+- `cloudflare_tunnel`: returns a public `https://*.node.d1v.dev` URL for platform nodes
 - `reverse_relay`: internal fallback mode used by local/customer relays behind the CLI-free entry
 
 `d1v expose` currently targets HTTP traffic. Browser terminal and session WebSocket flows still use the existing backend relay path.
@@ -156,7 +156,7 @@ Upgrade later:
 
 ```sh
 d1v upgrade
-d1v upgrade --version v0.1.4
+d1v upgrade --version v0.1.5
 d1v uninstall
 ```
 

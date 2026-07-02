@@ -92,7 +92,7 @@ d1v expose close <binding_id>
 
 当前 expose 模式：
 
-- `cloudflare_tunnel`：返回公开的 `https://*.node.d1v.ai` URL
+- `cloudflare_tunnel`：返回公开的 `https://*.node.d1v.dev` URL
 - `reverse_relay`：针对没有公网入口的本地/用户设备，返回后端 relay URL
 
 `d1v expose` 当前只面向 HTTP 服务。浏览器 terminal 和 session WebSocket 仍然继续走现有后端 relay。
@@ -147,7 +147,7 @@ d1v github status
 
 ```sh
 d1v upgrade
-d1v upgrade --version v0.1.4
+d1v upgrade --version v0.1.5
 d1v uninstall
 ```
 

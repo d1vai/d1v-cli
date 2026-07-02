@@ -259,7 +259,7 @@
 
 命令目标不是管理 Cloudflare，而是让用户拿到：
 
-- `https://abc123.node.d1v.ai`
+- `https://abc123.cli-free.d1v.dev`
 
 ### CLI 设计原则
 
@@ -287,7 +287,7 @@
 
 - `d1v agent start` 成功后，如果设备注册为平台节点：
   - 打印 `public_origin`
-  - 打印对应 `xxx.node.d1v.ai`
+  - 打印对应 `xxx.node.d1v.dev`
 - `d1v expose` 成功后，必须回显：
   - `binding_id`
   - `public_url`
