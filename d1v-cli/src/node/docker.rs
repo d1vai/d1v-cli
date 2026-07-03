@@ -61,6 +61,43 @@ pub fn image_exists_locally(image: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Pull image to get latest, or use local cache.
+///
+/// - `skip_pull = true`:  use local image only; error if not found locally.
+/// - `skip_pull = false`: always attempt `docker pull` to get the latest tag;
+///   on failure fall back to the local cache; error when neither is available.
+pub fn pull_or_use_latest(image: &str, skip_pull: bool) -> Result<()> {
+    if skip_pull {
+        if image_exists_locally(image) {
+            Ok(())
+        } else {
+            Err(Error::Other(anyhow!(
+                "Image '{}' not found locally. Remove --skip-pull to pull it.",
+                image
+            )))
+        }
+    } else {
+        match pull_image(image) {
+            Ok(()) => Ok(()),
+            Err(pull_err) => {
+                if image_exists_locally(image) {
+                    eprintln!(
+                        "⚠️  Pull failed ({}), falling back to cached image",
+                        pull_err
+                    );
+                    Ok(())
+                } else {
+                    Err(Error::Other(anyhow!(
+                        "Failed to pull image '{}' and no local cache found: {}",
+                        image,
+                        pull_err
+                    )))
+                }
+            }
+        }
+    }
+}
+
 /// Pull a Docker image
 pub fn pull_image(image: &str) -> Result<()> {
     eprintln!("Pulling image: {}", image);

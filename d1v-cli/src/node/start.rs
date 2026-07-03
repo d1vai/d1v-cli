@@ -77,49 +77,38 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
 
     if args.skip_pull {
         eprintln!("⏭️  Skipping image pull (--skip-pull)\n");
-        if !docker::image_exists_locally(&runtime_agent_image) {
-            return Err(Error::Other(anyhow!(
-                "Image '{}' not found locally. Remove --skip-pull to pull it.",
-                runtime_agent_image
-            )));
-        }
+        // Validate local cache exists for the required image
+        docker::pull_or_use_latest(&runtime_agent_image, true)?;
     } else {
-        eprintln!("\n📥 Pulling Docker images...");
+        eprintln!("\n📥 Pulling Docker images (always fetching latest)...");
         eprintln!("   This may take a few minutes on first run.\n");
 
         // Pull opcode-api (optional — standalone service, may not exist yet)
-        if docker::image_exists_locally(OPCODE_API_IMAGE) {
-            eprintln!("✅ Opcode-API image already cached locally");
-        } else {
-            eprintln!("📥 Pulling opcode-api image (optional)...");
-            match docker::pull_image(OPCODE_API_IMAGE) {
-                Ok(()) => eprintln!("✅ Opcode-API image ready"),
-                Err(e) => {
-                    eprintln!("⚠️  Opcode-API not available: {}", e);
-                    eprintln!("   Runtime-agent will manage workspace containers directly.");
-                }
+        eprintln!("📥 Pulling opcode-api image (optional)...");
+        match docker::pull_or_use_latest(OPCODE_API_IMAGE, false) {
+            Ok(()) => eprintln!("✅ Opcode-API image ready"),
+            Err(e) => {
+                eprintln!("⚠️  Opcode-API not available: {}", e);
+                eprintln!("   Runtime-agent will manage workspace containers directly.");
             }
         }
 
-        // Pull runtime-agent — required
-        if docker::image_exists_locally(&runtime_agent_image) {
-            eprintln!("✅ Runtime-agent image already cached locally");
-        } else {
-            eprintln!("\n📥 Pulling runtime-agent image...");
-            if let Err(e) = docker::pull_image(&runtime_agent_image) {
-                eprintln!("⚠️  Direct pull failed: {}", e);
-                eprintln!("   Trying ECR login...");
-                if let Err(login_err) = login_ecr() {
-                    eprintln!("❌ ECR login failed: {}", login_err);
-                    eprintln!("\n💡 Options:");
-                    eprintln!("   • EC2 with IAM role: credentials auto-provided");
-                    eprintln!("   • Manual: aws configure && aws ecr get-login-password ...");
-                    eprintln!("   • Custom image: d1v node start --runtime-agent-image <image>");
-                    return Err(e);
-                }
-                docker::pull_image(&runtime_agent_image)?;
+        // Pull runtime-agent — required; try ECR login on failure
+        eprintln!("\n📥 Pulling runtime-agent image (latest)...");
+        if let Err(e) = docker::pull_or_use_latest(&runtime_agent_image, false) {
+            eprintln!("⚠️  Direct pull failed: {}", e);
+            eprintln!("   Trying ECR login...");
+            if let Err(login_err) = login_ecr() {
+                eprintln!("❌ ECR login failed: {}", login_err);
+                eprintln!("\n💡 Options:");
+                eprintln!("   • EC2 with IAM role: credentials auto-provided");
+                eprintln!("   • Manual: aws configure && aws ecr get-login-password ...");
+                eprintln!("   • Custom image: d1v node start --runtime-agent-image <image>");
+                return Err(e);
             }
+            docker::pull_or_use_latest(&runtime_agent_image, false)?;
         }
+
         eprintln!("\n✅ Images ready\n");
     }
 

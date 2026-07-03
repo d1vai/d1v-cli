@@ -132,6 +132,11 @@ pub async fn run(ctx: &Context, args: UpgradeArgs) -> Result<()> {
             latest = release.target_version.as_str()
         ));
         ctx.info(t!(
+            "upgrade-start",
+            current = release.current_version.as_str(),
+            latest = release.target_version.as_str()
+        ));
+        ctx.info(t!(
             "upgrade-downloading",
             version = release.target_version.as_str()
         ));
@@ -171,6 +176,44 @@ pub async fn run(ctx: &Context, args: UpgradeArgs) -> Result<()> {
     }
 
     ctx.present(crate::text::Text::new(), &result)
+}
+
+/// Background task: check for a newer release and print a one-line hint to stderr.
+/// All errors are silently ignored so the main flow is never disrupted.
+pub async fn check_update_hint() -> Result<()> {
+    let repo = std::env::var("D1V_INSTALL_REPO").unwrap_or_else(|_| DEFAULT_REPO.to_string());
+    let current = env!("CARGO_PKG_VERSION");
+
+    let client = match github_client() {
+        Ok(c) => c,
+        Err(_) => return Ok(()),
+    };
+
+    let fetch = client
+        .get(format!(
+            "https://api.github.com/repos/{repo}/releases/latest"
+        ))
+        .send();
+
+    let response = match tokio::time::timeout(std::time::Duration::from_secs(3), fetch).await {
+        Ok(Ok(r)) => r,
+        _ => return Ok(()), // timeout or network error — silently ignore
+    };
+
+    let release = match response.json::<GitHubRelease>().await {
+        Ok(r) => r,
+        Err(_) => return Ok(()),
+    };
+
+    let latest = &release.tag_name;
+
+    if is_upgrade_available(current, latest) {
+        eprintln!(
+            "\n💡 New version available: v{current} → {latest}  Run `d1v upgrade` to update.\n"
+        );
+    }
+
+    Ok(())
 }
 
 pub fn run_uninstall(ctx: &Context, args: UninstallArgs) -> Result<()> {

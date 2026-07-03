@@ -3,6 +3,7 @@ use std::process::ExitCode;
 
 use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand, parser::ValueSource};
 use colorchoice_clap::Color;
+use futures_util::FutureExt as _;
 use jiff::SignedDuration;
 use tracing::info;
 
@@ -382,8 +383,30 @@ async fn main() -> ExitCode {
 
     info!(version = env!("CARGO_PKG_VERSION"), "D1V CLI");
 
-    match run(cli, base_url_override).await {
+    // 后台检查新版本（不阻塞主流程）
+    // 仅在 stderr 是终端 + 不是 upgrade/uninstall 命令时执行
+    let check_update_task = if std::io::stderr().is_terminal()
+        && !matches!(
+            cli.command,
+            Command::Upgrade(..) | Command::Uninstall(..)
+        )
+    {
+        Some(tokio::spawn(upgrade::check_update_hint()))
+    } else {
+        None
+    };
+
+    let result = match run(cli, base_url_override).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => err.handle(&output),
+    };
+
+    // 如果后台任务已完成则呈现提示，未完成则忽略（不等待）
+    if let Some(task) = check_update_task {
+        if let Some(Ok(Ok(()))) = task.now_or_never() {
+            // hint was already printed to stderr
+        }
     }
+
+    result
 }

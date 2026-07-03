@@ -203,13 +203,16 @@ duration-hours-minutes = { $hours } 小时 { $minutes } 分钟
 duration-minutes = { $minutes } 分钟
 
 ## 升级
-upgrade-up-to-date = d1v { $version } 已是最新版本。
-upgrade-available = 发现新版本：{ $current } -> { $latest }
+## Upgrade
+upgrade-up-to-date = ✅ 已是最新版本（{ $version }），无需更新。
+upgrade-available = 💡 发现新版本：{ $current } → { $latest }
+upgrade-start = 正在将 d1v { $current } 升级到 { $latest }...
 upgrade-downloading = 正在下载 d1v { $version }...
 upgrade-download-complete = 下载完成
 upgrade-verifying = 正在校验发布包...
 upgrade-installing = 正在安装更新...
-upgrade-success = 🎉 升级成功！已安装发布版本 { $version }。
+upgrade-success = 🎉 已成功升级到 d1v { $version }！
+update-hint = 💡 发现新版本：{ $current } → { $latest }  运行 `d1v upgrade` 立即更新。
 
 ## 卸载
 uninstall-success = 🗑️ 卸载成功！已从 { $path } 移除 d1v。
