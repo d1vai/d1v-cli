@@ -7,8 +7,7 @@ use crate::Context;
 use anyhow::anyhow;
 use std::process::Command;
 
-const RUNTIME_AGENT_IMAGE: &str =
-    "299000395210.dkr.ecr.ap-southeast-1.amazonaws.com/d1v-runtime-agent:latest";
+const RUNTIME_AGENT_IMAGE: &str = "ghcr.io/d1vai/d1v-runtime-agent:latest";
 const OPCODE_API_IMAGE: &str = "ghcr.io/d1vai/opcode-api:latest";
 const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
 const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
