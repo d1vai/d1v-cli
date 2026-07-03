@@ -58,6 +58,18 @@ pub struct StartArgs {
     #[arg(long, default_value = "/var/lib/d1v-runtime/workspaces")]
     pub workspace_root: String,
 
+    /// Override runtime-agent Docker image (default: pulls from ECR)
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+
+    /// Override opcode Docker image passed to runtime-agent
+    #[arg(long, env = "D1V_OPCODE_IMAGE")]
+    pub opcode_image: Option<String>,
+
+    /// Skip image pull (use locally cached images)
+    #[arg(long)]
+    pub skip_pull: bool,
+
     /// Skip Docker installation check
     #[arg(long)]
     pub skip_docker_check: bool,

@@ -50,6 +50,17 @@ pub fn check_docker() -> Result<()> {
     Ok(())
 }
 
+/// Check if a Docker image exists locally
+pub fn image_exists_locally(image: &str) -> bool {
+    Command::new("docker")
+        .args(["image", "inspect", image, "--format", "{{.Id}}"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Pull a Docker image
 pub fn pull_image(image: &str) -> Result<()> {
     eprintln!("Pulling image: {}", image);
