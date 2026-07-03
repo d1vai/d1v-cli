@@ -69,8 +69,15 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     eprintln!("\n📥 Pulling Docker images...");
     eprintln!("   This may take a few minutes on first run.\n");
 
-    // Pull opcode-api (public, no auth needed)
-    docker::pull_image(OPCODE_API_IMAGE)?;
+    // Pull opcode-api (optional — image may not be available yet)
+    eprintln!("📥 Pulling opcode-api image...");
+    match docker::pull_image(OPCODE_API_IMAGE) {
+        Ok(()) => eprintln!("✅ Opcode-API image ready"),
+        Err(e) => {
+            eprintln!("⚠️  Opcode-API image not available ({})", e);
+            eprintln!("   Runtime-agent will use the built-in opcode image for workspaces.");
+        }
+    }
 
     // Pull runtime-agent (may need ECR auth)
     eprintln!("\n📥 Pulling runtime-agent image...");
