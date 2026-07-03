@@ -173,6 +173,13 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         &runtime_agent_image,
     ];
 
+    // Remove any existing (stopped) container with the same name to avoid conflicts
+    let _ = Command::new("docker")
+        .args(["rm", "-f", AGENT_CONTAINER_NAME])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+
     let status = Command::new("docker")
         .args(&docker_args)
         .status()
