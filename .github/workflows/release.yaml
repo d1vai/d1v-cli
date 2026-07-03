@@ -15,21 +15,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, linux, x64, d1vai]
+          - runner: ubuntu-latest
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             archive: tar.gz
-          - runner: [self-hosted, linux, x64, d1vai]
+          - runner: ubuntu-latest
             os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             archive: tar.gz
             use_cross: true
-          - runner: [self-hosted, linux, x64, d1vai]
+          - runner: ubuntu-latest
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             archive: tar.gz
             use_cross: true
-          - runner: [self-hosted, linux, x64, d1vai]
+          - runner: ubuntu-latest
             os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             archive: tar.gz
@@ -111,7 +111,7 @@ jobs:
 
   release:
     name: Release
-    runs-on: [self-hosted, linux, x64, d1vai]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
