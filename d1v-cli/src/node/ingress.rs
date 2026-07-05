@@ -803,6 +803,7 @@ fn build_npm_upsert_script(hostname: &str, agent_port: u16) -> String {
     format!(
         r#"
 import proxyHostModel from "./models/proxy_host.js";
+import db from "./db.js";
 import userModel from "./models/user.js";
 import internalHost from "./internal/host.js";
 import internalNginx from "./internal/nginx.js";
@@ -892,6 +893,8 @@ console.log(JSON.stringify({{
   hostname: HOSTNAME,
   config_path: `/data/nginx/proxy_host/${{row.id}}.conf`,
 }}));
+await db().destroy();
+process.exit(0);
 "#
     )
 }
