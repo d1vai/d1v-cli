@@ -325,7 +325,17 @@ fn configure_npm_ingress(agent_port: u16, hostname: &str) -> Result<ConfiguredIn
         )));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(stdout.trim()).map_err(|exc| {
+    let json_line = stdout
+        .lines()
+        .rev()
+        .find_map(|line| line.trim().strip_prefix("__D1V_JSON__"))
+        .ok_or_else(|| {
+            Error::Other(anyhow!(
+                "failed to locate nginx proxy manager result marker in output: {}",
+                stdout.trim()
+            ))
+        })?;
+    let parsed: serde_json::Value = serde_json::from_str(json_line.trim()).map_err(|exc| {
         Error::Other(anyhow!(
             "failed to parse nginx proxy manager output: {}; raw={}",
             exc,
@@ -888,7 +898,7 @@ const row = await proxyHostModel
   .first();
 
 await internalNginx.configure(proxyHostModel, "proxy_host", row);
-console.log(JSON.stringify({{
+console.log("__D1V_JSON__" + JSON.stringify({{
   id: row.id,
   hostname: HOSTNAME,
   config_path: `/data/nginx/proxy_host/${{row.id}}.conf`,
