@@ -289,7 +289,8 @@ fn configure_npm_ingress(agent_port: u16, hostname: &str) -> Result<ConfiguredIn
         ))
     })?;
 
-    let script = build_npm_upsert_script(hostname, agent_port);
+    let forward_host = npm_forward_host(&container)?;
+    let script = build_npm_upsert_script(hostname, agent_port, &forward_host);
     let mut child = Command::new("docker")
         .args([
             "exec",
@@ -786,6 +787,46 @@ fn npm_proxy_host_paths_from_container(container: &NpmContainer) -> Result<Vec<P
     Ok(paths)
 }
 
+fn npm_forward_host(container: &NpmContainer) -> Result<String> {
+    if cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+        return Ok("host.docker.internal".to_string());
+    }
+
+    let output = Command::new("docker")
+        .args([
+            "inspect",
+            &container.name,
+            "--format",
+            "{{json .NetworkSettings.Networks}}",
+        ])
+        .output()
+        .map_err(|exc| {
+            Error::Other(anyhow!(
+                "failed to inspect nginx-proxy-manager networks: {}",
+                exc
+            ))
+        })?;
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let networks: serde_json::Value =
+            serde_json::from_str(stdout.trim()).unwrap_or(serde_json::Value::Null);
+        if let Some(map) = networks.as_object() {
+            for value in map.values() {
+                let gateway = value
+                    .get("Gateway")
+                    .and_then(|item| item.as_str())
+                    .unwrap_or("")
+                    .trim();
+                if !gateway.is_empty() {
+                    return Ok(gateway.to_string());
+                }
+            }
+        }
+    }
+
+    Ok("host.docker.internal".to_string())
+}
+
 fn parse_npm_container_from_output(stdout: &str) -> Option<NpmContainer> {
     for line in stdout.lines() {
         let trimmed = line.trim();
@@ -808,8 +849,10 @@ fn parse_npm_container_from_output(stdout: &str) -> Option<NpmContainer> {
     None
 }
 
-fn build_npm_upsert_script(hostname: &str, agent_port: u16) -> String {
+fn build_npm_upsert_script(hostname: &str, agent_port: u16, forward_host: &str) -> String {
     let hostname_json = serde_json::to_string(hostname).unwrap_or_else(|_| "\"\"".to_string());
+    let forward_host_json =
+        serde_json::to_string(forward_host).unwrap_or_else(|_| "\"127.0.0.1\"".to_string());
     format!(
         r#"
 import proxyHostModel from "./models/proxy_host.js";
@@ -820,7 +863,7 @@ import internalNginx from "./internal/nginx.js";
 
 const HOSTNAME = {hostname_json};
 const TARGET = {{
-  forward_host: "127.0.0.1",
+  forward_host: {forward_host_json},
   forward_port: {agent_port},
   forward_scheme: "http",
 }};
