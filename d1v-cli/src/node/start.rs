@@ -114,9 +114,88 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
                 }
             }
             Ok(None) => {
-                eprintln!(
-                    "ℹ️  No supported public ingress detected; falling back to runtime-agent auto discovery"
-                );
+                if let Some(public_hostname) = args.public_hostname.as_deref() {
+                    eprintln!(
+                        "ℹ️  No supported public ingress detected; attempting local ingress configuration for {}",
+                        public_hostname
+                    );
+                    match ingress::configure_public_ingress(
+                        args.agent_port,
+                        args.ingress_provider.as_deref(),
+                        public_hostname,
+                    ) {
+                        Ok(Some(configured)) => {
+                            eprintln!(
+                                "✅ Configured {} ingress: {} ({})",
+                                configured.provider, configured.hostname, configured.config_path
+                            );
+                            match ingress::detect_public_ingress(
+                                args.agent_port,
+                                args.ingress_provider.as_deref(),
+                                args.public_hostname.as_deref(),
+                            ) {
+                                Ok(Some(candidate)) => {
+                                    let inferred_origin = format!(
+                                        "{}://{}{}",
+                                        candidate.scheme,
+                                        candidate.hostname,
+                                        if (candidate.scheme == "https"
+                                            && candidate.external_port == 443)
+                                            || (candidate.scheme == "http"
+                                                && candidate.external_port == 80)
+                                        {
+                                            String::new()
+                                        } else {
+                                            format!(":{}", candidate.external_port)
+                                        }
+                                    );
+                                    eprintln!(
+                                        "✅ Detected {} ingress: {} -> {}:{} (confidence {}%, {})",
+                                        candidate.provider,
+                                        inferred_origin,
+                                        candidate.upstream_host,
+                                        candidate.upstream_port,
+                                        candidate.confidence,
+                                        candidate.config_path
+                                    );
+                                    resolved_control_origin = Some(inferred_origin);
+                                    detected_public_ip = ingress::detect_public_ip().await;
+                                    if let Some(public_ip) = detected_public_ip.as_deref() {
+                                        eprintln!("✅ Detected public IP: {}", public_ip);
+                                    } else {
+                                        eprintln!(
+                                            "⚠️  Public IP detection failed; DNS alias auto-provision may be skipped"
+                                        );
+                                    }
+                                }
+                                Ok(None) => {
+                                    eprintln!(
+                                        "⚠️  Ingress was configured but could not be re-detected; falling back to runtime-agent auto discovery"
+                                    );
+                                }
+                                Err(err) => {
+                                    eprintln!(
+                                        "⚠️  Ingress re-detection failed after configuration: {}",
+                                        err
+                                    );
+                                }
+                            }
+                        }
+                        Ok(None) => {
+                            eprintln!(
+                                "ℹ️  No configurable local ingress provider detected; falling back to runtime-agent auto discovery"
+                            );
+                        }
+                        Err(err) => {
+                            eprintln!("⚠️  Local ingress configuration failed: {}", err);
+                            eprintln!("ℹ️  Falling back to runtime-agent auto discovery");
+                        }
+                    }
+                } else {
+                    eprintln!(
+                        "ℹ️  No supported public ingress detected; falling back to runtime-agent auto discovery"
+                    );
+                }
             }
             Err(err) => {
                 eprintln!("⚠️  Public ingress detection failed: {}", err);
