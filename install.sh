@@ -130,7 +130,7 @@ ARCH="$(uname -m)"
 
 case "$OS" in
   darwin) TARGET_OS="apple-darwin" ;;
-  linux) TARGET_OS="unknown-linux-gnu" ;;
+  linux) TARGET_OS="unknown-linux-musl" ;;
   *)
     echo "Unsupported OS: $OS" >&2
     exit 1
