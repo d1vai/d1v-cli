@@ -177,11 +177,11 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     // 8. Start runtime-agent container
     eprintln!("🚀 Starting runtime-agent container...");
 
-    let node_id = args.node_id.as_ref().map(|s| s.clone()).unwrap_or_else(|| {
-        std::env::var("HOSTNAME")
-            .or_else(|_| std::env::var("HOST"))
-            .unwrap_or_else(|_| "unknown-node".to_string())
-    });
+    let node_id = args
+        .node_id
+        .as_ref()
+        .map(|s| s.clone())
+        .unwrap_or_else(default_node_id);
 
     // Prepare volume and env strings (must live longer than docker_args)
     let docker_config_mount = format!(
@@ -336,6 +336,24 @@ fn login_ecr() -> Result<()> {
     Ok(())
 }
 
+fn default_node_id() -> String {
+    std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("HOST"))
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            Command::new("hostname")
+                .output()
+                .ok()
+                .filter(|output| output.status.success())
+                .and_then(|output| String::from_utf8(output.stdout).ok())
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        })
+        .unwrap_or_else(|| "unknown-node".to_string())
+}
+
 fn print_summary(
     node_id: &str,
     args: &StartArgs,
@@ -375,4 +393,21 @@ fn print_summary(
     println!();
     println!("✓ Node is ready to accept workloads");
     println!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::default_node_id;
+
+    #[test]
+    fn default_node_id_prefers_hostname_env() {
+        unsafe {
+            std::env::set_var("HOSTNAME", "node-env-1");
+        }
+        let node_id = default_node_id();
+        unsafe {
+            std::env::remove_var("HOSTNAME");
+        }
+        assert_eq!(node_id, "node-env-1");
+    }
 }
