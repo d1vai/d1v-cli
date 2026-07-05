@@ -97,6 +97,16 @@ d1v expose close <binding_id>
 
 `d1v expose` 当前只面向 HTTP 服务。浏览器 terminal 和 session WebSocket 仍然继续走现有后端 relay。
 
+### 平台节点
+
+平台节点现在使用单一 control origin 作为 runtime-agent 入口。推荐启动方式：
+
+```sh
+d1v node start --key <platform-node-key> --control-origin https://{your-host-or-name}-node.d1v.dev
+```
+
+如果不传 `--control-origin`，runtime-agent 会继续走公网 IP 检测和控制面注册流程。
+
 ### 隐私边界
 
 当前阶段：

@@ -106,6 +106,16 @@ Current expose modes:
 
 `d1v expose` currently targets HTTP traffic. Browser terminal and session WebSocket flows still use the existing backend relay path.
 
+### Platform Node
+
+Platform nodes now use a single control origin for runtime-agent ingress. The recommended bootstrap form is:
+
+```sh
+d1v node start --key <platform-node-key> --control-origin https://{your-host-or-name}-node.d1v.dev
+```
+
+If `--control-origin` is omitted, the runtime-agent falls back to its own public IP detection and control-plane registration flow.
+
 ### Privacy Boundary
 
 Current phase:

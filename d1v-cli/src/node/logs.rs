@@ -1,9 +1,9 @@
 // View node logs
 
-use super::docker;
 use super::LogsArgs;
-use crate::error::{Error, Result};
+use super::docker;
 use crate::Context;
+use crate::error::{Error, Result};
 use anyhow::anyhow;
 
 const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
@@ -17,11 +17,21 @@ pub async fn run(_ctx: &Context, args: LogsArgs) -> Result<()> {
             // Show both
             eprintln!("Showing logs for runtime-agent:");
             eprintln!("═══════════════════════════════════════════════════════════════\n");
-            let _ = docker::get_logs(AGENT_CONTAINER_NAME, args.tail, false, args.since.as_deref());
+            let _ = docker::get_logs(
+                AGENT_CONTAINER_NAME,
+                args.tail,
+                false,
+                args.since.as_deref(),
+            );
 
             eprintln!("\n\nShowing logs for opcode-api:");
             eprintln!("═══════════════════════════════════════════════════════════════\n");
-            docker::get_logs(OPCODE_API_CONTAINER_NAME, args.tail, args.follow, args.since.as_deref())?;
+            docker::get_logs(
+                OPCODE_API_CONTAINER_NAME,
+                args.tail,
+                args.follow,
+                args.since.as_deref(),
+            )?;
             return Ok(());
         }
         _ => {
@@ -32,7 +42,12 @@ pub async fn run(_ctx: &Context, args: LogsArgs) -> Result<()> {
         }
     };
 
-    docker::get_logs(container_name, args.tail, args.follow, args.since.as_deref())?;
+    docker::get_logs(
+        container_name,
+        args.tail,
+        args.follow,
+        args.since.as_deref(),
+    )?;
 
     Ok(())
 }

@@ -386,10 +386,7 @@ async fn main() -> ExitCode {
     // 后台检查新版本（不阻塞主流程）
     // 仅在 stderr 是终端 + 不是 upgrade/uninstall 命令时执行
     let check_update_task = if std::io::stderr().is_terminal()
-        && !matches!(
-            cli.command,
-            Command::Upgrade(..) | Command::Uninstall(..)
-        )
+        && !matches!(cli.command, Command::Upgrade(..) | Command::Uninstall(..))
     {
         Some(tokio::spawn(upgrade::check_update_hint()))
     } else {

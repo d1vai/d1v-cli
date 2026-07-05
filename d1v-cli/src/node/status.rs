@@ -1,9 +1,9 @@
 // Show node status
 
-use super::docker;
 use super::StatusArgs;
-use crate::error::{Error, Result};
+use super::docker;
 use crate::Context;
+use crate::error::{Error, Result};
 use serde_json::json;
 
 const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
@@ -50,13 +50,23 @@ fn show_status(json_output: bool) -> Result<()> {
         println!("  Container:  {}", info.name);
         println!("  Status:     {}", format_status(&info.status));
         println!("  Image:      {}", info.image);
-        println!("  Ports:      {}", if info.ports.is_empty() { "host network" } else { &info.ports });
+        println!(
+            "  Ports:      {}",
+            if info.ports.is_empty() {
+                "host network"
+            } else {
+                &info.ports
+            }
+        );
 
         // Get stats if running
         if info.status.starts_with("Up") {
             if let Ok(Some(stats)) = docker::get_container_stats(&info.name) {
                 println!("  CPU:        {}", stats.cpu_percent);
-                println!("  Memory:     {} / {} ({})", stats.mem_usage, stats.mem_limit, stats.mem_percent);
+                println!(
+                    "  Memory:     {} / {} ({})",
+                    stats.mem_usage, stats.mem_limit, stats.mem_percent
+                );
             }
         }
     } else {
@@ -76,7 +86,10 @@ fn show_status(json_output: bool) -> Result<()> {
         if info.status.starts_with("Up") {
             if let Ok(Some(stats)) = docker::get_container_stats(&info.name) {
                 println!("  CPU:        {}", stats.cpu_percent);
-                println!("  Memory:     {} / {} ({})", stats.mem_usage, stats.mem_limit, stats.mem_percent);
+                println!(
+                    "  Memory:     {} / {} ({})",
+                    stats.mem_usage, stats.mem_limit, stats.mem_percent
+                );
             }
         }
     } else {
@@ -85,7 +98,10 @@ fn show_status(json_output: bool) -> Result<()> {
     println!();
 
     // Overall status
-    let agent_running = agent_info.as_ref().map(|i| i.status.starts_with("Up")).unwrap_or(false);
+    let agent_running = agent_info
+        .as_ref()
+        .map(|i| i.status.starts_with("Up"))
+        .unwrap_or(false);
 
     if agent_running {
         println!("Overall Status: ✅ RUNNING");

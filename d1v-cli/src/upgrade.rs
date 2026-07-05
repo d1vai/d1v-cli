@@ -433,7 +433,7 @@ fn current_target() -> Result<String> {
 
     let os = match std::env::consts::OS {
         "macos" => "apple-darwin",
-        "linux" => "unknown-linux-gnu",
+        "linux" => "unknown-linux-musl",
         other => return Err(Error::Other(anyhow::anyhow!("unsupported OS: {other}"))),
     };
 

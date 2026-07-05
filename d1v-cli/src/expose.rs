@@ -270,13 +270,19 @@ async fn request_open_cli_relay(
     config.device_name = default_cli_free_device_name();
     config.opcode_base_url = format!("http://127.0.0.1:{port}");
 
-    ctx.info(format!("cli-free expose using device_id={}", config.device_id));
+    ctx.info(format!(
+        "cli-free expose using device_id={}",
+        config.device_id
+    ));
     ensure_cli_free_device(ctx, &config).await?;
     ctx.info("cli-free expose ensured device registration");
     agent::register_customer_runtime_node(ctx, &config).await?;
     ctx.info("cli-free expose registered customer runtime node");
     let binding = create_customer_expose(ctx, &config, port, project_id, hostname).await?;
-    ctx.info(format!("cli-free expose created binding={}", binding.binding_id));
+    ctx.info(format!(
+        "cli-free expose created binding={}",
+        binding.binding_id
+    ));
     ctx.present(
         ExposeBindingView { binding: &binding },
         &ExposeEnvelope {
@@ -289,7 +295,9 @@ async fn request_open_cli_relay(
         .create(true)
         .append(true)
         .open(std::env::temp_dir().join("d1v-expose-debug.log"))
-        .and_then(|mut file| std::io::Write::write_all(&mut file, b"cli-free expose entering relay loop\n"))
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, b"cli-free expose entering relay loop\n")
+        })
         .ok();
 
     let heartbeat = spawn_customer_heartbeat(ctx, &config, token.clone());

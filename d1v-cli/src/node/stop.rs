@@ -1,9 +1,9 @@
 // Stop node containers
 
-use super::docker;
 use super::StopArgs;
-use crate::error::Result;
+use super::docker;
 use crate::Context;
+use crate::error::Result;
 
 const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
 const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";

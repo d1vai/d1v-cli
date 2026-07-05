@@ -223,7 +223,10 @@ pub fn remove_container(name: &str) -> Result<()> {
         .map_err(|e| Error::Other(anyhow!("Failed to remove container: {}", e)))?;
 
     if !status.success() {
-        return Err(Error::Other(anyhow!("Failed to remove container: {}", name)));
+        return Err(Error::Other(anyhow!(
+            "Failed to remove container: {}",
+            name
+        )));
     }
 
     Ok(())
