@@ -5,10 +5,11 @@ use crate::error::Result;
 use crate::expose::{self, ExposeArgs, ExposeCloseArgs, ExposeCommand, ExposeListArgs};
 
 mod docker;
+mod ingress;
+mod logs;
 mod start;
 mod status;
 mod stop;
-mod logs;
 
 #[derive(Subcommand)]
 pub enum NodeCommand {
@@ -46,9 +47,21 @@ pub struct StartArgs {
     #[arg(long, default_value = "8080")]
     pub agent_port: u16,
 
-    /// Runtime agent WebSocket port
-    #[arg(long, default_value = "8081")]
-    pub agent_ws_port: u16,
+    /// Runtime agent control origin (e.g. https://my-node-node.d1v.dev)
+    #[arg(long)]
+    pub control_origin: Option<String>,
+
+    /// Auto-detect an existing reverse-proxy public ingress for the runtime agent
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    pub auto_detect_public_ingress: bool,
+
+    /// Restrict auto-detection to a specific provider (caddy|nginx|traefik|npm)
+    #[arg(long)]
+    pub ingress_provider: Option<String>,
+
+    /// Hint the detector to prefer a specific public hostname
+    #[arg(long)]
+    pub public_hostname: Option<String>,
 
     /// Opcode-API port
     #[arg(long, default_value = "8090")]

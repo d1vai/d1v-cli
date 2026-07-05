@@ -1,16 +1,16 @@
 // Start node containers
 
-use super::docker;
 use super::StartArgs;
-use crate::error::{Error, Result};
+use super::docker;
+use super::ingress;
 use crate::Context;
+use crate::error::{Error, Result};
 use anyhow::anyhow;
 use std::process::Command;
 
 const RUNTIME_AGENT_IMAGE: &str = "ghcr.io/d1vai/d1v-runtime-agent:latest";
 const OPCODE_API_IMAGE: &str = "ghcr.io/d1vai/opcode-api:latest";
 const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
-const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
 
 pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     // 1. Check Docker installation
@@ -29,11 +29,15 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     }
 
     // 2. Validate platform key
-    let platform_key = args.key.as_ref().ok_or_else(|| {
-        Error::Other(anyhow!(
-            "Platform node key is required. Use --key or set D1V_PLATFORM_NODE_KEY env var"
-        ))
-    })?.clone();
+    let platform_key = args
+        .key
+        .as_ref()
+        .ok_or_else(|| {
+            Error::Other(anyhow!(
+                "Platform node key is required. Use --key or set D1V_PLATFORM_NODE_KEY env var"
+            ))
+        })?
+        .clone();
 
     // 3. Show resource estimation
     let (cpu, mem, disk) = docker::estimate_resources(args.max_opcode_containers);
@@ -41,7 +45,10 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     eprintln!("   • CPU: {}", cpu);
     eprintln!("   • Memory: {}", mem);
     eprintln!("   • Disk: {}", disk);
-    eprintln!("   • Max opcode containers: {}\n", args.max_opcode_containers);
+    eprintln!(
+        "   • Max opcode containers: {}\n",
+        args.max_opcode_containers
+    );
 
     // 4. Confirm with user
     if !args.yes {
@@ -64,12 +71,68 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         return Err(Error::Other(anyhow!("Container already running")));
     }
 
-    // 6. Resolve image names and pull if needed
-    let runtime_agent_image = args.runtime_agent_image
+    // 6. Resolve public ingress before container start when not explicitly provided
+    let mut resolved_control_origin = args.control_origin.clone();
+    let mut detected_public_ip: Option<String> = None;
+    if resolved_control_origin.is_none() && args.auto_detect_public_ingress {
+        eprintln!("🌐 Detecting public ingress...");
+        match ingress::detect_public_ingress(
+            args.agent_port,
+            args.ingress_provider.as_deref(),
+            args.public_hostname.as_deref(),
+        ) {
+            Ok(Some(candidate)) => {
+                let inferred_origin = format!(
+                    "{}://{}{}",
+                    candidate.scheme,
+                    candidate.hostname,
+                    if (candidate.scheme == "https" && candidate.external_port == 443)
+                        || (candidate.scheme == "http" && candidate.external_port == 80)
+                    {
+                        String::new()
+                    } else {
+                        format!(":{}", candidate.external_port)
+                    }
+                );
+                eprintln!(
+                    "✅ Detected {} ingress: {} -> {}:{} (confidence {}%, {})",
+                    candidate.provider,
+                    inferred_origin,
+                    candidate.upstream_host,
+                    candidate.upstream_port,
+                    candidate.confidence,
+                    candidate.config_path
+                );
+                resolved_control_origin = Some(inferred_origin);
+                detected_public_ip = ingress::detect_public_ip().await;
+                if let Some(public_ip) = detected_public_ip.as_deref() {
+                    eprintln!("✅ Detected public IP: {}", public_ip);
+                } else {
+                    eprintln!(
+                        "⚠️  Public IP detection failed; DNS alias auto-provision may be skipped"
+                    );
+                }
+            }
+            Ok(None) => {
+                eprintln!(
+                    "ℹ️  No supported public ingress detected; falling back to runtime-agent auto discovery"
+                );
+            }
+            Err(err) => {
+                eprintln!("⚠️  Public ingress detection failed: {}", err);
+            }
+        }
+        eprintln!();
+    }
+
+    // 7. Resolve image names and pull if needed
+    let runtime_agent_image = args
+        .runtime_agent_image
         .as_deref()
         .unwrap_or(RUNTIME_AGENT_IMAGE)
         .to_string();
-    let opcode_image = args.opcode_image
+    let opcode_image = args
+        .opcode_image
         .as_deref()
         .unwrap_or("299000395210.dkr.ecr.ap-southeast-1.amazonaws.com/d1v-opcode:latest")
         .to_string();
@@ -111,7 +174,7 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         eprintln!("\n✅ Images ready\n");
     }
 
-    // 7. Start runtime-agent container
+    // 8. Start runtime-agent container
     eprintln!("🚀 Starting runtime-agent container...");
 
     let node_id = args.node_id.as_ref().map(|s| s.clone()).unwrap_or_else(|| {
@@ -130,15 +193,20 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     let platform_key_env = format!("D1V_RUNTIME_PLATFORM_NODE_KEY={}", platform_key);
     let node_id_env = format!("D1V_RUNTIME_NODE_ID={}", node_id);
     let agent_port_env = format!("D1V_RUNTIME_AGENT_PORT={}", args.agent_port);
-    let agent_ws_port_env = format!("D1V_RUNTIME_AGENT_WS_PORT={}", args.agent_ws_port);
     let max_containers_env = format!(
         "D1V_RUNTIME_MAX_OPCODE_CONTAINERS={}",
         args.max_opcode_containers
     );
 
     let opcode_image_env = format!("D1V_OPCODE_IMAGE={}", opcode_image);
+    let control_origin_env = resolved_control_origin
+        .as_ref()
+        .map(|value| format!("D1V_RUNTIME_CONTROL_ORIGIN={}", value));
+    let public_ip_env = detected_public_ip
+        .as_ref()
+        .map(|value| format!("D1V_RUNTIME_PUBLIC_IP={}", value));
 
-    let docker_args = vec![
+    let mut docker_args = vec![
         "run",
         "-d",
         "--name",
@@ -162,8 +230,6 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         "-e",
         &agent_port_env,
         "-e",
-        &agent_ws_port_env,
-        "-e",
         "D1V_RUNTIME_AUTO_DETECT_PUBLIC_IP=1",
         "-e",
         &max_containers_env,
@@ -171,6 +237,15 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         &opcode_image_env,
         &runtime_agent_image,
     ];
+
+    if let Some(control_origin_env) = control_origin_env.as_ref() {
+        docker_args.insert(docker_args.len() - 1, "-e");
+        docker_args.insert(docker_args.len() - 1, control_origin_env);
+    }
+    if let Some(public_ip_env) = public_ip_env.as_ref() {
+        docker_args.insert(docker_args.len() - 1, "-e");
+        docker_args.insert(docker_args.len() - 1, public_ip_env);
+    }
 
     // Remove any existing (stopped) container with the same name to avoid conflicts
     let _ = Command::new("docker")
@@ -185,12 +260,14 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         .map_err(|e| Error::Other(anyhow!("Failed to start container: {}", e)))?;
 
     if !status.success() {
-        return Err(Error::Other(anyhow!("Failed to start runtime-agent container")));
+        return Err(Error::Other(anyhow!(
+            "Failed to start runtime-agent container"
+        )));
     }
 
     eprintln!("✅ Runtime-agent started: {}\n", AGENT_CONTAINER_NAME);
 
-    // 8. Wait a bit and check health
+    // 9. Wait a bit and check health
     eprintln!("⏳ Waiting for runtime-agent to be healthy...");
     std::thread::sleep(std::time::Duration::from_secs(3));
 
@@ -204,8 +281,14 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
 
     eprintln!("✅ Runtime-agent is running\n");
 
-    // 9. Print summary
-    print_summary(&node_id, &args);
+    // 10. Print summary
+    let summary_node_id = args.node_id.as_deref().unwrap_or(node_id.as_str());
+    print_summary(
+        summary_node_id,
+        &args,
+        resolved_control_origin.as_deref(),
+        detected_public_ip.as_deref(),
+    );
 
     Ok(())
 }
@@ -253,7 +336,12 @@ fn login_ecr() -> Result<()> {
     Ok(())
 }
 
-fn print_summary(node_id: &str, args: &StartArgs) {
+fn print_summary(
+    node_id: &str,
+    args: &StartArgs,
+    resolved_control_origin: Option<&str>,
+    detected_public_ip: Option<&str>,
+) {
     println!("╔════════════════════════════════════════════════════════════════╗");
     println!("║          D1V Platform Node Started Successfully!               ║");
     println!("╚════════════════════════════════════════════════════════════════╝");
@@ -261,9 +349,21 @@ fn print_summary(node_id: &str, args: &StartArgs) {
     println!("Node Information:");
     println!("  Node ID:           {}", node_id);
     println!("  Control Plane:     {}", args.control_plane);
+    if let Some(control_origin) = resolved_control_origin {
+        println!("  Control Origin:    {}", control_origin);
+    }
+    if let Some(public_ip) = detected_public_ip {
+        println!("  Public IP:         {}", public_ip);
+    }
     println!();
     println!("Container Details:");
-    println!("  Runtime Agent:     {} (ports {}, {})", AGENT_CONTAINER_NAME, args.agent_port, args.agent_ws_port);
+    println!(
+        "  Runtime Agent:     {} (port {})",
+        AGENT_CONTAINER_NAME, args.agent_port
+    );
+    if let Some(control_origin) = &args.control_origin {
+        println!("  Control Origin:    {}", control_origin);
+    }
     println!();
     println!("Workspace:");
     println!("  Root:              {}", args.workspace_root);
