@@ -238,6 +238,14 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     );
 
     let opcode_image_env = format!("D1V_OPCODE_IMAGE={}", opcode_image);
+    let opcode_tools_image_env = format!(
+        "D1V_OPCODE_TOOLS_IMAGE=d1v-opcode-api:{}-tools",
+        opcode_image
+            .replace("://", "-")
+            .replace('/', "-")
+            .replace(':', "-")
+            .replace('@', "-")
+    );
     let control_origin_env = resolved_control_origin
         .as_ref()
         .map(|value| format!("D1V_RUNTIME_CONTROL_ORIGIN={}", value));
@@ -274,6 +282,8 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         &max_containers_env,
         "-e",
         &opcode_image_env,
+        "-e",
+        &opcode_tools_image_env,
         &runtime_agent_image,
     ];
 
