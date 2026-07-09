@@ -2,18 +2,15 @@
 
 use super::StatusArgs;
 use super::docker;
+use super::{AGENT_CONTAINER_NAME, OPCODE_API_CONTAINER_NAME};
 use crate::Context;
 use crate::error::{Error, Result};
 use serde_json::json;
 
-const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
-const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
-
 pub async fn run(_ctx: &Context, args: StatusArgs) -> Result<()> {
     if let Some(interval) = args.watch {
-        // Watch mode
         loop {
-            print!("\x1B[2J\x1B[1;1H"); // Clear screen
+            print!("\x1B[2J\x1B[1;1H");
             show_status(args.json)?;
             std::thread::sleep(std::time::Duration::from_secs(interval));
         }
@@ -39,65 +36,13 @@ fn show_status(json_output: bool) -> Result<()> {
         return Ok(());
     }
 
-    // Text output
     println!("D1V Platform Node Status");
     println!("═══════════════════════════════════════════════════════════════");
     println!();
 
-    // Runtime Agent
-    println!("Runtime Agent:");
-    if let Some(info) = &agent_info {
-        println!("  Container:  {}", info.name);
-        println!("  Status:     {}", format_status(&info.status));
-        println!("  Image:      {}", info.image);
-        println!(
-            "  Ports:      {}",
-            if info.ports.is_empty() {
-                "host network"
-            } else {
-                &info.ports
-            }
-        );
+    print_container_section("Runtime Agent", &agent_info, "❌ Not found");
+    print_container_section("Opcode API", &opcode_info, "ℹ️  Not found (optional)");
 
-        // Get stats if running
-        if info.status.starts_with("Up") {
-            if let Ok(Some(stats)) = docker::get_container_stats(&info.name) {
-                println!("  CPU:        {}", stats.cpu_percent);
-                println!(
-                    "  Memory:     {} / {} ({})",
-                    stats.mem_usage, stats.mem_limit, stats.mem_percent
-                );
-            }
-        }
-    } else {
-        println!("  Status:     ❌ Not found");
-    }
-    println!();
-
-    // Opcode API
-    println!("Opcode API:");
-    if let Some(info) = &opcode_info {
-        println!("  Container:  {}", info.name);
-        println!("  Status:     {}", format_status(&info.status));
-        println!("  Image:      {}", info.image);
-        println!("  Ports:      {}", info.ports);
-
-        // Get stats if running
-        if info.status.starts_with("Up") {
-            if let Ok(Some(stats)) = docker::get_container_stats(&info.name) {
-                println!("  CPU:        {}", stats.cpu_percent);
-                println!(
-                    "  Memory:     {} / {} ({})",
-                    stats.mem_usage, stats.mem_limit, stats.mem_percent
-                );
-            }
-        }
-    } else {
-        println!("  Status:     ℹ️  Not found (optional)");
-    }
-    println!();
-
-    // Overall status
     let agent_running = agent_info
         .as_ref()
         .map(|i| i.status.starts_with("Up"))
@@ -110,6 +55,40 @@ fn show_status(json_output: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_container_section(
+    label: &str,
+    info: &Option<docker::ContainerInfo>,
+    not_found_msg: &str,
+) {
+    println!("{}:", label);
+    match info {
+        Some(info) => {
+            println!("  Container:  {}", info.name);
+            println!("  Status:     {}", format_status(&info.status));
+            println!("  Image:      {}", info.image);
+            println!(
+                "  Ports:      {}",
+                if info.ports.is_empty() {
+                    "host network"
+                } else {
+                    &info.ports
+                }
+            );
+            if info.status.starts_with("Up") {
+                if let Ok(Some(stats)) = docker::get_container_stats(&info.name) {
+                    println!("  CPU:        {}", stats.cpu_percent);
+                    println!(
+                        "  Memory:     {} / {} ({})",
+                        stats.mem_usage, stats.mem_limit, stats.mem_percent
+                    );
+                }
+            }
+        }
+        None => println!("  Status:     {}", not_found_msg),
+    }
+    println!();
 }
 
 fn format_status(status: &str) -> String {

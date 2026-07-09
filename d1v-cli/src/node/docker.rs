@@ -21,9 +21,28 @@ pub struct ContainerStats {
     pub mem_percent: String,
 }
 
+fn docker_status(args: &[&str], action: &str) -> Result<()> {
+    let status = Command::new("docker")
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_err(|e| Error::Other(anyhow!("Failed to {}: {}", action, e)))?;
+    if !status.success() {
+        return Err(Error::Other(anyhow!("Failed to {}", action)));
+    }
+    Ok(())
+}
+
+fn docker_output(args: &[&str], action: &str) -> Result<std::process::Output> {
+    Command::new("docker")
+        .args(args)
+        .output()
+        .map_err(|e| Error::Other(anyhow!("Failed to {}: {}", action, e)))
+}
+
 /// Check if Docker is installed and running
 pub fn check_docker() -> Result<()> {
-    // Check if docker command exists
     let output = Command::new("docker")
         .arg("--version")
         .output()
@@ -33,32 +52,20 @@ pub fn check_docker() -> Result<()> {
         return Err(Error::Other(anyhow!("Docker command failed")));
     }
 
-    // Check if Docker daemon is running
-    let output = Command::new("docker")
-        .arg("info")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map_err(|_| Error::Other(anyhow!("Failed to check Docker status")))?;
-
-    if !output.success() {
-        return Err(Error::Other(anyhow!(
+    docker_status(&["info"], "check Docker status").map_err(|_| {
+        Error::Other(anyhow!(
             "Docker is not running. Please start Docker daemon."
-        )));
-    }
-
-    Ok(())
+        ))
+    })
 }
 
 /// Check if a Docker image exists locally
 pub fn image_exists_locally(image: &str) -> bool {
-    Command::new("docker")
-        .args(["image", "inspect", image, "--format", "{{.Id}}"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    docker_status(
+        &["image", "inspect", image, "--format", "{{.Id}}"],
+        "inspect image",
+    )
+    .is_ok()
 }
 
 /// Pull image to get latest, or use local cache.
@@ -101,42 +108,38 @@ pub fn pull_or_use_latest(image: &str, skip_pull: bool) -> Result<()> {
 /// Pull a Docker image
 pub fn pull_image(image: &str) -> Result<()> {
     eprintln!("Pulling image: {}", image);
-
     let status = Command::new("docker")
         .args(["pull", image])
         .status()
         .map_err(|e| Error::Other(anyhow!("Failed to pull image: {}", e)))?;
-
     if !status.success() {
         return Err(Error::Other(anyhow!("Failed to pull image: {}", image)));
     }
-
     Ok(())
 }
 
 /// Check if a container is running
 pub fn is_container_running(name: &str) -> Result<bool> {
-    let output = Command::new("docker")
-        .args(["ps", "-q", "-f", &format!("name={}", name)])
-        .output()
-        .map_err(|e| Error::Other(anyhow!("Failed to check container: {}", e)))?;
-
+    let output = docker_output(
+        &["ps", "-q", "-f", &format!("name={}", name)],
+        "check container",
+    )?;
     Ok(!output.stdout.is_empty())
 }
 
 /// Get container info
 pub fn get_container_info(name: &str) -> Result<Option<ContainerInfo>> {
-    let output = Command::new("docker")
-        .args([
+    let output = docker_output(
+        &[
             "ps",
             "-a",
             "--filter",
             &format!("name={}", name),
             "--format",
             "{{.ID}}|{{.Names}}|{{.Status}}|{{.Image}}|{{.Ports}}",
-        ])
-        .output()
-        .map_err(|e| Error::Other(anyhow!("Failed to get container info: {}", e)))?;
+        ],
+        "get container info",
+    )?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let line = stdout.trim();
@@ -161,16 +164,16 @@ pub fn get_container_info(name: &str) -> Result<Option<ContainerInfo>> {
 
 /// Get container stats
 pub fn get_container_stats(name: &str) -> Result<Option<ContainerStats>> {
-    let output = Command::new("docker")
-        .args([
+    let output = docker_output(
+        &[
             "stats",
             name,
             "--no-stream",
             "--format",
             "{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}",
-        ])
-        .output()
-        .map_err(|e| Error::Other(anyhow!("Failed to get container stats: {}", e)))?;
+        ],
+        "get container stats",
+    )?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let line = stdout.trim();
@@ -184,9 +187,8 @@ pub fn get_container_stats(name: &str) -> Result<Option<ContainerStats>> {
         return Ok(None);
     }
 
-    // Parse mem usage (format: "123MiB / 456MiB")
     let mem_parts: Vec<&str> = parts[1].split('/').map(|s| s.trim()).collect();
-    let mem_usage = mem_parts.get(0).unwrap_or(&"0B").to_string();
+    let mem_usage = mem_parts.first().unwrap_or(&"0B").to_string();
     let mem_limit = mem_parts.get(1).unwrap_or(&"0B").to_string();
 
     Ok(Some(ContainerStats {
@@ -200,66 +202,36 @@ pub fn get_container_stats(name: &str) -> Result<Option<ContainerStats>> {
 /// Stop a container
 pub fn stop_container(name: &str, force: bool) -> Result<()> {
     let cmd = if force { "kill" } else { "stop" };
-
-    let status = Command::new("docker")
-        .args([cmd, name])
-        .stdout(Stdio::null())
-        .status()
-        .map_err(|e| Error::Other(anyhow!("Failed to stop container: {}", e)))?;
-
-    if !status.success() {
-        return Err(Error::Other(anyhow!("Failed to stop container: {}", name)));
-    }
-
-    Ok(())
+    docker_status(&[cmd, name], &format!("stop container {}", name))
 }
 
 /// Remove a container
 pub fn remove_container(name: &str) -> Result<()> {
-    let status = Command::new("docker")
-        .args(["rm", "-f", name])
-        .stdout(Stdio::null())
-        .status()
-        .map_err(|e| Error::Other(anyhow!("Failed to remove container: {}", e)))?;
-
-    if !status.success() {
-        return Err(Error::Other(anyhow!(
-            "Failed to remove container: {}",
-            name
-        )));
-    }
-
-    Ok(())
+    docker_status(&["rm", "-f", name], &format!("remove container {}", name))
 }
 
 /// Get container logs
 pub fn get_logs(name: &str, tail: u32, follow: bool, since: Option<&str>) -> Result<()> {
     let mut args = vec!["logs"];
-
     if follow {
         args.push("-f");
     }
-
     let tail_str = tail.to_string();
     args.push("--tail");
     args.push(&tail_str);
-
     if let Some(since_val) = since {
         args.push("--since");
         args.push(since_val);
     }
-
     args.push(name);
 
     let status = Command::new("docker")
         .args(&args)
         .status()
         .map_err(|e| Error::Other(anyhow!("Failed to get logs: {}", e)))?;
-
     if !status.success() {
         return Err(Error::Other(anyhow!("Failed to get logs for: {}", name)));
     }
-
     Ok(())
 }
 

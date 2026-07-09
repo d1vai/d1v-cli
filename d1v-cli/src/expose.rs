@@ -535,20 +535,8 @@ fn parse_binding(value: serde_json::Value) -> Result<ExposeBinding> {
         .map_err(Into::into)
 }
 
-fn uuid_like() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0);
-    format!("{:x}", nanos)
-}
-
 fn default_cli_free_device_name() -> String {
-    std::env::var("HOSTNAME")
-        .ok()
-        .filter(|value| !value.trim().is_empty())
+    crate::agent::system_hostname()
         .map(|value| format!("CLI free expose ({value})"))
         .unwrap_or_else(|| "CLI free expose".to_string())
 }
@@ -574,7 +562,7 @@ fn cli_free_device_id(base_device_id: &str) -> String {
         .collect();
     let sanitized = sanitized.trim_matches('-');
     if sanitized.is_empty() {
-        return format!("cli-free-{}", uuid_like());
+        return format!("cli-free-{}", crate::agent::uuid_like());
     }
     format!("cli-free-{sanitized}")
 }

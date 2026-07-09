@@ -2,12 +2,10 @@
 
 use super::LogsArgs;
 use super::docker;
+use super::{AGENT_CONTAINER_NAME, OPCODE_API_CONTAINER_NAME};
 use crate::Context;
 use crate::error::{Error, Result};
 use anyhow::anyhow;
-
-const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
-const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
 
 pub async fn run(_ctx: &Context, args: LogsArgs) -> Result<()> {
     let container_name = match args.container.as_str() {

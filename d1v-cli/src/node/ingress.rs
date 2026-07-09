@@ -18,11 +18,31 @@ pub struct DetectedIngress {
     pub confidence: u8,
 }
 
+impl DetectedIngress {
+    pub fn origin(&self) -> String {
+        let port_suffix =
+            if (self.scheme == "https" && self.external_port == 443)
+                || (self.scheme == "http" && self.external_port == 80)
+            {
+                String::new()
+            } else {
+                format!(":{}", self.external_port)
+            };
+        format!("{}://{}{}", self.scheme, self.hostname, port_suffix)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ConfiguredIngress {
     pub provider: &'static str,
     pub hostname: String,
     pub config_path: String,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ResolvedIngress {
+    pub control_origin: Option<String>,
+    pub public_ip: Option<String>,
 }
 
 pub async fn detect_public_ip() -> Option<String> {
@@ -41,6 +61,78 @@ pub async fn detect_public_ip() -> Option<String> {
         }
     }
     None
+}
+
+/// 高层函数：探测 ingress → 尝试配置 → 探测公网 IP，返回聚合结果。
+/// `start.rs` 和 `ingress_cmd` 均复用此函数。
+pub async fn resolve_ingress(
+    agent_port: u16,
+    preferred_provider: Option<&str>,
+    preferred_hostname: Option<&str>,
+) -> ResolvedIngress {
+    let mut result = ResolvedIngress::default();
+
+    match detect_public_ingress(agent_port, preferred_provider, preferred_hostname) {
+        Ok(Some(candidate)) => {
+            let origin = candidate.origin();
+            eprintln!(
+                "✅ Detected {} ingress: {} -> {}:{} (confidence {}%, {})",
+                candidate.provider,
+                origin,
+                candidate.upstream_host,
+                candidate.upstream_port,
+                candidate.confidence,
+                candidate.config_path
+            );
+            result.control_origin = Some(origin);
+        }
+        Ok(None) => {
+            if let Some(hostname) = preferred_hostname {
+                eprintln!(
+                    "ℹ️  No supported public ingress detected; attempting local ingress configuration for {}",
+                    hostname
+                );
+                match configure_public_ingress(agent_port, preferred_provider, hostname) {
+                    Ok(Some(configured)) => {
+                        eprintln!(
+                            "✅ Configured {} ingress: {} ({})",
+                            configured.provider, configured.hostname, configured.config_path
+                        );
+                        let origin = format!("http://{}", configured.hostname);
+                        eprintln!("✅ Using configured ingress origin: {}", origin);
+                        result.control_origin = Some(origin);
+                    }
+                    Ok(None) => {
+                        eprintln!(
+                            "ℹ️  No configurable local ingress provider detected; falling back to runtime-agent auto discovery"
+                        );
+                    }
+                    Err(err) => {
+                        eprintln!("⚠️  Local ingress configuration failed: {}", err);
+                        eprintln!("ℹ️  Falling back to runtime-agent auto discovery");
+                    }
+                }
+            } else {
+                eprintln!(
+                    "ℹ️  No supported public ingress detected; falling back to runtime-agent auto discovery"
+                );
+            }
+        }
+        Err(err) => {
+            eprintln!("⚠️  Public ingress detection failed: {}", err);
+        }
+    }
+
+    if result.control_origin.is_some() {
+        result.public_ip = detect_public_ip().await;
+        if let Some(ip) = result.public_ip.as_deref() {
+            eprintln!("✅ Detected public IP: {}", ip);
+        } else {
+            eprintln!("⚠️  Public IP detection failed; DNS alias auto-provision may be skipped");
+        }
+    }
+
+    result
 }
 
 pub fn detect_public_ingress(

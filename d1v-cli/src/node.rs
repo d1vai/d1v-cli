@@ -4,8 +4,13 @@ use crate::Context;
 use crate::error::Result;
 use crate::expose::{self, ExposeArgs, ExposeCloseArgs, ExposeCommand, ExposeListArgs};
 
+const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
+const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
+
 mod docker;
-mod ingress;
+pub(crate) mod ingress;
+mod ingress_cmd;
+mod ip;
 mod logs;
 mod start;
 mod status;
@@ -23,6 +28,13 @@ pub enum NodeCommand {
     Logs(LogsArgs),
     /// Manage node-backed public ingress bindings
     Expose(NodeExposeArgs),
+    /// Detect public IP address of this node
+    Ip(IpArgs),
+    /// Detect or configure reverse-proxy ingress
+    Ingress {
+        #[command(subcommand)]
+        command: IngressCommand,
+    },
 }
 
 #[derive(Args)]
@@ -165,6 +177,58 @@ pub enum NodeExposeSubcommand {
     Close(ExposeCloseArgs),
 }
 
+#[derive(Args)]
+pub struct IpArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Subcommand)]
+pub enum IngressCommand {
+    /// Detect existing reverse-proxy ingress configuration
+    Detect(IngressDetectArgs),
+    /// Configure a new reverse-proxy ingress for the given hostname
+    Configure(IngressConfigureArgs),
+}
+
+#[derive(Args)]
+pub struct IngressDetectArgs {
+    /// Runtime agent HTTP port to look for in proxy configs
+    #[arg(long, default_value = "8080")]
+    pub agent_port: u16,
+
+    /// Restrict detection to a specific provider (caddy|nginx|traefik|npm)
+    #[arg(long)]
+    pub provider: Option<String>,
+
+    /// Prefer a specific public hostname from detected candidates
+    #[arg(long)]
+    pub hostname: Option<String>,
+
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Args)]
+pub struct IngressConfigureArgs {
+    /// Public hostname to bind (e.g. node.example.com)
+    pub hostname: String,
+
+    /// Runtime agent HTTP port to proxy to
+    #[arg(long, default_value = "8080")]
+    pub agent_port: u16,
+
+    /// Ingress provider to use (nginx|npm); auto-detected if omitted
+    #[arg(long)]
+    pub provider: Option<String>,
+
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+}
+
 pub async fn run(ctx: &Context, command: NodeCommand) -> Result<()> {
     match command {
         NodeCommand::Start(args) => start::run(ctx, args).await,
@@ -189,5 +253,7 @@ pub async fn run(ctx: &Context, command: NodeCommand) -> Result<()> {
             )
             .await
         }
+        NodeCommand::Ip(args) => ip::run(ctx, args).await,
+        NodeCommand::Ingress { command } => ingress_cmd::run(ctx, command).await,
     }
 }

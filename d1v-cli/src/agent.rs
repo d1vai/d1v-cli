@@ -194,7 +194,7 @@ pub(crate) fn save_agent_config(config: &AgentConfig) -> Result {
     Ok(())
 }
 
-fn uuid_like() -> String {
+pub(crate) fn uuid_like() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -203,10 +203,26 @@ fn uuid_like() -> String {
     format!("{nanos:x}")
 }
 
-fn default_device_name() -> String {
-    let host = std::env::var("HOSTNAME")
+pub(crate) fn system_hostname() -> Option<String> {
+    std::env::var("HOSTNAME")
+        .or_else(|_| std::env::var("HOST"))
         .or_else(|_| std::env::var("COMPUTERNAME"))
-        .unwrap_or_else(|_| "local-device".to_string());
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .or_else(|| {
+            Command::new("hostname")
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+        })
+}
+
+fn default_device_name() -> String {
+    let host = system_hostname().unwrap_or_else(|| "local-device".to_string());
     format!("{} ({})", host, std::env::consts::OS)
 }
 
@@ -232,10 +248,25 @@ pub(crate) async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client>
         .tokens
         .lookup()?
         .ok_or_else(|| anyhow!("missing auth token"))?;
+    let mut builder = build_authed_client_builder(token.expose_secret())?;
+    if is_loopback_base_url(&base_url(ctx)) {
+        builder = builder.no_proxy();
+    }
+    Ok(builder.build().map_err(|e| anyhow!(e))?)
+}
+
+pub(crate) fn build_authed_client(token: &str) -> Result<reqwest::Client> {
+    build_authed_client_builder(token)?
+        .no_proxy()
+        .build()
+        .map_err(|e| anyhow!(e).into())
+}
+
+fn build_authed_client_builder(token: &str) -> Result<reqwest::ClientBuilder> {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::AUTHORIZATION,
-        format!("Bearer {}", token.expose_secret())
+        format!("Bearer {}", token)
             .parse()
             .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
     );
@@ -245,13 +276,9 @@ pub(crate) async fn authed_http_client(ctx: &Context) -> Result<reqwest::Client>
             .parse()
             .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
     );
-    let mut builder = reqwest::Client::builder()
+    Ok(reqwest::Client::builder()
         .default_headers(headers)
-        .timeout(Duration::from_secs(60));
-    if is_loopback_base_url(&base_url(ctx)) {
-        builder = builder.no_proxy();
-    }
-    Ok(builder.build().map_err(|e| anyhow!(e))?)
+        .timeout(Duration::from_secs(60)))
 }
 
 pub(crate) fn base_url(ctx: &Context) -> String {
@@ -463,25 +490,7 @@ async fn ensure_customer_auto_expose_once(
     device_id: String,
     opcode_base_url: String,
 ) -> Result {
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        format!("Bearer {}", auth_token)
-            .parse()
-            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
-    );
-    headers.insert(
-        reqwest::header::ACCEPT,
-        "application/json"
-            .parse()
-            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
-    );
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .no_proxy()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| anyhow!(e))?;
+    let client = build_authed_client(&auth_token)?;
 
     let list_resp = client
         .get(format!(
@@ -555,25 +564,7 @@ pub(crate) async fn heartbeat_customer_runtime_node_loop(
     auth_token: String,
     device_id: String,
 ) -> Result {
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        format!("Bearer {}", auth_token)
-            .parse()
-            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
-    );
-    headers.insert(
-        reqwest::header::ACCEPT,
-        "application/json"
-            .parse()
-            .map_err(|e: reqwest::header::InvalidHeaderValue| anyhow!(e))?,
-    );
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .no_proxy()
-        .timeout(Duration::from_secs(60))
-        .build()
-        .map_err(|e| anyhow!(e))?;
+    let client = build_authed_client(&auth_token)?;
     loop {
         let resp = client
             .post(format!(

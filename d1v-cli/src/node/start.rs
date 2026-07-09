@@ -3,6 +3,7 @@
 use super::StartArgs;
 use super::docker;
 use super::ingress;
+use super::AGENT_CONTAINER_NAME;
 use crate::Context;
 use crate::error::{Error, Result};
 use anyhow::anyhow;
@@ -10,7 +11,6 @@ use std::process::Command;
 
 const RUNTIME_AGENT_IMAGE: &str = "ghcr.io/d1vai/d1v-runtime-agent:latest";
 const OPCODE_API_IMAGE: &str = "ghcr.io/d1vai/opcode-api:latest";
-const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
 
 pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     // 1. Check Docker installation
@@ -76,91 +76,14 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     let mut detected_public_ip: Option<String> = None;
     if resolved_control_origin.is_none() && args.auto_detect_public_ingress {
         eprintln!("🌐 Detecting public ingress...");
-        match ingress::detect_public_ingress(
+        let resolved = ingress::resolve_ingress(
             args.agent_port,
             args.ingress_provider.as_deref(),
             args.public_hostname.as_deref(),
-        ) {
-            Ok(Some(candidate)) => {
-                let inferred_origin = format!(
-                    "{}://{}{}",
-                    candidate.scheme,
-                    candidate.hostname,
-                    if (candidate.scheme == "https" && candidate.external_port == 443)
-                        || (candidate.scheme == "http" && candidate.external_port == 80)
-                    {
-                        String::new()
-                    } else {
-                        format!(":{}", candidate.external_port)
-                    }
-                );
-                eprintln!(
-                    "✅ Detected {} ingress: {} -> {}:{} (confidence {}%, {})",
-                    candidate.provider,
-                    inferred_origin,
-                    candidate.upstream_host,
-                    candidate.upstream_port,
-                    candidate.confidence,
-                    candidate.config_path
-                );
-                resolved_control_origin = Some(inferred_origin);
-                detected_public_ip = ingress::detect_public_ip().await;
-                if let Some(public_ip) = detected_public_ip.as_deref() {
-                    eprintln!("✅ Detected public IP: {}", public_ip);
-                } else {
-                    eprintln!(
-                        "⚠️  Public IP detection failed; DNS alias auto-provision may be skipped"
-                    );
-                }
-            }
-            Ok(None) => {
-                if let Some(public_hostname) = args.public_hostname.as_deref() {
-                    eprintln!(
-                        "ℹ️  No supported public ingress detected; attempting local ingress configuration for {}",
-                        public_hostname
-                    );
-                    match ingress::configure_public_ingress(
-                        args.agent_port,
-                        args.ingress_provider.as_deref(),
-                        public_hostname,
-                    ) {
-                        Ok(Some(configured)) => {
-                            eprintln!(
-                                "✅ Configured {} ingress: {} ({})",
-                                configured.provider, configured.hostname, configured.config_path
-                            );
-                            let inferred_origin = format!("http://{}", configured.hostname);
-                            resolved_control_origin = Some(inferred_origin.clone());
-                            eprintln!("✅ Using configured ingress origin: {}", inferred_origin);
-                            detected_public_ip = ingress::detect_public_ip().await;
-                            if let Some(public_ip) = detected_public_ip.as_deref() {
-                                eprintln!("✅ Detected public IP: {}", public_ip);
-                            } else {
-                                eprintln!(
-                                    "⚠️  Public IP detection failed; DNS alias auto-provision may be skipped"
-                                );
-                            }
-                        }
-                        Ok(None) => {
-                            eprintln!(
-                                "ℹ️  No configurable local ingress provider detected; falling back to runtime-agent auto discovery"
-                            );
-                        }
-                        Err(err) => {
-                            eprintln!("⚠️  Local ingress configuration failed: {}", err);
-                            eprintln!("ℹ️  Falling back to runtime-agent auto discovery");
-                        }
-                    }
-                } else {
-                    eprintln!(
-                        "ℹ️  No supported public ingress detected; falling back to runtime-agent auto discovery"
-                    );
-                }
-            }
-            Err(err) => {
-                eprintln!("⚠️  Public ingress detection failed: {}", err);
-            }
-        }
+        )
+        .await;
+        resolved_control_origin = resolved.control_origin;
+        detected_public_ip = resolved.public_ip;
         eprintln!();
     }
 
@@ -386,21 +309,7 @@ fn login_ecr() -> Result<()> {
 }
 
 fn default_node_id() -> String {
-    std::env::var("HOSTNAME")
-        .or_else(|_| std::env::var("HOST"))
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .or_else(|| {
-            Command::new("hostname")
-                .output()
-                .ok()
-                .filter(|output| output.status.success())
-                .and_then(|output| String::from_utf8(output.stdout).ok())
-                .map(|value| value.trim().to_string())
-                .filter(|value| !value.is_empty())
-        })
-        .unwrap_or_else(|| "unknown-node".to_string())
+    crate::agent::system_hostname().unwrap_or_else(|| "unknown-node".to_string())
 }
 
 fn print_summary(

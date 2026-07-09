@@ -2,48 +2,38 @@
 
 use super::StopArgs;
 use super::docker;
+use super::{AGENT_CONTAINER_NAME, OPCODE_API_CONTAINER_NAME};
 use crate::Context;
 use crate::error::Result;
-
-const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
-const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
 
 pub async fn run(_ctx: &Context, args: StopArgs) -> Result<()> {
     let stop_agent = args.agent || (!args.agent && !args.opcode_api);
     let stop_opcode = args.opcode_api || (!args.agent && !args.opcode_api);
 
-    let action = if args.force { "Killing" } else { "Stopping" };
-
     if stop_agent {
-        eprintln!("{} runtime-agent container...", action);
-        if docker::is_container_running(AGENT_CONTAINER_NAME)? {
-            docker::stop_container(AGENT_CONTAINER_NAME, args.force)?;
-            if args.remove {
-                docker::remove_container(AGENT_CONTAINER_NAME)?;
-                eprintln!("✅ Runtime-agent stopped and removed");
-            } else {
-                eprintln!("✅ Runtime-agent stopped");
-            }
-        } else {
-            eprintln!("ℹ️  Runtime-agent is not running");
-        }
+        stop_one_container(AGENT_CONTAINER_NAME, "Runtime-agent", args.force, args.remove)?;
     }
-
     if stop_opcode {
-        eprintln!("{} opcode-api container...", action);
-        if docker::is_container_running(OPCODE_API_CONTAINER_NAME)? {
-            docker::stop_container(OPCODE_API_CONTAINER_NAME, args.force)?;
-            if args.remove {
-                docker::remove_container(OPCODE_API_CONTAINER_NAME)?;
-                eprintln!("✅ Opcode-API stopped and removed");
-            } else {
-                eprintln!("✅ Opcode-API stopped");
-            }
-        } else {
-            eprintln!("ℹ️  Opcode-API is not running");
-        }
+        stop_one_container(OPCODE_API_CONTAINER_NAME, "Opcode-API", args.force, args.remove)?;
     }
 
     println!("\n✓ Node stopped successfully");
+    Ok(())
+}
+
+fn stop_one_container(name: &str, label: &str, force: bool, remove: bool) -> Result<()> {
+    let action = if force { "Killing" } else { "Stopping" };
+    eprintln!("{} {} container...", action, label);
+    if docker::is_container_running(name)? {
+        docker::stop_container(name, force)?;
+        if remove {
+            docker::remove_container(name)?;
+            eprintln!("✅ {} stopped and removed", label);
+        } else {
+            eprintln!("✅ {} stopped", label);
+        }
+    } else {
+        eprintln!("ℹ️  {} is not running", label);
+    }
     Ok(())
 }
