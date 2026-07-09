@@ -2,6 +2,7 @@
 
 use crate::error::{Error, Result};
 use anyhow::anyhow;
+use std::collections::HashSet;
 use std::process::{Command, Stdio};
 
 #[derive(Debug)]
@@ -71,8 +72,8 @@ pub fn image_exists_locally(image: &str) -> bool {
 /// Pull image to get latest, or use local cache.
 ///
 /// - `skip_pull = true`:  use local image only; error if not found locally.
-/// - `skip_pull = false`: always attempt `docker pull` to get the latest tag;
-///   on failure fall back to the local cache; error when neither is available.
+/// - `skip_pull = false`: prefer the local cache when present; otherwise pull;
+///   on pull failure fall back to the local cache; error when neither is available.
 pub fn pull_or_use_latest(image: &str, skip_pull: bool) -> Result<()> {
     if skip_pull {
         if image_exists_locally(image) {
@@ -84,6 +85,10 @@ pub fn pull_or_use_latest(image: &str, skip_pull: bool) -> Result<()> {
             )))
         }
     } else {
+        if image_exists_locally(image) {
+            eprintln!("⏭️  Local image already present, skipping pull: {}", image);
+            return Ok(());
+        }
         match pull_image(image) {
             Ok(()) => Ok(()),
             Err(pull_err) => {
@@ -116,6 +121,116 @@ pub fn pull_image(image: &str) -> Result<()> {
         return Err(Error::Other(anyhow!("Failed to pull image: {}", image)));
     }
     Ok(())
+}
+
+fn image_repository(image: &str) -> &str {
+    let without_digest = image.split('@').next().unwrap_or(image);
+    match without_digest.rfind(':') {
+        Some(idx) => {
+            let suffix = &without_digest[idx + 1..];
+            if !suffix.contains('/') {
+                &without_digest[..idx]
+            } else {
+                without_digest
+            }
+        }
+        None => without_digest,
+    }
+}
+
+fn select_old_image_ids_to_remove(
+    target_repository: &str,
+    target_image_id: &str,
+    image_rows: &[(String, String)],
+    used_image_ids: &HashSet<String>,
+) -> Vec<String> {
+    let mut stale_ids = Vec::new();
+    let mut seen = HashSet::new();
+    for (repo_tag, image_id) in image_rows {
+        let repository = image_repository(repo_tag);
+        if repository != target_repository {
+            continue;
+        }
+        if image_id == target_image_id || used_image_ids.contains(image_id) {
+            continue;
+        }
+        if seen.insert(image_id.clone()) {
+            stale_ids.push(image_id.clone());
+        }
+    }
+    stale_ids
+}
+
+pub fn cleanup_old_images_for_repository(image: &str) -> Result<Vec<String>> {
+    let inspect = docker_output(
+        &["image", "inspect", image, "--format", "{{.Id}}"],
+        "inspect current image",
+    )?;
+    if !inspect.status.success() {
+        return Err(Error::Other(anyhow!(
+            "Failed to inspect current image: {}",
+            image
+        )));
+    }
+    let target_image_id = String::from_utf8_lossy(&inspect.stdout).trim().to_string();
+    if target_image_id.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let images_output = docker_output(
+        &["images", "--format", "{{.Repository}}:{{.Tag}}|{{.ID}}"],
+        "list images",
+    )?;
+    if !images_output.status.success() {
+        return Err(Error::Other(anyhow!("Failed to list docker images")));
+    }
+    let image_rows: Vec<(String, String)> = String::from_utf8_lossy(&images_output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.split('|');
+            let repo_tag = parts.next()?.trim().to_string();
+            let image_id = parts.next()?.trim().to_string();
+            if repo_tag.is_empty() || image_id.is_empty() {
+                return None;
+            }
+            Some((repo_tag, image_id))
+        })
+        .collect();
+
+    let used_output = docker_output(
+        &["ps", "-a", "--format", "{{.ImageID}}"],
+        "list used image ids",
+    )?;
+    if !used_output.status.success() {
+        return Err(Error::Other(anyhow!("Failed to list container image ids")));
+    }
+    let used_image_ids: HashSet<String> = String::from_utf8_lossy(&used_output.stdout)
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToOwned::to_owned)
+        .collect();
+
+    let stale_ids = select_old_image_ids_to_remove(
+        image_repository(image),
+        &target_image_id,
+        &image_rows,
+        &used_image_ids,
+    );
+
+    let mut removed = Vec::new();
+    for image_id in stale_ids {
+        let status = Command::new("docker")
+            .args(["rmi", "-f", &image_id])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map_err(|e| Error::Other(anyhow!("Failed to remove image {}: {}", image_id, e)))?;
+        if status.success() {
+            removed.push(image_id);
+        }
+    }
+    Ok(removed)
 }
 
 /// Check if a container is running
@@ -257,4 +372,62 @@ pub fn estimate_resources(max_opcode_containers: u32) -> (String, String, String
         format!("{} MB RAM", total_mem),
         format!("{} GB disk space", estimated_disk),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{image_repository, select_old_image_ids_to_remove};
+    use std::collections::HashSet;
+
+    #[test]
+    fn image_repository_strips_tag_but_keeps_registry_port() {
+        assert_eq!(
+            image_repository("ghcr.io/d1vai/d1v-runtime-agent:latest"),
+            "ghcr.io/d1vai/d1v-runtime-agent"
+        );
+        assert_eq!(
+            image_repository("299000395210.dkr.ecr.ap-southeast-1.amazonaws.com/d1v-opcode:latest"),
+            "299000395210.dkr.ecr.ap-southeast-1.amazonaws.com/d1v-opcode"
+        );
+        assert_eq!(
+            image_repository("localhost:5000/example/image:dev"),
+            "localhost:5000/example/image"
+        );
+        assert_eq!(
+            image_repository("ghcr.io/d1vai/d1v-runtime-agent@sha256:abc"),
+            "ghcr.io/d1vai/d1v-runtime-agent"
+        );
+    }
+
+    #[test]
+    fn select_old_image_ids_to_remove_skips_current_and_used_images() {
+        let image_rows = vec![
+            (
+                "ghcr.io/d1vai/d1v-runtime-agent:latest".to_string(),
+                "sha256:current".to_string(),
+            ),
+            (
+                "ghcr.io/d1vai/d1v-runtime-agent:old".to_string(),
+                "sha256:old-unused".to_string(),
+            ),
+            (
+                "ghcr.io/d1vai/d1v-runtime-agent:older".to_string(),
+                "sha256:old-used".to_string(),
+            ),
+            (
+                "ghcr.io/d1vai/opcode-api:latest".to_string(),
+                "sha256:opcode".to_string(),
+            ),
+        ];
+        let used_image_ids = HashSet::from(["sha256:old-used".to_string()]);
+
+        let removable = select_old_image_ids_to_remove(
+            "ghcr.io/d1vai/d1v-runtime-agent",
+            "sha256:current",
+            &image_rows,
+            &used_image_ids,
+        );
+
+        assert_eq!(removable, vec!["sha256:old-unused".to_string()]);
+    }
 }

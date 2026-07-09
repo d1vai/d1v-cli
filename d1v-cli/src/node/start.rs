@@ -1,9 +1,9 @@
 // Start node containers
 
+use super::AGENT_CONTAINER_NAME;
 use super::StartArgs;
 use super::docker;
 use super::ingress;
-use super::AGENT_CONTAINER_NAME;
 use crate::Context;
 use crate::error::{Error, Result};
 use anyhow::anyhow;
@@ -104,8 +104,8 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
         // Validate local cache exists for the required image
         docker::pull_or_use_latest(&runtime_agent_image, true)?;
     } else {
-        eprintln!("\n📥 Pulling Docker images (always fetching latest)...");
-        eprintln!("   This may take a few minutes on first run.\n");
+        eprintln!("\n📦 Preparing Docker images...");
+        eprintln!("   Missing images will be pulled. Cached images are reused.\n");
 
         // Pull opcode-api (optional — standalone service, may not exist yet)
         eprintln!("📥 Pulling opcode-api image (optional)...");
@@ -238,6 +238,25 @@ pub async fn run(_ctx: &Context, args: StartArgs) -> Result<()> {
     }
 
     eprintln!("✅ Runtime-agent started: {}\n", AGENT_CONTAINER_NAME);
+
+    for cleanup_image in [&runtime_agent_image, &opcode_image] {
+        match docker::cleanup_old_images_for_repository(cleanup_image) {
+            Ok(removed) if !removed.is_empty() => {
+                eprintln!(
+                    "🧹 Removed {} old image(s) for {}",
+                    removed.len(),
+                    cleanup_image
+                );
+            }
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!(
+                    "⚠️  Failed to clean old images for {}: {}",
+                    cleanup_image, err
+                );
+            }
+        }
+    }
 
     // 9. Wait a bit and check health
     eprintln!("⏳ Waiting for runtime-agent to be healthy...");
