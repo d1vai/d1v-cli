@@ -8,6 +8,7 @@ const AGENT_CONTAINER_NAME: &str = "d1v-runtime-agent-platform";
 const OPCODE_API_CONTAINER_NAME: &str = "d1v-opcode-api";
 
 mod docker;
+mod image;
 pub(crate) mod ingress;
 mod ingress_cmd;
 mod ip;
@@ -15,6 +16,7 @@ mod logs;
 mod start;
 mod status;
 mod stop;
+mod upgrade;
 
 #[derive(Subcommand)]
 pub enum NodeCommand {
@@ -30,6 +32,13 @@ pub enum NodeCommand {
     Expose(NodeExposeArgs),
     /// Detect public IP address of this node
     Ip(IpArgs),
+    /// Manage node container images
+    Image {
+        #[command(subcommand)]
+        command: ImageCommand,
+    },
+    /// Upgrade runtime-agent using the current container configuration
+    Upgrade(UpgradeArgs),
     /// Detect or configure reverse-proxy ingress
     Ingress {
         #[command(subcommand)]
@@ -185,6 +194,97 @@ pub struct IpArgs {
 }
 
 #[derive(Subcommand)]
+pub enum ImageCommand {
+    /// Show local and running image details
+    Status(ImageStatusArgs),
+    /// Check whether a newer runtime-agent image is available
+    Check(ImageCheckArgs),
+    /// Pull the configured image when it is missing or explicitly requested
+    Pull(ImagePullArgs),
+    /// Remove old images that are not in use by any container
+    Prune(ImagePruneArgs),
+}
+
+#[derive(Args)]
+pub struct ImageStatusArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+
+    /// Override runtime-agent Docker image reference
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+}
+
+#[derive(Args)]
+pub struct ImageCheckArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+
+    /// Override runtime-agent Docker image reference
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+}
+
+#[derive(Args)]
+pub struct ImagePullArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+
+    /// Override runtime-agent Docker image reference
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+
+    /// Pull even when a local copy already exists
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Args)]
+pub struct ImagePruneArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+
+    /// Override runtime-agent Docker image reference
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+}
+
+#[derive(Args)]
+pub struct UpgradeArgs {
+    /// Output in JSON format
+    #[arg(long)]
+    pub json: bool,
+
+    /// Only check whether an upgrade is needed
+    #[arg(long)]
+    pub check: bool,
+
+    /// Print the plan without changing the container
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Skip confirmation prompt
+    #[arg(long, short = 'y')]
+    pub yes: bool,
+
+    /// Override runtime-agent Docker image reference
+    #[arg(long, env = "D1V_RUNTIME_AGENT_IMAGE")]
+    pub runtime_agent_image: Option<String>,
+
+    /// Override opcode image that should be persisted into the recreated runtime-agent env
+    #[arg(long, env = "D1V_OPCODE_IMAGE")]
+    pub opcode_image: Option<String>,
+
+    /// Keep old images instead of pruning them after a successful upgrade
+    #[arg(long)]
+    pub keep_old_images: bool,
+}
+
+#[derive(Subcommand)]
 pub enum IngressCommand {
     /// Detect existing reverse-proxy ingress configuration
     Detect(IngressDetectArgs),
@@ -254,6 +354,8 @@ pub async fn run(ctx: &Context, command: NodeCommand) -> Result<()> {
             .await
         }
         NodeCommand::Ip(args) => ip::run(ctx, args).await,
+        NodeCommand::Image { command } => image::run(ctx, command).await,
+        NodeCommand::Upgrade(args) => upgrade::run(ctx, args).await,
         NodeCommand::Ingress { command } => ingress_cmd::run(ctx, command).await,
     }
 }

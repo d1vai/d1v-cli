@@ -11,10 +11,20 @@ pub async fn run(_ctx: &Context, args: StopArgs) -> Result<()> {
     let stop_opcode = args.opcode_api || (!args.agent && !args.opcode_api);
 
     if stop_agent {
-        stop_one_container(AGENT_CONTAINER_NAME, "Runtime-agent", args.force, args.remove)?;
+        stop_one_container(
+            AGENT_CONTAINER_NAME,
+            "Runtime-agent",
+            args.force,
+            args.remove,
+        )?;
     }
     if stop_opcode {
-        stop_one_container(OPCODE_API_CONTAINER_NAME, "Opcode-API", args.force, args.remove)?;
+        stop_one_container(
+            OPCODE_API_CONTAINER_NAME,
+            "Opcode-API",
+            args.force,
+            args.remove,
+        )?;
     }
 
     println!("\n✓ Node stopped successfully");

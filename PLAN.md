@@ -1,5 +1,27 @@
 # Goal: Make D1V Local Runtime A First-Class Managed Runtime
 
+## Current Execution
+
+- Goal: add `d1v node image {status,check,pull,prune}` and `d1v node upgrade` so node image lifecycle becomes explicit and runtime-agent upgrades can reuse current container config safely.
+- Background:
+  - current `d1v node start` now prefers cached images and prunes unused stale images after start.
+  - there is no first-class command for operators to inspect whether the node runtime-agent image is current, pull the target image independently, or recreate the node against a newer runtime-agent image while preserving existing env/binds/network settings.
+- Selected validators:
+  - `@cli-ux-qa`
+  - `@ops-reliability-qa`
+  - `@docs-adoption-qa`
+- Todo:
+  - [x] Add node image lifecycle subcommands and shared inspect/pull/prune helpers.
+    - Evidence: added `d1v node image {status,check,pull,prune}` command surface plus docker helpers for local image id lookup, remote digest lookup, container runtime config inspection, container recreation, and stale-image pruning in `d1v-cli/src/node/{docker.rs,image.rs,node.rs}`.
+  - [x] Implement `d1v node upgrade` using current container inspection, remote digest check, recreate, health check, and rollback.
+    - Evidence: added `d1v node upgrade` in `d1v-cli/src/node/upgrade.rs`; upgrade now compares current local image id against remote digest, pulls when needed, recreates `d1v-runtime-agent-platform` with inspected env/binds/network settings, waits on `/health`, rolls back on failure, and optionally persists a new `D1V_OPCODE_IMAGE`.
+  - [x] Verify with `cargo fmt`, targeted tests, full `cargo test -p d1v-cli --lib`, and help output.
+    - Evidence:
+      - `cargo fmt --all`
+      - `cargo test -p d1v-cli --lib -- --nocapture`
+      - `cargo run -p d1v-cli -- node image status --help`
+      - `cargo run -p d1v-cli -- node upgrade --help`
+
 ## 设计思想与需求背景
 
 ### 目标用户与根本诉求

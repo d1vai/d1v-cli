@@ -20,14 +20,13 @@ pub struct DetectedIngress {
 
 impl DetectedIngress {
     pub fn origin(&self) -> String {
-        let port_suffix =
-            if (self.scheme == "https" && self.external_port == 443)
-                || (self.scheme == "http" && self.external_port == 80)
-            {
-                String::new()
-            } else {
-                format!(":{}", self.external_port)
-            };
+        let port_suffix = if (self.scheme == "https" && self.external_port == 443)
+            || (self.scheme == "http" && self.external_port == 80)
+        {
+            String::new()
+        } else {
+            format!(":{}", self.external_port)
+        };
         format!("{}://{}{}", self.scheme, self.hostname, port_suffix)
     }
 }

@@ -12,10 +12,7 @@ pub async fn run(_ctx: &Context, command: IngressCommand) -> Result<()> {
 }
 
 async fn run_detect(args: IngressDetectArgs) -> Result<()> {
-    eprintln!(
-        "🔍 正在探测反向代理 ingress（端口 {}）...",
-        args.agent_port
-    );
+    eprintln!("🔍 正在探测反向代理 ingress（端口 {}）...", args.agent_port);
 
     let detected = ingress::detect_public_ingress(
         args.agent_port,

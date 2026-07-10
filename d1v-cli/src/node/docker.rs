@@ -2,6 +2,7 @@
 
 use crate::error::{Error, Result};
 use anyhow::anyhow;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::process::{Command, Stdio};
 
@@ -22,6 +23,15 @@ pub struct ContainerStats {
     pub mem_percent: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ContainerRuntimeConfig {
+    pub image_ref: String,
+    pub env: Vec<String>,
+    pub binds: Vec<String>,
+    pub restart_policy_name: String,
+    pub network_mode: String,
+}
+
 fn docker_status(args: &[&str], action: &str) -> Result<()> {
     let status = Command::new("docker")
         .args(args)
@@ -40,6 +50,23 @@ fn docker_output(args: &[&str], action: &str) -> Result<std::process::Output> {
         .args(args)
         .output()
         .map_err(|e| Error::Other(anyhow!("Failed to {}: {}", action, e)))
+}
+
+fn docker_output_checked(args: &[&str], action: &str) -> Result<std::process::Output> {
+    let output = docker_output(args, action)?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("exit={}", output.status)
+        };
+        return Err(Error::Other(anyhow!("Failed to {}: {}", action, detail)));
+    }
+    Ok(output)
 }
 
 /// Check if Docker is installed and running
@@ -123,6 +150,61 @@ pub fn pull_image(image: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn local_image_id(image: &str) -> Result<Option<String>> {
+    let output = docker_output(
+        &["image", "inspect", image, "--format", "{{.Id}}"],
+        "inspect local image",
+    )?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let image_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if image_id.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(image_id))
+}
+
+fn extract_remote_digest(value: &Value) -> Option<String> {
+    match value {
+        Value::Object(map) => {
+            if let Some(digest) = map
+                .get("Descriptor")
+                .and_then(|descriptor| descriptor.get("digest"))
+                .and_then(Value::as_str)
+            {
+                return Some(digest.to_string());
+            }
+            if let Some(digest) = map
+                .get("config")
+                .and_then(|config| config.get("digest"))
+                .and_then(Value::as_str)
+            {
+                return Some(digest.to_string());
+            }
+            for nested in map.values() {
+                if let Some(digest) = extract_remote_digest(nested) {
+                    return Some(digest);
+                }
+            }
+            None
+        }
+        Value::Array(items) => items.iter().find_map(extract_remote_digest),
+        _ => None,
+    }
+}
+
+pub fn remote_image_digest(image: &str) -> Result<String> {
+    let output = docker_output_checked(
+        &["manifest", "inspect", image, "--verbose"],
+        "inspect remote image manifest",
+    )?;
+    let parsed: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|e| Error::Other(anyhow!("Failed to parse remote image manifest: {}", e)))?;
+    extract_remote_digest(&parsed)
+        .ok_or_else(|| Error::Other(anyhow!("Remote image digest not found for {}", image)))
+}
+
 fn image_repository(image: &str) -> &str {
     let without_digest = image.split('@').next().unwrap_or(image);
     match without_digest.rfind(':') {
@@ -162,17 +244,9 @@ fn select_old_image_ids_to_remove(
 }
 
 pub fn cleanup_old_images_for_repository(image: &str) -> Result<Vec<String>> {
-    let inspect = docker_output(
-        &["image", "inspect", image, "--format", "{{.Id}}"],
-        "inspect current image",
-    )?;
-    if !inspect.status.success() {
-        return Err(Error::Other(anyhow!(
-            "Failed to inspect current image: {}",
-            image
-        )));
-    }
-    let target_image_id = String::from_utf8_lossy(&inspect.stdout).trim().to_string();
+    let Some(target_image_id) = local_image_id(image)? else {
+        return Ok(Vec::new());
+    };
     if target_image_id.is_empty() {
         return Ok(Vec::new());
     }
@@ -277,6 +351,103 @@ pub fn get_container_info(name: &str) -> Result<Option<ContainerInfo>> {
     }))
 }
 
+pub fn inspect_container_runtime_config(name: &str) -> Result<Option<ContainerRuntimeConfig>> {
+    let output = docker_output(&["inspect", name], "inspect container runtime config")?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let parsed: Value = serde_json::from_slice(&output.stdout)
+        .map_err(|e| Error::Other(anyhow!("Failed to parse docker inspect JSON: {}", e)))?;
+    let Some(container) = parsed.as_array().and_then(|items| items.first()) else {
+        return Ok(None);
+    };
+    let image_ref = container
+        .get("Config")
+        .and_then(|value| value.get("Image"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let env = container
+        .get("Config")
+        .and_then(|value| value.get("Env"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let binds = container
+        .get("HostConfig")
+        .and_then(|value| value.get("Binds"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let restart_policy_name = container
+        .get("HostConfig")
+        .and_then(|value| value.get("RestartPolicy"))
+        .and_then(|value| value.get("Name"))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let network_mode = container
+        .get("HostConfig")
+        .and_then(|value| value.get("NetworkMode"))
+        .and_then(Value::as_str)
+        .unwrap_or("default")
+        .to_string();
+    Ok(Some(ContainerRuntimeConfig {
+        image_ref,
+        env,
+        binds,
+        restart_policy_name,
+        network_mode,
+    }))
+}
+
+pub fn run_container(
+    name: &str,
+    image: &str,
+    env: &[String],
+    binds: &[String],
+    restart_policy_name: &str,
+    network_mode: &str,
+) -> Result<()> {
+    let mut args = vec![
+        "run".to_string(),
+        "-d".to_string(),
+        "--name".to_string(),
+        name.to_string(),
+    ];
+    if !restart_policy_name.trim().is_empty() {
+        args.push("--restart".to_string());
+        args.push(restart_policy_name.to_string());
+    }
+    if !network_mode.trim().is_empty() {
+        args.push("--network".to_string());
+        args.push(network_mode.to_string());
+    }
+    for bind in binds {
+        args.push("-v".to_string());
+        args.push(bind.clone());
+    }
+    for item in env {
+        args.push("-e".to_string());
+        args.push(item.clone());
+    }
+    args.push(image.to_string());
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    docker_status(&arg_refs, &format!("start container {}", name))
+}
+
 /// Get container stats
 pub fn get_container_stats(name: &str) -> Result<Option<ContainerStats>> {
     let output = docker_output(
@@ -376,7 +547,8 @@ pub fn estimate_resources(max_opcode_containers: u32) -> (String, String, String
 
 #[cfg(test)]
 mod tests {
-    use super::{image_repository, select_old_image_ids_to_remove};
+    use super::{extract_remote_digest, image_repository, select_old_image_ids_to_remove};
+    use serde_json::json;
     use std::collections::HashSet;
 
     #[test]
@@ -429,5 +601,18 @@ mod tests {
         );
 
         assert_eq!(removable, vec!["sha256:old-unused".to_string()]);
+    }
+
+    #[test]
+    fn extract_remote_digest_prefers_descriptor_digest() {
+        let payload = json!({
+            "Ref": "ghcr.io/d1vai/d1v-runtime-agent:latest",
+            "Descriptor": {"digest": "sha256:manifest"},
+            "SchemaV2Manifest": {"config": {"digest": "sha256:config"}}
+        });
+        assert_eq!(
+            extract_remote_digest(&payload).as_deref(),
+            Some("sha256:manifest")
+        );
     }
 }

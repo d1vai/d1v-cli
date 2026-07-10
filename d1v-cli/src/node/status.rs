@@ -57,11 +57,7 @@ fn show_status(json_output: bool) -> Result<()> {
     Ok(())
 }
 
-fn print_container_section(
-    label: &str,
-    info: &Option<docker::ContainerInfo>,
-    not_found_msg: &str,
-) {
+fn print_container_section(label: &str, info: &Option<docker::ContainerInfo>, not_found_msg: &str) {
     println!("{}:", label);
     match info {
         Some(info) => {
