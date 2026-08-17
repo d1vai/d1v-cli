@@ -149,7 +149,7 @@ https://d1v.ai/cli-install
 Alternatives:
 
 ```sh
-brew install d1v-ai/tap/d1v
+brew install d1vai/tap/d1v
 cargo binstall d1v-cli
 cargo install --locked d1v-cli
 ```
