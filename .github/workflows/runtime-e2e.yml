@@ -85,11 +85,14 @@ jobs:
       - name: Verify installed runtime binary
         run: ~/.d1v/bin/opcode-api --version
 
-      - name: Install Python test dependency
-        run: python3 -m pip install aiohttp
+      - name: Set up Python test environment
+        run: |
+          python3 -m venv "$RUNNER_TEMP/d1v-relay-venv"
+          "$RUNNER_TEMP/d1v-relay-venv/bin/python" -m pip install aiohttp
 
       - name: Run agent relay e2e
-        run: python3 scripts/test-agent-relay-e2e.py target/release/d1v
+        run: |
+          "$RUNNER_TEMP/d1v-relay-venv/bin/python" scripts/test-agent-relay-e2e.py target/release/d1v
 
       - name: Stop runtime manifest server
         if: always()
