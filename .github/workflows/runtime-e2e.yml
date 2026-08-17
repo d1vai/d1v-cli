@@ -38,20 +38,20 @@ jobs:
           exit 1
           SH
           chmod +x dist/runtime/stub/opcode-api
-          tar -C dist/runtime/stub -czf dist/runtime/opcode-api-x86_64-unknown-linux-gnu.tar.gz opcode-api
+          tar -C dist/runtime/stub -czf dist/runtime/opcode-api-x86_64-unknown-linux-musl.tar.gz opcode-api
           python3 - <<'PY'
           import json
           import hashlib
           from pathlib import Path
 
-          archive = Path("dist/runtime/opcode-api-x86_64-unknown-linux-gnu.tar.gz")
+          archive = Path("dist/runtime/opcode-api-x86_64-unknown-linux-musl.tar.gz")
           sha256 = hashlib.sha256(archive.read_bytes()).hexdigest()
           Path(str(archive) + ".sha256").write_text(f"{sha256}\n", encoding="utf-8")
           manifest = {
               "version": "v0.0.0-e2e",
               "assets": [
                   {
-                      "target": "x86_64-unknown-linux-gnu",
+                      "target": "x86_64-unknown-linux-musl",
                       "url": archive.name,
                       "sha256": sha256,
                       "archive_name": archive.name,
