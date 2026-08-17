@@ -22,6 +22,7 @@ pub mod prompt;
 pub mod recorder;
 pub mod runtime_install;
 pub mod session;
+pub mod skill;
 pub mod symbols;
 pub mod text;
 pub mod theme;
@@ -58,6 +59,24 @@ impl Context {
         color: ColorChoice,
         base_url_override: BaseUrlCandidate,
     ) -> Result<Self> {
+        Self::build(format, color, base_url_override, true)
+    }
+
+    /// Builds a context without querying token providers.
+    pub fn new_without_token_lookup(
+        format: Format,
+        color: ColorChoice,
+        base_url_override: BaseUrlCandidate,
+    ) -> Result<Self> {
+        Self::build(format, color, base_url_override, false)
+    }
+
+    fn build(
+        format: Format,
+        color: ColorChoice,
+        base_url_override: BaseUrlCandidate,
+        load_token: bool,
+    ) -> Result<Self> {
         let config = Config::load()?;
         let tokens = TokenChain::default();
 
@@ -74,8 +93,10 @@ impl Context {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
 
-        if let Ok(Some(token)) = tokens.lookup() {
-            builder = builder.token(token);
+        if load_token {
+            if let Ok(Some(token)) = tokens.lookup() {
+                builder = builder.token(token);
+            }
         }
 
         let client = builder.build().map_err(|err| match err {

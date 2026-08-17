@@ -2,25 +2,38 @@
 
 ## Current Execution
 
-- Goal: add `d1v node image {status,check,pull,prune}` and `d1v node upgrade` so node image lifecycle becomes explicit and runtime-agent upgrades can reuse current container config safely.
+- Goal: finish API-key/CLI onboarding E2E coverage and ensure `d1v skill install` works immediately in a completely logged-out environment.
 - Background:
-  - current `d1v node start` now prefers cached images and prunes unused stale images after start.
-  - there is no first-class command for operators to inspect whether the node runtime-agent image is current, pull the target image independently, or recreate the node against a newer runtime-agent image while preserving existing env/binds/network settings.
+  - user-level API keys now cover the critical project, storage, environment, Preview, asset, and websocket paths.
+  - the installer can log in from an API key and install the d1v skill for Codex and Claude Code.
+  - browser and process-level E2E found that `d1v skill install` is marked unauthenticated but still probes the OS credential chain while constructing `Context`, which can block on an empty/keyring-only machine.
 - Selected validators:
   - `@cli-ux-qa`
-  - `@ops-reliability-qa`
+  - `@auth-state-qa`
   - `@docs-adoption-qa`
+  - `@api-backend-qa`
 - Todo:
-  - [x] Add node image lifecycle subcommands and shared inspect/pull/prune helpers.
-    - Evidence: added `d1v node image {status,check,pull,prune}` command surface plus docker helpers for local image id lookup, remote digest lookup, container runtime config inspection, container recreation, and stale-image pruning in `d1v-cli/src/node/{docker.rs,image.rs,node.rs}`.
-  - [x] Implement `d1v node upgrade` using current container inspection, remote digest check, recreate, health check, and rollback.
-    - Evidence: added `d1v node upgrade` in `d1v-cli/src/node/upgrade.rs`; upgrade now compares current local image id against remote digest, pulls when needed, recreates `d1v-runtime-agent-platform` with inspected env/binds/network settings, waits on `/health`, rolls back on failure, and optionally persists a new `D1V_OPCODE_IMAGE`.
-  - [x] Verify with `cargo fmt`, targeted tests, full `cargo test -p d1v-cli --lib`, and help output.
+  - [x] Make the skill command construct a context without reading any token provider.
+    - Evidence: `Command::Skill` now uses `Context::new_without_token_lookup`; a real compiled CLI installed both Codex and Claude skills in an isolated HOME with `D1V_API_KEY` and `D1V_AUTH_TOKEN` removed, completing in under one second.
+  - [x] Verify the logged-in and logged-out `/cli-install` UI on desktop and mobile.
+    - Evidence: ego-browser task space 8 verified the logged-out command, authenticated API-key POST, personalized `--api-key` and `--install-skill all` command, desktop screenshots, and a 390x844 mobile viewport with no horizontal overflow or clipped button text; the task space was closed after verification.
+  - [x] Run backend, CLI, installer, and frontend regression suites and record evidence.
     - Evidence:
-      - `cargo fmt --all`
-      - `cargo test -p d1v-cli --lib -- --nocapture`
-      - `cargo run -p d1v-cli -- node image status --help`
-      - `cargo run -p d1v-cli -- node upgrade --help`
+      - backend changed-path suite: 43 tests passed across critical API-key, key management, Preview, asset, and storage paths.
+      - CLI: `cargo fmt --all -- --check`, `cargo test` (126 passed), and `cargo check` passed.
+      - installer: process-level E2E passed for plain and API-key bootstraps in both the CLI and web copies; API-key stdin handling, non-leakage, skill args, and conditional next-step guidance were asserted.
+      - frontend: `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed; `/cli-skill.md` returned `200 text/markdown`.
+      - root, CLI, and frontend `git diff --check` passed.
+
+### Validator Handoff
+
+- Result: passed.
+- Checked: CLI UX, logged-out and API-key auth states, public skill discovery, critical backend API access, installer behavior, desktop/mobile UI, and build integrity.
+- Passed: all selected validators and automated suites listed above.
+- Failed: none remaining; the unauthenticated skill keyring stall and plain-installer auth guidance regression were fixed and re-run successfully.
+- Not checked: production deployment and live production API mutation were outside this E2E-only execution.
+- Risk: frontend production build retains pre-existing bundle-size warnings; no new test failure or diff hygiene issue remains.
+- Plan update: current execution complete.
 
 ## 设计思想与需求背景
 

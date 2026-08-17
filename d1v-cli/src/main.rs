@@ -15,8 +15,8 @@ use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
     BaseUrlCandidate, Context, agent, api_key, auth, base_url, config, db, debug, deploy, env,
-    expose, github, i18n, logging, node, project, runtime_install, session, t, upgrade, user,
-    workspace,
+    expose, github, i18n, logging, node, project, runtime_install, session, skill, t, upgrade,
+    user, workspace,
 };
 
 #[derive(Parser)]
@@ -131,6 +131,11 @@ enum Command {
         #[command(subcommand)]
         command: RuntimeCommand,
     },
+    /// Install or update d1v instructions for coding agents
+    Skill {
+        #[command(subcommand)]
+        command: skill::SkillCommand,
+    },
     /// Initialize a local directory as a d1v workspace
     Init(workspace::InitArgs),
     /// Inspect local workspace pull readiness
@@ -154,6 +159,7 @@ impl Command {
             | Command::Config { .. }
             | Command::Debug
             | Command::Runtime { .. }
+            | Command::Skill { .. }
             | Command::Upgrade(..)
             | Command::Uninstall(..)
             | Command::Banner => false,
@@ -253,7 +259,11 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
             .map_err(anyhow::Error::from)?
     };
 
-    let ctx = Context::new(cli.format, cli.color.as_choice(), base_url_override)?;
+    let ctx = if matches!(&cli.command, Command::Skill { .. }) {
+        Context::new_without_token_lookup(cli.format, cli.color.as_choice(), base_url_override)?
+    } else {
+        Context::new(cli.format, cli.color.as_choice(), base_url_override)?
+    };
 
     if cli.command.requires_auth() {
         if ctx.tokens.lookup()?.is_none() {
@@ -320,6 +330,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
             RuntimeCommand::Upgrade(args) => runtime_install::run_upgrade(&ctx, args).await,
             RuntimeCommand::Doctor(args) => runtime_install::run_doctor(&ctx, args).await,
         },
+        Command::Skill { command } => skill::run(&ctx, command).await,
         Command::Init(args) => workspace::init(&ctx, args).await,
         Command::Pull(args) => workspace::pull(&ctx, args).await,
         Command::Push(args) => workspace::push(&ctx, args).await,

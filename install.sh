@@ -7,6 +7,9 @@ VERSION=""
 PRINT_ONLY="false"
 NO_MODIFY_PATH="false"
 UNINSTALL="false"
+API_KEY=""
+SKILL_TARGET=""
+AUTH_NEXT="d1v auth login"
 
 usage() {
   cat <<'EOF'
@@ -20,6 +23,8 @@ Options:
   --install-dir <dir>   Override target install directory
   --print-url           Print the resolved download URL and exit
   --uninstall           Remove the installed d1v binary
+  --api-key <key>       Save a user API key after installation
+  --install-skill <to>  Install the d1v skill for codex, claude, or all
   --no-modify-path      Do not append INSTALL_DIR to shell rc files
   --help                Show this help
 EOF
@@ -42,6 +47,16 @@ while [ "$#" -gt 0 ]; do
     --uninstall)
       UNINSTALL="true"
       shift
+      ;;
+    --api-key)
+      API_KEY="${2:-}"
+      [ -n "$API_KEY" ] || { echo "--api-key requires a value" >&2; exit 1; }
+      shift 2
+      ;;
+    --install-skill)
+      SKILL_TARGET="${2:-}"
+      case "$SKILL_TARGET" in codex|claude|all) ;; *) echo "--install-skill must be codex, claude, or all" >&2; exit 1 ;; esac
+      shift 2
       ;;
     --no-modify-path)
       NO_MODIFY_PATH="true"
@@ -213,6 +228,17 @@ if [ "$NO_MODIFY_PATH" != "true" ]; then
   esac
 fi
 
+if [ -n "$API_KEY" ]; then
+  printf '%s\n' "$API_KEY" | "$INSTALL_DIR/d1v" auth login --api-key
+  API_KEY=""
+  AUTH_NEXT="d1v auth status"
+  echo "Authenticated d1v CLI with the supplied API key."
+fi
+
+if [ -n "$SKILL_TARGET" ]; then
+  "$INSTALL_DIR/d1v" skill install --agent "$SKILL_TARGET"
+fi
+
 cat <<EOF
 
   __   __
@@ -223,7 +249,7 @@ cat <<EOF
 d1v-cli installed to: $INSTALL_DIR/d1v
 
 Next:
-  d1v auth login
+  $AUTH_NEXT
   d1v project list
   d1v github status
 
