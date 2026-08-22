@@ -27,6 +27,7 @@ pub mod protocol;
 use protocol::{ClientControl, ServerControl};
 
 const MAX_CAPTURE_BYTES: usize = 16 * 1024 * 1024;
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(20);
 
 impl From<protocol::ProtocolError> for Error {
     fn from(error: protocol::ProtocolError) -> Self {
@@ -294,6 +295,7 @@ async fn run_terminal(
         ThreadedStdin::spawn()?,
         tokio::io::stdout(),
         true,
+        HEARTBEAT_INTERVAL,
     )
     .await
 }
@@ -305,6 +307,7 @@ async fn run_terminal_with_io<R, W>(
     mut stdin: R,
     mut stdout: W,
     interactive_tty: bool,
+    heartbeat_period: Duration,
 ) -> Result<i32>
 where
     R: tokio::io::AsyncRead + Unpin,
@@ -348,6 +351,13 @@ where
     let mut size = (initial_cols, initial_rows);
     let mut resize_interval = tokio::time::interval(Duration::from_millis(100));
     resize_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut heartbeat_interval = tokio::time::interval_at(
+        tokio::time::Instant::now() + heartbeat_period,
+        heartbeat_period,
+    );
+    heartbeat_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut heartbeat_sequence = 0_i64;
+    let mut awaiting_heartbeat = None;
 
     loop {
         tokio::select! {
@@ -373,9 +383,12 @@ where
                     }
                     Some(Ok(Message::Text(frame))) => {
                         match protocol::decode_control(frame.as_ref())? {
-                            ServerControl::Ready { .. }
-                            | ServerControl::Cwd { .. }
-                            | ServerControl::Pong { .. } => {}
+                            ServerControl::Ready { .. } | ServerControl::Cwd { .. } => {}
+                            ServerControl::Pong { timestamp } => {
+                                if awaiting_heartbeat == Some(timestamp) {
+                                    awaiting_heartbeat = None;
+                                }
+                            }
                             ServerControl::Exit { code, .. } => {
                                 stdout.flush().await?;
                                 return Ok(code.unwrap_or(1));
@@ -417,6 +430,18 @@ where
                     )).await.map_err(|error| anyhow!("failed to resize terminal: {error}"))?;
                 }
             }
+            _ = heartbeat_interval.tick() => {
+                if awaiting_heartbeat.is_some() {
+                    return Err(anyhow!("terminal application heartbeat timed out").into());
+                }
+                heartbeat_sequence = heartbeat_sequence.saturating_add(1);
+                awaiting_heartbeat = Some(heartbeat_sequence);
+                socket.send(Message::Text(
+                    protocol::encode_control(&ClientControl::Ping {
+                        timestamp: heartbeat_sequence,
+                    })?
+                )).await.map_err(|error| anyhow!("failed to send terminal heartbeat: {error}"))?;
+            }
         }
     }
 }
@@ -424,6 +449,14 @@ where
 async fn run_exec_connection(
     connection: ShellConnection,
     capture: bool,
+) -> Result<(i32, Vec<u8>, Vec<u8>)> {
+    run_exec_connection_with_heartbeat(connection, capture, HEARTBEAT_INTERVAL).await
+}
+
+async fn run_exec_connection_with_heartbeat(
+    connection: ShellConnection,
+    capture: bool,
+    heartbeat_period: Duration,
 ) -> Result<(i32, Vec<u8>, Vec<u8>)> {
     let mut request = connection
         .websocket_url
@@ -461,8 +494,17 @@ async fn run_exec_connection(
     let mut captured_stderr = Vec::new();
     let mut stdout = tokio::io::stdout();
     let mut stderr = tokio::io::stderr();
-    while let Some(message) = socket.next().await {
-        match message {
+    let mut heartbeat_interval = tokio::time::interval_at(
+        tokio::time::Instant::now() + heartbeat_period,
+        heartbeat_period,
+    );
+    heartbeat_interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut heartbeat_sequence = 0_i64;
+    let mut awaiting_heartbeat = None;
+    loop {
+        tokio::select! {
+        message = socket.next() => match message {
+            Some(message) => match message {
             Ok(Message::Binary(frame)) => {
                 let (channel, payload) = protocol::decode_server_binary(&frame)?;
                 if capture {
@@ -491,9 +533,12 @@ async fn run_exec_connection(
                 }
             }
             Ok(Message::Text(frame)) => match protocol::decode_control(frame.as_ref())? {
-                ServerControl::Ready { .. }
-                | ServerControl::Cwd { .. }
-                | ServerControl::Pong { .. } => {}
+                ServerControl::Ready { .. } | ServerControl::Cwd { .. } => {}
+                ServerControl::Pong { timestamp } => {
+                    if awaiting_heartbeat == Some(timestamp) {
+                        awaiting_heartbeat = None;
+                    }
+                }
                 ServerControl::Exit { code, .. } => {
                     stdout.flush().await?;
                     stderr.flush().await?;
@@ -518,9 +563,23 @@ async fn run_exec_connection(
             }
             Ok(Message::Pong(_) | Message::Frame(_)) => {}
             Err(error) => return Err(anyhow!("exec WebSocket error: {error}").into()),
+            },
+            None => return Err(anyhow!("exec connection ended before exit status").into()),
+        },
+        _ = heartbeat_interval.tick() => {
+            if awaiting_heartbeat.is_some() {
+                return Err(anyhow!("exec application heartbeat timed out").into());
+            }
+            heartbeat_sequence = heartbeat_sequence.saturating_add(1);
+            awaiting_heartbeat = Some(heartbeat_sequence);
+            socket.send(Message::Text(
+                protocol::encode_control(&ClientControl::Ping {
+                    timestamp: heartbeat_sequence,
+                })?
+            )).await.map_err(|error| anyhow!("failed to send exec heartbeat: {error}"))?;
+        }
         }
     }
-    Err(anyhow!("exec connection ended before exit status").into())
 }
 
 #[cfg(test)]
@@ -630,6 +689,19 @@ mod tests {
                 .send(Message::Binary(b"\x01ready\r\n".as_slice().into()))
                 .await
                 .unwrap();
+            let heartbeat = socket.next().await.unwrap().unwrap().into_text().unwrap();
+            let heartbeat: serde_json::Value = serde_json::from_str(&heartbeat).unwrap();
+            assert_eq!(heartbeat["type"], "ping");
+            socket
+                .send(Message::Text(
+                    serde_json::json!({
+                        "type": "pong",
+                        "timestamp": heartbeat["timestamp"],
+                    })
+                    .to_string(),
+                ))
+                .await
+                .unwrap();
             socket
                 .send(Message::Text(
                     r#"{"type":"exit","code":7,"signal":null}"#.into(),
@@ -654,10 +726,17 @@ mod tests {
         let (output_writer, mut output_reader) = tokio::io::duplex(1024);
         input_writer.write_all(b"echo ready\n").await.unwrap();
 
-        let exit_code =
-            run_terminal_with_io(connection, 80, 24, input_reader, output_writer, false)
-                .await
-                .unwrap();
+        let exit_code = run_terminal_with_io(
+            connection,
+            80,
+            24,
+            input_reader,
+            output_writer,
+            false,
+            Duration::from_millis(10),
+        )
+        .await
+        .unwrap();
         drop(input_writer);
         let mut output = Vec::new();
         output_reader.read_to_end(&mut output).await.unwrap();
@@ -708,6 +787,19 @@ mod tests {
                 ))
                 .await
                 .unwrap();
+            let heartbeat = socket.next().await.unwrap().unwrap().into_text().unwrap();
+            let heartbeat: serde_json::Value = serde_json::from_str(&heartbeat).unwrap();
+            assert_eq!(heartbeat["type"], "ping");
+            socket
+                .send(Message::Text(
+                    serde_json::json!({
+                        "type": "pong",
+                        "timestamp": heartbeat["timestamp"],
+                    })
+                    .to_string(),
+                ))
+                .await
+                .unwrap();
             socket
                 .send(Message::Binary(b"\x01command output\n".as_slice().into()))
                 .await
@@ -736,7 +828,10 @@ mod tests {
             connection_ticket: "exec-secret-ticket".into(),
             ticket_expires_at: "2026-08-22T12:00:30Z".parse::<Timestamp>().unwrap(),
         };
-        let (exit_code, stdout, stderr) = run_exec_connection(connection, true).await.unwrap();
+        let (exit_code, stdout, stderr) =
+            run_exec_connection_with_heartbeat(connection, true, Duration::from_millis(10))
+                .await
+                .unwrap();
         server.await.unwrap();
 
         assert!(*saw_auth.lock().unwrap());
