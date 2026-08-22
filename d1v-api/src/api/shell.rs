@@ -2,6 +2,7 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 use crate::encode::encode_segment;
+use crate::time::{deserialize_optional_timestamp, deserialize_timestamp};
 use crate::{Client, Error};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +102,7 @@ pub struct ShellConnection {
     pub transport: ShellTransport,
     pub websocket_url: String,
     pub connection_ticket: String,
+    #[serde(deserialize_with = "deserialize_timestamp")]
     pub ticket_expires_at: Timestamp,
 }
 
@@ -114,9 +116,13 @@ pub struct ShellSession {
     pub cwd: String,
     pub mode: ShellMode,
     pub status: ShellSessionStatus,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub created_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub connected_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub last_seen_at: Option<Timestamp>,
+    #[serde(default, deserialize_with = "deserialize_optional_timestamp")]
     pub ended_at: Option<Timestamp>,
     pub exit_code: Option<i32>,
     pub termination_reason: Option<String>,
@@ -239,10 +245,10 @@ mod tests {
                 "cwd": "/workspace-root",
                 "mode": "pty",
                 "status": "terminated",
-                "created_at": "2026-08-22T12:00:00Z",
+                "created_at": "2026-08-22T12:00:00",
                 "connected_at": null,
                 "last_seen_at": null,
-                "ended_at": "2026-08-22T12:00:05Z",
+                "ended_at": "2026-08-22T12:00:05.123456",
                 "exit_code": 0,
                 "termination_reason": "client_close",
                 "bytes_in": 4,
@@ -319,7 +325,10 @@ mod tests {
         project_mock.assert();
         close_mock.assert();
         assert_eq!(closed.status, ShellSessionStatus::Terminated);
-        assert_eq!(closed.ended_at.unwrap().to_string(), "2026-08-22T12:00:05Z");
+        assert_eq!(
+            closed.ended_at.unwrap().to_string(),
+            "2026-08-22T12:00:05.123456Z"
+        );
     }
 
     #[tokio::test]
