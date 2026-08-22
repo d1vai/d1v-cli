@@ -2,28 +2,31 @@
 
 ## Current Execution
 
-- Goal: add a repeatable process-level E2E for `d1v shell` and `d1v exec`.
-- Background: Rust unit tests cover protocol helpers and loopback sockets, but release verification also needs to execute the compiled CLI against the complete HTTP create -> authenticated WebSocket -> output/exit -> DELETE lifecycle.
-- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`.
+- Goal: ship managed shell completion with the local Opcode runtime and record a repeatable real-relay performance baseline before the production integration gate.
+- Background: the terminal gateway intentionally skips user profiles for deterministic startup. Platform images contain a managed shell init, but binary local runtimes also need the same verified asset installed beside `opcode-api` and passed to the child process.
+- Selected validators: `@cli-ux-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`, `@ops-reliability-qa`.
 - Todo:
-  - [x] Add `scripts/test-shell-e2e.py` with a real compiled CLI and loopback control/runtime server.
-    - Acceptance: validates bearer auth, workspace/project/organization request shapes, one-time ticket header, negotiated `d1v-terminal.v1`, binary stdout/stderr channels, JSON stability, non-zero remote exit propagation, resize/signal controls, terminal restoration, and DELETE cleanup.
-    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`.
-    - Evidence: the process E2E passed against a freshly built debug binary. It caught and fixed a real shutdown hang caused by uncancellable `tokio::io::stdin()` reads; the bounded threaded stdin bridge now lets remote exit complete while its PTY remains open, and the test verifies raw-mode restoration afterward. Project/org request shapes, valid/expired auth, ticket header redaction, protocol negotiation, stdout/stderr channels, JSON output, exit 23, resize, Ctrl-C input, non-TTY rejection, and all three DELETE cleanups passed.
-  - [x] Run formatting, the process E2E, command help/debug smoke, and full workspace tests.
-    - Acceptance: E2E passes with a locally built binary; `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo run -p d1v-cli -- --help`, and JSON debug remain green.
-    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@auth-state-qa`, `@session-runtime-qa`.
-    - Evidence: `rustup run 1.95.0 cargo fmt --all -- --check` passed; the workspace completed 327 tests with one existing ignored and zero failures; the process E2E passed; command help exited successfully; JSON debug parsed with stable `version` and `base_url` fields. The explicit toolchain is required because the machine's default stable installation has mismatched Cargo 1.91 and rustc 1.95 components.
+  - [x] Install the checksummed `d1v-shell-init.sh` asset beside the local runtime binary and inject it only when terminal bootstrap is enabled.
+    - Acceptance: old binary-only archives remain compatible; new archives install the asset atomically before switching the runtime binary; disabled terminal mode does not load it.
+    - Validators: `@ops-reliability-qa`, `@security-privacy-qa`, `@auth-state-qa`.
+    - Evidence: runtime installer tests and Agent environment tests passed; the real local Agent + Opcode relay E2E loaded `d1v-project` and completed `project-1` inside the PTY.
+  - [x] Extend the real local relay E2E with an optional machine-readable reduced benchmark profile.
+    - Acceptance: uses real `d1v agent`, `opcode-api`, Ed25519 tickets, PTY bytes, resize, Ctrl-C, Tab, status, terminate, and replay protection; reports p50/p95/p99, errors, RSS, file descriptors, and environment scope.
+    - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
+    - Evidence: 200 command roundtrips completed with zero errors; p50/p95/p99 were 3.45/4.376/5.03 ms on the recorded loopback debug-runtime profile. This is not a production SLO result.
+  - [ ] Run formatting, full workspace tests, help/JSON smoke, and the real relay E2E after all integration changes.
+    - Acceptance: `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo run -p d1v-cli -- --help`, JSON debug parsing, and the local terminal relay E2E all pass.
+    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
 
 ### Validator Handoff
 
-- Result: passed for compiled CLI Shell/Exec behavior and workspace regression.
-- Checked: compiled CLI HTTP/WebSocket lifecycle, interactive PTY lifecycle, auth, request scopes, binary output, JSON, exit codes, resize, Ctrl-C, raw-mode restoration, and cleanup.
-- Passed: both current-execution todos plus prior Shell/Exec implementation, documentation, and relay handshake work.
+- Result: implementation and reduced local relay benchmark passed; full workspace and production integration gates remain open.
+- Checked: managed completion asset installation, terminal bootstrap injection, real local PTY completion, relay lifecycle, and machine-readable latency/resource evidence.
+- Passed: installer/Agent unit tests, real local relay E2E, and the 200-roundtrip reduced profile.
 - Failed: none.
-- Not checked: live production Runtime Agent and production relay deployment.
-- Risk: a loopback E2E proves CLI behavior but does not replace the root live Runtime Agent or production tests.
-- Plan update: process E2E and the remote-exit stdin lifecycle fix are complete; return to root integration and deployment gates.
+- Not checked: final full workspace suite, live production Runtime Agent, production browser flow, representative-node load/soak, and production relay deployment.
+- Risk: loopback debug-runtime latency excludes control-plane creation, container cold start, cross-region networking, and production node contention.
+- Plan update: run the remaining full validators, then return to root browser, image, deployment, and production verification gates.
 
 ## 设计思想与需求背景
 
