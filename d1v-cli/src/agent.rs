@@ -858,6 +858,7 @@ async fn maybe_spawn_opcode(
         log_path.display()
     ));
 
+    let shell_init_path = runtime_install::runtime_shell_init_path(&bin);
     let mut command = Command::new(bin);
     command
         .env("WORKSPACE_ROOT", workspace_root)
@@ -866,7 +867,14 @@ async fn maybe_spawn_opcode(
         .env("OPCODE_CLOUD_CONTROL_URL", cloud_control_url)
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(log_file_err));
-    configure_terminal_command(&mut command, config, terminal_bootstrap);
+    configure_terminal_command(
+        &mut command,
+        config,
+        terminal_bootstrap,
+        shell_init_path
+            .is_file()
+            .then_some(shell_init_path.as_path()),
+    );
     let child = command.spawn()?;
 
     for _ in 0..20 {
@@ -902,6 +910,7 @@ fn configure_terminal_command(
     command: &mut Command,
     config: &AgentConfig,
     terminal_bootstrap: &RuntimeTerminalBootstrap,
+    shell_init_path: Option<&Path>,
 ) {
     command
         .env(
@@ -920,6 +929,9 @@ fn configure_terminal_command(
             )
             .env("D1V_SHELL_TICKET_ISSUER", &terminal_bootstrap.issuer)
             .env("D1V_SHELL_TICKET_AUDIENCE", &terminal_bootstrap.audience);
+        if let Some(shell_init_path) = shell_init_path {
+            command.env("D1V_SHELL_INIT_PATH", shell_init_path);
+        }
     }
 }
 
@@ -1834,7 +1846,12 @@ localhost:3000\n\
         };
         let mut command = Command::new("opcode-api");
 
-        configure_terminal_command(&mut command, &config, &bootstrap);
+        configure_terminal_command(
+            &mut command,
+            &config,
+            &bootstrap,
+            Some(Path::new("/managed/d1v-shell-init.sh")),
+        );
 
         assert_eq!(
             command_env(&command, "OPCODE_RUNTIME_NODE_ID").as_deref(),
@@ -1855,6 +1872,10 @@ localhost:3000\n\
         assert_eq!(
             command_env(&command, "D1V_SHELL_TICKET_AUDIENCE").as_deref(),
             Some("audience")
+        );
+        assert_eq!(
+            command_env(&command, "D1V_SHELL_INIT_PATH").as_deref(),
+            Some("/managed/d1v-shell-init.sh")
         );
     }
 

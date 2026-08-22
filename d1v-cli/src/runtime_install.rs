@@ -19,6 +19,7 @@ use crate::output::Format;
 
 const DEFAULT_RUNTIME_REPO: &str = "d1vai/opcode-api-runtime";
 const RUNTIME_ARCHIVE_BASENAME: &str = "opcode-api";
+const RUNTIME_SHELL_INIT_BASENAME: &str = "d1v-shell-init.sh";
 const RUNTIME_CHECKSUM_FILE: &str = "checksums.txt";
 
 #[derive(Debug, Args, Clone)]
@@ -256,6 +257,13 @@ pub fn default_runtime_binary_path() -> Result<PathBuf> {
     Ok(Config::dir()?.join("bin").join("opcode-api"))
 }
 
+pub fn runtime_shell_init_path(runtime_binary: &Path) -> PathBuf {
+    runtime_binary
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(RUNTIME_SHELL_INIT_BASENAME)
+}
+
 async fn install_release(ctx: &Context, release: &ReleaseInfo) -> Result<()> {
     if matches!(ctx.output.format, Format::Text) {
         ctx.info(format!(
@@ -273,6 +281,13 @@ async fn install_release(ctx: &Context, release: &ReleaseInfo) -> Result<()> {
 
     if let Some(parent) = release.executable_path.parent() {
         fs::create_dir_all(parent)?;
+    }
+    let extracted_shell_init = paths.extracted_dir.join(RUNTIME_SHELL_INIT_BASENAME);
+    if extracted_shell_init.is_file() {
+        install_runtime_asset(
+            &extracted_shell_init,
+            &runtime_shell_init_path(&release.executable_path),
+        )?;
     }
     install_binary(&extracted_binary, &release.executable_path)?;
     let _ = fs::remove_dir_all(&paths.workspace_dir);
@@ -529,6 +544,13 @@ fn install_binary(source: &Path, destination: &Path) -> Result<()> {
     let replacement = destination.with_extension("new");
     fs::copy(source, &replacement)?;
     ensure_executable(&replacement)?;
+    fs::rename(&replacement, destination)?;
+    Ok(())
+}
+
+fn install_runtime_asset(source: &Path, destination: &Path) -> Result<()> {
+    let replacement = destination.with_extension("new");
+    fs::copy(source, &replacement)?;
     fs::rename(&replacement, destination)?;
     Ok(())
 }
@@ -808,5 +830,23 @@ mod tests {
         assert!(!is_loopback_url(
             "https://runtime.example.com/opcode-api/manifest.json"
         ));
+    }
+
+    #[test]
+    fn installs_runtime_shell_init_next_to_binary() {
+        let directory = tempfile::tempdir().unwrap();
+        let binary = directory.path().join("bin/opcode-api");
+        fs::create_dir_all(binary.parent().unwrap()).unwrap();
+        let source = directory.path().join("d1v-shell-init.sh");
+        fs::write(&source, "# managed completion\n").unwrap();
+        let destination = runtime_shell_init_path(&binary);
+
+        install_runtime_asset(&source, &destination).unwrap();
+
+        assert_eq!(destination, directory.path().join("bin/d1v-shell-init.sh"));
+        assert_eq!(
+            fs::read_to_string(destination).unwrap(),
+            "# managed completion\n"
+        );
     }
 }

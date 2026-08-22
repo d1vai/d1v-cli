@@ -218,6 +218,13 @@ async def exercise_terminal_relay(websocket: web.WebSocketResponse) -> None:
     output = await tunnel.command("pwd")
     if b"project-1" not in output:
         raise RuntimeError("terminal did not map the project cwd")
+    output = await tunnel.command(
+        "type d1v-project >/dev/null && "
+        "COMP_WORDS=(d1v-project pro) COMP_CWORD=1 _d1v_project_completion && "
+        "printf 'project-completion:%s\\n' \"${COMPREPLY[*]}\""
+    )
+    if b"project-completion:project-1" not in output:
+        raise RuntimeError("managed project completion was not loaded")
     await tunnel.send_text({"type": "resize", "cols": 132, "rows": 52})
     await asyncio.sleep(0.1)
     output = await tunnel.command("stty size")
@@ -403,6 +410,9 @@ async def main() -> int:
     env = os.environ.copy()
     env["HOME"] = str(temp_home)
     env["D1V_AUTH_TOKEN"] = "e2e-token"
+    source_tree_init = opcode_binary.parents[2] / "deploy" / "d1v-shell-init.sh"
+    if source_tree_init.is_file():
+        env["D1V_SHELL_INIT_PATH"] = str(source_tree_init)
 
     init_code, init_output = await run_process(
         str(d1v_binary),
