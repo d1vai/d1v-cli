@@ -52,6 +52,8 @@ pub struct CreateShellSessionRequest {
     pub rows: u16,
     pub shell: ShellName,
     pub resume_session_id: Option<String>,
+    pub mode: ShellMode,
+    pub argv: Option<Vec<String>>,
 }
 
 impl CreateShellSessionRequest {
@@ -63,6 +65,8 @@ impl CreateShellSessionRequest {
             rows,
             shell: ShellName::Auto,
             resume_session_id: None,
+            mode: ShellMode::Pty,
+            argv: None,
         }
     }
 
@@ -71,6 +75,16 @@ impl CreateShellSessionRequest {
         Self {
             target: ShellTarget::Project,
             ..Self::workspace(cols, rows)
+        }
+    }
+
+    #[must_use]
+    pub fn exec(argv: Vec<String>) -> Self {
+        Self {
+            target: ShellTarget::Workspace,
+            mode: ShellMode::Exec,
+            argv: Some(argv),
+            ..Self::workspace(120, 40)
         }
     }
 }
@@ -261,7 +275,9 @@ mod tests {
                     "cols": 120,
                     "rows": 40,
                     "shell": "auto",
-                    "resume_session_id": null
+                    "resume_session_id": null,
+                    "mode": "pty",
+                    "argv": null
                 }));
             then.status(200).json_body(connection_response());
         });
@@ -304,5 +320,39 @@ mod tests {
         close_mock.assert();
         assert_eq!(closed.status, ShellSessionStatus::Terminated);
         assert_eq!(closed.ended_at.unwrap().to_string(), "2026-08-22T12:00:05Z");
+    }
+
+    #[tokio::test]
+    async fn creates_exec_session_with_argv() {
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/workspace/shell-sessions")
+                .json_body(json!({
+                    "target": "workspace",
+                    "cols": 120,
+                    "rows": 40,
+                    "shell": "auto",
+                    "resume_session_id": null,
+                    "mode": "exec",
+                    "argv": ["git", "status", "--short"]
+                }));
+            then.status(200).json_body(connection_response());
+        });
+
+        client(&server)
+            .shell()
+            .create_workspace(
+                None,
+                &CreateShellSessionRequest::exec(vec![
+                    "git".into(),
+                    "status".into(),
+                    "--short".into(),
+                ]),
+            )
+            .await
+            .unwrap();
+
+        mock.assert();
     }
 }

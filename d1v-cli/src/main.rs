@@ -123,6 +123,8 @@ enum Command {
     },
     /// Open an interactive shell in a workspace container
     Shell(shell::ShellArgs),
+    /// Execute a command in a workspace container
+    Exec(shell::ExecArgs),
     /// Manage local device agent runtime
     Agent {
         #[command(subcommand)]
@@ -177,6 +179,7 @@ impl Command {
             | Command::Deploy { .. }
             | Command::Session { .. }
             | Command::Shell(..)
+            | Command::Exec(..)
             | Command::Env { .. }
             | Command::ApiKey { .. } => true,
             Command::Expose(..) => false,
@@ -326,6 +329,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Node { command } => node::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
         Command::Shell(args) => shell::run(&ctx, args).await,
+        Command::Exec(args) => shell::run_exec(&ctx, args).await,
         Command::Env { command } => env::run(&ctx, command).await,
         Command::ApiKey { command } => api_key::run(&ctx, command).await,
         Command::Agent { command } => agent::run(&ctx, command).await,

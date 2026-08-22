@@ -4,6 +4,7 @@ pub const VERSION: u8 = 1;
 pub const SUBPROTOCOL: &str = "d1v-terminal.v1";
 pub const INPUT_CHANNEL: u8 = 0x00;
 pub const OUTPUT_CHANNEL: u8 = 0x01;
+pub const STDERR_CHANNEL: u8 = 0x02;
 pub const MAX_BINARY_PAYLOAD_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -16,6 +17,12 @@ pub enum ProtocolError {
     BinaryPayloadTooLarge,
     #[error("invalid terminal control frame: {0}")]
     InvalidControlFrame(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServerBinaryChannel {
+    Output,
+    Stderr,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -106,16 +113,25 @@ pub fn encode_input(payload: &[u8]) -> Result<Vec<u8>, ProtocolError> {
 }
 
 pub fn decode_output(frame: &[u8]) -> Result<&[u8], ProtocolError> {
+    let (channel, payload) = decode_server_binary(frame)?;
+    if channel != ServerBinaryChannel::Output {
+        return Err(ProtocolError::UnsupportedBinaryChannel(STDERR_CHANNEL));
+    }
+    Ok(payload)
+}
+
+pub fn decode_server_binary(frame: &[u8]) -> Result<(ServerBinaryChannel, &[u8]), ProtocolError> {
     let Some((&channel, payload)) = frame.split_first() else {
         return Err(ProtocolError::EmptyBinaryFrame);
     };
     if payload.len() > MAX_BINARY_PAYLOAD_BYTES {
         return Err(ProtocolError::BinaryPayloadTooLarge);
     }
-    if channel != OUTPUT_CHANNEL {
-        return Err(ProtocolError::UnsupportedBinaryChannel(channel));
+    match channel {
+        OUTPUT_CHANNEL => Ok((ServerBinaryChannel::Output, payload)),
+        STDERR_CHANNEL => Ok((ServerBinaryChannel::Stderr, payload)),
+        _ => Err(ProtocolError::UnsupportedBinaryChannel(channel)),
     }
-    Ok(payload)
 }
 
 #[cfg(test)]
@@ -134,6 +150,10 @@ mod tests {
     #[test]
     fn decodes_output_and_server_controls() {
         assert_eq!(decode_output(b"\x01hello").unwrap(), b"hello");
+        assert_eq!(
+            decode_server_binary(b"\x02problem").unwrap(),
+            (ServerBinaryChannel::Stderr, b"problem".as_slice())
+        );
         assert_eq!(
             decode_control(r#"{"type":"exit","code":7,"signal":null}"#).unwrap(),
             ServerControl::Exit {

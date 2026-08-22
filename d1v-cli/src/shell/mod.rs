@@ -6,6 +6,7 @@ use clap::Args;
 use crossterm::terminal::{self, disable_raw_mode, enable_raw_mode};
 use d1v_api::{CreateShellSessionRequest, ShellConnection};
 use futures_util::{SinkExt, StreamExt};
+use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::MissedTickBehavior;
 use tokio_tungstenite::connect_async;
@@ -22,6 +23,8 @@ pub mod protocol;
 
 use protocol::{ClientControl, ServerControl};
 
+const MAX_CAPTURE_BYTES: usize = 16 * 1024 * 1024;
+
 impl From<protocol::ProtocolError> for Error {
     fn from(error: protocol::ProtocolError) -> Self {
         anyhow!(error).into()
@@ -36,6 +39,32 @@ pub struct ShellArgs {
     /// Organization workspace ID (workspace-root shells only)
     #[arg(long, value_name = "ID")]
     pub organization_id: Option<u64>,
+}
+
+#[derive(Debug, Clone, Args)]
+#[command(trailing_var_arg = true)]
+pub struct ExecArgs {
+    /// Project directory target; omit to execute at the workspace root
+    #[arg(long, value_name = "ID")]
+    pub project_id: Option<String>,
+
+    /// Organization workspace ID (workspace-root exec only)
+    #[arg(long, value_name = "ID")]
+    pub organization_id: Option<u64>,
+
+    /// Command and arguments, conventionally separated with --
+    #[arg(required = true, allow_hyphen_values = true)]
+    pub command: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct ExecResult {
+    session_id: String,
+    project_id: Option<String>,
+    cwd: String,
+    exit_code: i32,
+    stdout: String,
+    stderr: String,
 }
 
 struct RawTerminal;
@@ -74,6 +103,71 @@ pub async fn run(ctx: &Context, args: ShellArgs) -> Result<()> {
     } else {
         Err(Error::RemoteExit(exit_code))
     }
+}
+
+pub async fn run_exec(ctx: &Context, args: ExecArgs) -> Result<()> {
+    validate_exec(&args)?;
+    let mut request = CreateShellSessionRequest::exec(args.command.clone());
+    let api = ctx.client.shell();
+    let connection = if let Some(project_id) = args.project_id.as_deref() {
+        request.target = d1v_api::ShellTarget::Project;
+        api.create_project(project_id, &request).await?
+    } else {
+        api.create_workspace(args.organization_id, &request).await?
+    };
+    let session_id = connection.session_id.clone();
+    let project_id = connection.project_id.clone();
+    let cwd = connection.cwd.clone();
+    let capture = matches!(ctx.output.format, Format::Json);
+    let transport_result = run_exec_connection(connection, capture).await;
+    let cleanup_result = api.close(&session_id).await;
+    let (exit_code, stdout, stderr) = transport_result?;
+
+    if capture {
+        let result = ExecResult {
+            session_id,
+            project_id,
+            cwd,
+            exit_code,
+            stdout: String::from_utf8_lossy(&stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        };
+        ctx.present(crate::text::Text::new(), &result)?;
+    }
+    if let Err(error) = cleanup_result
+        && exit_code == 0
+    {
+        return Err(error.into());
+    }
+    if exit_code == 0 {
+        Ok(())
+    } else {
+        Err(Error::RemoteExit(exit_code))
+    }
+}
+
+fn validate_exec(args: &ExecArgs) -> Result<()> {
+    if args.project_id.is_some() && args.organization_id.is_some() {
+        return Err(anyhow!("--organization-id cannot be used with --project-id").into());
+    }
+    if args.command.is_empty() {
+        return Err(anyhow!("exec command is required after --").into());
+    }
+    let mut total_bytes = 0;
+    for argument in &args.command {
+        let argument_bytes = argument.len();
+        if argument.is_empty() || argument.contains('\0') || argument_bytes > 4096 {
+            return Err(anyhow!(
+                "exec arguments must be non-empty, NUL-free, and at most 4096 bytes"
+            )
+            .into());
+        }
+        total_bytes += argument_bytes;
+    }
+    if args.command.len() > 128 || total_bytes > 32768 {
+        return Err(anyhow!("exec command exceeds the argument limit").into());
+    }
+    Ok(())
 }
 
 fn validate_interactive(args: &ShellArgs, format: Format) -> Result<()> {
@@ -254,6 +348,108 @@ where
     }
 }
 
+async fn run_exec_connection(
+    connection: ShellConnection,
+    capture: bool,
+) -> Result<(i32, Vec<u8>, Vec<u8>)> {
+    let mut request = connection
+        .websocket_url
+        .as_str()
+        .into_client_request()
+        .map_err(|error| anyhow!("invalid terminal WebSocket URL: {error}"))?;
+    request.headers_mut().insert(
+        SEC_WEBSOCKET_PROTOCOL,
+        HeaderValue::from_static(protocol::SUBPROTOCOL),
+    );
+    request.headers_mut().insert(
+        "x-d1v-shell-ticket",
+        HeaderValue::from_str(&connection.connection_ticket)
+            .map_err(|_| anyhow!("invalid terminal connection ticket"))?,
+    );
+    let (mut socket, response) = connect_async(request)
+        .await
+        .map_err(|error| anyhow!("exec WebSocket connection failed: {error}"))?;
+    if response
+        .headers()
+        .get(SEC_WEBSOCKET_PROTOCOL)
+        .and_then(|value| value.to_str().ok())
+        != Some(protocol::SUBPROTOCOL)
+    {
+        return Err(anyhow!("terminal server did not negotiate d1v-terminal.v1").into());
+    }
+    socket
+        .send(Message::Text(
+            protocol::encode_control(&ClientControl::open(120, 40))?.into(),
+        ))
+        .await
+        .map_err(|error| anyhow!("failed to open exec stream: {error}"))?;
+
+    let mut captured_stdout = Vec::new();
+    let mut captured_stderr = Vec::new();
+    let mut stdout = tokio::io::stdout();
+    let mut stderr = tokio::io::stderr();
+    while let Some(message) = socket.next().await {
+        match message {
+            Ok(Message::Binary(frame)) => {
+                let (channel, payload) = protocol::decode_server_binary(&frame)?;
+                if capture {
+                    let destination = match channel {
+                        protocol::ServerBinaryChannel::Output => &mut captured_stdout,
+                        protocol::ServerBinaryChannel::Stderr => &mut captured_stderr,
+                    };
+                    if destination.len().saturating_add(payload.len()) > MAX_CAPTURE_BYTES {
+                        return Err(anyhow!(
+                            "exec output exceeds the 16 MiB JSON capture limit; use text output"
+                        )
+                        .into());
+                    }
+                    destination.extend_from_slice(payload);
+                } else {
+                    match channel {
+                        protocol::ServerBinaryChannel::Output => {
+                            stdout.write_all(payload).await?;
+                            stdout.flush().await?;
+                        }
+                        protocol::ServerBinaryChannel::Stderr => {
+                            stderr.write_all(payload).await?;
+                            stderr.flush().await?;
+                        }
+                    }
+                }
+            }
+            Ok(Message::Text(frame)) => match protocol::decode_control(frame.as_ref())? {
+                ServerControl::Ready { .. }
+                | ServerControl::Cwd { .. }
+                | ServerControl::Pong { .. } => {}
+                ServerControl::Exit { code, .. } => {
+                    stdout.flush().await?;
+                    stderr.flush().await?;
+                    return Ok((code.unwrap_or(1), captured_stdout, captured_stderr));
+                }
+                ServerControl::Error { code, retryable } => {
+                    let suffix = if retryable { " (retryable)" } else { "" };
+                    return Err(anyhow!("exec server error: {code}{suffix}").into());
+                }
+            },
+            Ok(Message::Ping(payload)) => {
+                socket
+                    .send(Message::Pong(payload))
+                    .await
+                    .map_err(|error| anyhow!("failed to answer exec ping: {error}"))?;
+            }
+            Ok(Message::Close(frame)) => {
+                let reason = frame
+                    .map(|value| value.reason.to_string())
+                    .unwrap_or_default();
+                return Err(anyhow!("exec connection closed: {reason}").into());
+            }
+            Ok(Message::Pong(_) | Message::Frame(_)) => {}
+            Err(error) => return Err(anyhow!("exec WebSocket error: {error}").into()),
+        }
+    }
+    Err(anyhow!("exec connection ended before exit status").into())
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -290,6 +486,30 @@ mod tests {
         assert_eq!(normalize_terminal_size((0, 1)), (20, 5));
         assert_eq!(normalize_terminal_size((120, 40)), (120, 40));
         assert_eq!(normalize_terminal_size((u16::MAX, u16::MAX)), (500, 200));
+    }
+
+    #[test]
+    fn validates_exec_scope_and_argument_limits() {
+        let conflicting_scope = ExecArgs {
+            project_id: Some("project_1".into()),
+            organization_id: Some(42),
+            command: vec!["true".into()],
+        };
+        assert!(validate_exec(&conflicting_scope).is_err());
+
+        let empty_argument = ExecArgs {
+            project_id: None,
+            organization_id: None,
+            command: vec![String::new()],
+        };
+        assert!(validate_exec(&empty_argument).is_err());
+
+        let too_many_arguments = ExecArgs {
+            project_id: None,
+            organization_id: None,
+            command: vec!["x".into(); 129],
+        };
+        assert!(validate_exec(&too_many_arguments).is_err());
     }
 
     #[tokio::test]
@@ -373,5 +593,102 @@ mod tests {
         assert!(*saw_auth.lock().unwrap());
         assert_eq!(output, b"ready\r\n");
         assert_eq!(exit_code, 7);
+    }
+
+    #[tokio::test]
+    async fn captures_exec_channels_and_nonzero_exit_over_authenticated_websocket() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let saw_auth = Arc::new(Mutex::new(false));
+        let server_auth = saw_auth.clone();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket =
+                accept_hdr_async(stream, move |request: &Request, mut response: Response| {
+                    assert_eq!(
+                        request.headers().get("x-d1v-shell-ticket").unwrap(),
+                        "exec-secret-ticket"
+                    );
+                    assert_eq!(
+                        request.headers().get(SEC_WEBSOCKET_PROTOCOL).unwrap(),
+                        protocol::SUBPROTOCOL
+                    );
+                    response.headers_mut().insert(
+                        SEC_WEBSOCKET_PROTOCOL,
+                        HeaderValue::from_static(protocol::SUBPROTOCOL),
+                    );
+                    *server_auth.lock().unwrap() = true;
+                    Ok(response)
+                })
+                .await
+                .unwrap();
+
+            let open = socket.next().await.unwrap().unwrap().into_text().unwrap();
+            assert_eq!(
+                open,
+                protocol::encode_control(&ClientControl::open(120, 40)).unwrap()
+            );
+            socket
+                .send(Message::Text(
+                    r#"{"type":"ready","session_id":"sh_exec","cwd":"/workspace-root/project_1"}"#
+                        .into(),
+                ))
+                .await
+                .unwrap();
+            socket
+                .send(Message::Binary(b"\x01command output\n".as_slice().into()))
+                .await
+                .unwrap();
+            socket
+                .send(Message::Binary(b"\x02command error\n".as_slice().into()))
+                .await
+                .unwrap();
+            socket
+                .send(Message::Text(
+                    r#"{"type":"exit","code":23,"signal":null}"#.into(),
+                ))
+                .await
+                .unwrap();
+        });
+
+        let connection = ShellConnection {
+            session_id: "sh_exec".into(),
+            workspace_scope: "user:1".into(),
+            project_id: Some("project_1".into()),
+            runtime_provider: "fabric".into(),
+            node_id: "node_test".into(),
+            cwd: "/workspace-root/project_1".into(),
+            transport: d1v_api::ShellTransport::Direct,
+            websocket_url: format!("ws://{address}/ws/terminal/sh_exec"),
+            connection_ticket: "exec-secret-ticket".into(),
+            ticket_expires_at: "2026-08-22T12:00:30Z".parse::<Timestamp>().unwrap(),
+        };
+        let (exit_code, stdout, stderr) = run_exec_connection(connection, true).await.unwrap();
+        server.await.unwrap();
+
+        assert!(*saw_auth.lock().unwrap());
+        assert_eq!(exit_code, 23);
+        assert_eq!(stdout, b"command output\n");
+        assert_eq!(stderr, b"command error\n");
+
+        let result = ExecResult {
+            session_id: "sh_exec".into(),
+            project_id: Some("project_1".into()),
+            cwd: "/workspace-root/project_1".into(),
+            exit_code,
+            stdout: String::from_utf8(stdout).unwrap(),
+            stderr: String::from_utf8(stderr).unwrap(),
+        };
+        assert_eq!(
+            serde_json::to_value(result).unwrap(),
+            serde_json::json!({
+                "session_id": "sh_exec",
+                "project_id": "project_1",
+                "cwd": "/workspace-root/project_1",
+                "exit_code": 23,
+                "stdout": "command output\n",
+                "stderr": "command error\n"
+            })
+        );
     }
 }
