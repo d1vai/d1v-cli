@@ -2,38 +2,42 @@
 
 ## Current Execution
 
-- Goal: finish API-key/CLI onboarding E2E coverage and ensure `d1v skill install` works immediately in a completely logged-out environment.
+- Goal: ship `d1v shell` and `d1v exec` on the shared, ticketed container terminal protocol used by the web terminal.
 - Background:
-  - user-level API keys now cover the critical project, storage, environment, Preview, asset, and websocket paths.
-  - the installer can log in from an API key and install the d1v skill for Codex and Claude Code.
-  - browser and process-level E2E found that `d1v skill install` is marked unauthenticated but still probes the OS credential chain while constructing `Context`, which can block on an empty/keyring-only machine.
+  - `backend_admin` exposes authorized personal, organization, and project shell-session APIs.
+  - Runtime Agent exposes the binary `d1v-terminal.v1` PTY WebSocket protocol with one-time tickets, resize, signals, exit status, and lifecycle cleanup.
+  - The CLI already uses Crossterm, Tokio, and Tokio Tungstenite; this work must reuse the existing context, token chain, base URL, and output conventions.
 - Selected validators:
   - `@cli-ux-qa`
-  - `@auth-state-qa`
-  - `@docs-adoption-qa`
+  - `@cli-json-qa`
   - `@api-backend-qa`
+  - `@auth-state-qa`
+  - `@session-runtime-qa`
+  - `@docs-adoption-qa`
 - Todo:
-  - [x] Make the skill command construct a context without reading any token provider.
-    - Evidence: `Command::Skill` now uses `Context::new_without_token_lookup`; a real compiled CLI installed both Codex and Claude skills in an isolated HOME with `D1V_API_KEY` and `D1V_AUTH_TOKEN` removed, completing in under one second.
-  - [x] Verify the logged-in and logged-out `/cli-install` UI on desktop and mobile.
-    - Evidence: ego-browser task space 8 verified the logged-out command, authenticated API-key POST, personalized `--api-key` and `--install-skill all` command, desktop screenshots, and a 390x844 mobile viewport with no horizontal overflow or clipped button text; the task space was closed after verification.
-  - [x] Run backend, CLI, installer, and frontend regression suites and record evidence.
-    - Evidence:
-      - backend changed-path suite: 43 tests passed across critical API-key, key management, Preview, asset, and storage paths.
-      - CLI: `cargo fmt --all -- --check`, `cargo test` (126 passed), and `cargo check` passed.
-      - installer: process-level E2E passed for plain and API-key bootstraps in both the CLI and web copies; API-key stdin handling, non-leakage, skill args, and conditional next-step guidance were asserted.
-      - frontend: `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed; `/cli-skill.md` returned `200 text/markdown`.
-      - root, CLI, and frontend `git diff --check` passed.
+  - [x] Add typed shell-session REST/protocol clients and unit tests.
+    - Validators: `@api-backend-qa`, `@session-runtime-qa`.
+    - Acceptance: project/workspace requests, organization scope, no-store ticket handling, protocol framing, and server errors have stable typed behavior.
+    - Evidence: `d1v-api` mock-server tests passed for authenticated organization workspace creation, project/session path encoding, and close metadata; four protocol unit tests passed for open/input/output/exit framing and invalid frames; `cargo check --workspace` passed. `ShellConnection` intentionally omits `Debug` and `Serialize` so tickets cannot enter standard diagnostics or JSON output.
+  - [ ] `in_progress` Add interactive `d1v shell` with raw-mode PTY forwarding, resize, signals, terminal restoration, and exit semantics.
+    - Validators: `@cli-ux-qa`, `@auth-state-qa`, `@session-runtime-qa`.
+    - Acceptance: project and organization targeting are discoverable; stdin/stdout are binary-clean; all normal/error paths restore the terminal and close the server session.
+  - [ ] Add non-interactive `d1v exec` with stable human and JSON output.
+    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`.
+    - Acceptance: command arguments are unambiguous, stdout remains script-safe, JSON fields and process exit behavior are deterministic, and no ticket is printed.
+  - [ ] Document adoption paths and run full CLI regression plus local mocked API/WebSocket smoke tests.
+    - Validators: all selected validators.
+    - Acceptance: README/help examples match implementation; format, test, help, JSON debug, logged-out behavior, API errors, PTY lifecycle, and exec status are recorded below.
 
 ### Validator Handoff
 
-- Result: passed.
-- Checked: CLI UX, logged-out and API-key auth states, public skill discovery, critical backend API access, installer behavior, desktop/mobile UI, and build integrity.
-- Passed: all selected validators and automated suites listed above.
-- Failed: none remaining; the unauthenticated skill keyring stall and plain-installer auth guidance regression were fixed and re-run successfully.
-- Not checked: production deployment and live production API mutation were outside this E2E-only execution.
-- Risk: frontend production build retains pre-existing bundle-size warnings; no new test failure or diff hygiene issue remains.
-- Plan update: current execution complete.
+- Result: in progress.
+- Checked: architecture, existing CLI conventions, typed REST routes, authentication headers, path/query/body shapes, and terminal protocol framing.
+- Passed: planning-first requirement and typed client/protocol todo.
+- Failed: none.
+- Not checked: implementation, local smoke, regression, or production deployment.
+- Risk: a real container E2E requires an enabled deployed control plane and Runtime node; local tests will use an in-process HTTP/WebSocket fixture.
+- Plan update: interactive PTY work is active.
 
 ## 设计思想与需求背景
 

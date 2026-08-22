@@ -38,6 +38,10 @@ pub use crate::api::{
         ApprovalRequest, ApprovalResponse, AutoReviewResponse, ExecuteRequest, ExecuteResponse,
         HistoryResponse, PlanRequest, PlanResponse, ValidateRequest, ValidateResponse,
     },
+    shell::{
+        CreateShellSessionRequest, ShellApi, ShellConnection, ShellMode, ShellName, ShellSession,
+        ShellSessionStatus, ShellTarget, ShellTransport,
+    },
 };
 pub use crate::validate::{
     Code, CodeError, Email, EmailError, UrlError, Validate, ValidationError,

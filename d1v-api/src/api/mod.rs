@@ -3,4 +3,5 @@ pub mod github_app;
 pub mod github_ops;
 pub mod migrations;
 pub mod projects;
+pub mod shell;
 pub mod user;

@@ -22,6 +22,7 @@ pub mod prompt;
 pub mod recorder;
 pub mod runtime_install;
 pub mod session;
+pub mod shell;
 pub mod skill;
 pub mod symbols;
 pub mod text;
