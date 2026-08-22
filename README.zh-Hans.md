@@ -82,18 +82,27 @@ d1v agent init-runtime --project-id <project_id> --path ~/work/my-app
 
 ### Public Expose
 
-平台节点可以通过节点 ingress 暴露 HTTP 服务：
+CLI 免费 expose 不需要运行 node agent：
 
 ```sh
-d1v expose 3000 --node-id <platform-node-id>
+d1v expose 3000
 d1v expose list
 d1v expose close <binding_id>
 ```
 
+平台节点 ingress 使用独立的命令路径：
+
+```sh
+d1v node expose 3000 --node-id <platform-node-id>
+d1v node expose list
+d1v node expose close <binding_id>
+```
+
 当前 expose 模式：
 
-- `cloudflare_tunnel`：返回公开的 `https://*.node.d1v.dev` URL
-- `reverse_relay`：针对没有公网入口的本地/用户设备，返回后端 relay URL
+- `cli_free_relay`：为已登录 CLI 的临时 relay 返回公开的 `https://*.cli-free.d1v.dev` URL
+- `cloudflare_tunnel`：为平台节点返回公开的 `https://*.node.d1v.dev` URL
+- `reverse_relay`：CLI 免费入口内部用于本地/用户 relay 的回退模式
 
 `d1v expose` 当前只面向 HTTP 服务。浏览器 terminal 和 session WebSocket 仍然继续走现有后端 relay。
 
@@ -285,7 +294,9 @@ d1v shell <project_id>
 d1v shell --organization-id <organization_id>
 ```
 
-交互终端直接使用容器内 Bash/Zsh 的原生自动补全。非交互命令把 argv 放在 `--` 后传入：
+不指定目标时，`d1v shell` 会打开个人 workspace 根目录。位置参数中的项目 ID 会进入该项目目录，组织项目也由控制面自动解析。`--organization-id` 会打开组织 workspace 根目录，不能与项目 ID 同时使用。
+
+交互终端要求 TTY，并直接使用容器内 Bash/Zsh 的原生自动补全。Agent、CI 以及需要捕获输出或退出状态的任务应使用非交互 `d1v exec`，把 argv 放在 `--` 后传入：
 
 ```sh
 d1v exec -- git status --short
@@ -296,7 +307,7 @@ d1v --format json exec --project-id <project_id> -- sh -c 'printf ok; printf pro
 
 文本模式会把远端 stdout、stderr 分别流式写到本地对应输出流。JSON 模式稳定返回 `session_id`、`project_id`、`cwd`、`exit_code`、`stdout` 和 `stderr`，同时 CLI 进程会保留远端的非零退出码。交互式 shell 不支持 JSON 输出。
 
-Shell ticket 有效期很短，只通过 WebSocket header 发送，不会进入 URL 或命令输出。终端服务不会持久化终端输入和输出内容。
+CLI 会自动选择符合条件的 direct-node 连接，否则回退到后端 relay；每 20 秒发送一次应用层 heartbeat，避免长时间 session 被中间网络设备误清理。Shell ticket 有效期很短，只通过 WebSocket header 发送，不会进入 URL 或命令输出。终端服务不会持久化终端输入和输出内容。
 
 ### 容器内按需启用集成
 

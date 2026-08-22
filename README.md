@@ -294,7 +294,9 @@ d1v shell <project_id>
 d1v shell --organization-id <organization_id>
 ```
 
-The interactive terminal uses the container's native Bash/Zsh completion. Run a non-interactive command by passing argv after `--`:
+With no target, `d1v shell` opens the personal workspace root. A positional project ID opens that project's directory, including organization-owned projects resolved by the control plane. `--organization-id` opens the organization workspace root and cannot be combined with a project ID.
+
+The interactive terminal requires a TTY and uses the container's native Bash/Zsh completion. For agents, CI, and commands whose output or status must be captured, use non-interactive `d1v exec` and pass argv after `--`:
 
 ```sh
 d1v exec -- git status --short
@@ -305,7 +307,7 @@ d1v --format json exec --project-id <project_id> -- sh -c 'printf ok; printf pro
 
 Text mode streams remote stdout and stderr to the matching local streams. JSON mode returns `session_id`, `project_id`, `cwd`, `exit_code`, `stdout`, and `stderr`, while the CLI process preserves a nonzero remote exit status. Interactive shell does not support JSON output.
 
-Shell tickets are short-lived and sent in the WebSocket header, never in the URL or command output. Terminal input and output are not persisted by the terminal service.
+The CLI automatically selects an eligible direct-node connection and otherwise uses the backend relay. It sends an application heartbeat every 20 seconds so long-lived sessions stay active through intermediaries. Shell tickets are short-lived and sent in the WebSocket header, never in the URL or command output. Terminal input and output are not persisted by the terminal service.
 
 ### Container Integration Ensure
 
