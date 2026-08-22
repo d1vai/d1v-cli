@@ -19,6 +19,14 @@ class _OpcodeHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._write_json({"status": "ok", "service": "opcode-api"})
             return
+        if self.path == "/api/d1v/runtime/capabilities":
+            self._write_json(
+                {
+                    "supports_terminal": True,
+                    "terminal_base_url": "http://127.0.0.1:9191",
+                }
+            )
+            return
         if self.path == "/api/d1v/runtime/projects":
             self._write_json(
                 [
@@ -91,7 +99,41 @@ async def build_backend_app(done: asyncio.Event) -> web.Application:
 
         return ws
 
+    async def runtime_bootstrap(request: web.Request) -> web.Response:
+        assert request.headers.get("Authorization") == "Bearer e2e-token"
+        return web.json_response(
+            {
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "enabled": True,
+                    "public_key": "e2e-public-key",
+                    "issuer": "d1v-control-plane",
+                    "audience": "d1v-runtime-terminal",
+                },
+                "total": None,
+            }
+        )
+
+    async def register_runtime_node(request: web.Request) -> web.Response:
+        assert request.headers.get("Authorization") == "Bearer e2e-token"
+        payload = await request.json()
+        assert payload["node_id"] == "customer-e2e-device-1"
+        assert payload["capabilities"] == {
+            "runtime": "opcode-api",
+            "transport": "relay",
+            "device_id": "e2e-device-1",
+            "supports_terminal": True,
+            "terminal_base_url": "http://127.0.0.1:9191",
+        }
+        request.app["state"]["registration_done"].set()
+        return web.json_response(
+            {"code": 0, "msg": "success", "data": {"accepted": True}}
+        )
+
     app.router.add_get("/api/agent/connect", agent_connect)
+    app.router.add_get("/api/devices/runtime/bootstrap", runtime_bootstrap)
+    app.router.add_post("/api/devices/runtime-node/register", register_runtime_node)
     return app
 
 
@@ -130,6 +172,7 @@ async def main() -> int:
     done = asyncio.Event()
     opcode_server, opcode_thread = start_opcode_server()
     backend_app = await build_backend_app(done)
+    backend_app["state"]["registration_done"] = asyncio.Event()
     backend_runner = await start_site(backend_app, 18080)
 
     temp_home = Path(tempfile.mkdtemp(prefix="d1v-agent-e2e-"))
@@ -172,7 +215,12 @@ async def main() -> int:
     timed_out = False
     try:
         try:
-            await asyncio.wait_for(done.wait(), timeout=20.0)
+            await asyncio.wait_for(
+                asyncio.gather(
+                    done.wait(), backend_app["state"]["registration_done"].wait()
+                ),
+                timeout=20.0,
+            )
         except asyncio.TimeoutError:
             timed_out = True
     finally:
@@ -192,7 +240,11 @@ async def main() -> int:
     output = ""
     if proc.stdout:
         output = (await proc.stdout.read()).decode()
-    if timed_out or not done.is_set():
+    if (
+        timed_out
+        or not done.is_set()
+        or not backend_app["state"]["registration_done"].is_set()
+    ):
         raise RuntimeError(
             f"agent relay e2e timed out: events={backend_app['state']['events']} output={output}"
         )

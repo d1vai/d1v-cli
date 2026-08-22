@@ -149,6 +149,43 @@ pub(crate) struct RuntimeDoctorConfig {
     pub home_root: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize, Default)]
+struct RuntimeTerminalBootstrap {
+    enabled: bool,
+    public_key: Option<String>,
+    #[serde(default)]
+    issuer: String,
+    #[serde(default)]
+    audience: String,
+}
+
+impl RuntimeTerminalBootstrap {
+    fn validated(mut self) -> Self {
+        let public_key = self
+            .public_key
+            .take()
+            .map(|value| value.replace("\\n", "\n").trim().to_string())
+            .filter(|value| !value.is_empty());
+        if !self.enabled
+            || public_key.is_none()
+            || self.issuer.trim().is_empty()
+            || self.audience.trim().is_empty()
+        {
+            return Self::default();
+        }
+        self.public_key = public_key;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+struct OpcodeRuntimeCapabilities {
+    #[serde(default)]
+    supports_terminal: bool,
+    #[serde(default)]
+    terminal_base_url: Option<String>,
+}
+
 pub(crate) fn load_runtime_doctor_config() -> Result<RuntimeDoctorConfig> {
     let config = load_agent_config()?;
     Ok(RuntimeDoctorConfig {
@@ -353,8 +390,41 @@ async fn put_project_binding(ctx: &Context, project_id: &str, workspace_root: &s
     Ok(())
 }
 
+fn runtime_node_capabilities(
+    config: &AgentConfig,
+    runtime: &OpcodeRuntimeCapabilities,
+) -> serde_json::Value {
+    let mut capabilities = serde_json::Map::from_iter([
+        ("runtime".to_string(), json!("opcode-api")),
+        ("transport".to_string(), json!("relay")),
+        ("device_id".to_string(), json!(config.device_id)),
+    ]);
+    if let Some(terminal_base_url) = verified_terminal_base_url(runtime) {
+        capabilities.insert("supports_terminal".to_string(), json!(true));
+        capabilities.insert("terminal_base_url".to_string(), json!(terminal_base_url));
+    }
+    serde_json::Value::Object(capabilities)
+}
+
+fn verified_terminal_base_url(runtime: &OpcodeRuntimeCapabilities) -> Option<String> {
+    if !runtime.supports_terminal {
+        return None;
+    }
+    let value = runtime
+        .terminal_base_url
+        .as_deref()?
+        .trim()
+        .trim_end_matches('/');
+    if !is_loopback_base_url(value) {
+        return None;
+    }
+    Some(value.to_string())
+}
+
 pub(crate) async fn register_customer_runtime_node(ctx: &Context, config: &AgentConfig) -> Result {
     let client = authed_http_client(ctx).await?;
+    let runtime = fetch_opcode_runtime_capabilities(&config.opcode_base_url).await;
+    let capabilities = runtime_node_capabilities(config, &runtime);
     let resp = client
         .post(format!(
             "{}/api/devices/runtime-node/register",
@@ -368,7 +438,7 @@ pub(crate) async fn register_customer_runtime_node(ctx: &Context, config: &Agent
             "cpu_cores": 0,
             "memory_mb": 0,
             "disk_gb": 0,
-            "capabilities": {"runtime": "opcode-api", "transport": "relay"},
+            "capabilities": capabilities,
             "ingress_mode": "reverse_relay",
         }))
         .send()
@@ -382,6 +452,47 @@ pub(crate) async fn register_customer_runtime_node(ctx: &Context, config: &Agent
         .into());
     }
     Ok(())
+}
+
+async fn fetch_runtime_terminal_bootstrap(ctx: &Context) -> RuntimeTerminalBootstrap {
+    let Ok(client) = authed_http_client(ctx).await else {
+        return RuntimeTerminalBootstrap::default();
+    };
+    let Ok(response) = client
+        .get(format!("{}/api/devices/runtime/bootstrap", base_url(ctx)))
+        .send()
+        .await
+    else {
+        return RuntimeTerminalBootstrap::default();
+    };
+    if !response.status().is_success() {
+        return RuntimeTerminalBootstrap::default();
+    }
+    let Ok(response) = response.json::<d1v_api::response::Response>().await else {
+        return RuntimeTerminalBootstrap::default();
+    };
+    let Ok(bootstrap) = response.ok::<RuntimeTerminalBootstrap>() else {
+        return RuntimeTerminalBootstrap::default();
+    };
+    bootstrap.validated()
+}
+
+async fn fetch_opcode_runtime_capabilities(base: &str) -> OpcodeRuntimeCapabilities {
+    let Ok(client) = reqwest::Client::builder().no_proxy().build() else {
+        return OpcodeRuntimeCapabilities::default();
+    };
+    let base = base.trim().trim_end_matches('/');
+    let Ok(response) = client
+        .get(format!("{base}/api/d1v/runtime/capabilities"))
+        .send()
+        .await
+    else {
+        return OpcodeRuntimeCapabilities::default();
+    };
+    if !response.status().is_success() {
+        return OpcodeRuntimeCapabilities::default();
+    }
+    response.json().await.unwrap_or_default()
 }
 
 fn opcode_port_from_base_url(base: &str) -> u16 {
@@ -693,6 +804,7 @@ async fn maybe_spawn_opcode(
     config: &AgentConfig,
     opcode_bin: Option<&Path>,
     cloud_control_url: &str,
+    terminal_bootstrap: &RuntimeTerminalBootstrap,
 ) -> Result<Option<Child>> {
     if opcode_is_healthy().await {
         if let Ok(Some(version)) = runtime_install::available_runtime_update(None).await {
@@ -746,14 +858,16 @@ async fn maybe_spawn_opcode(
         log_path.display()
     ));
 
-    let child = Command::new(bin)
+    let mut command = Command::new(bin);
+    command
         .env("WORKSPACE_ROOT", workspace_root)
         .env("OPCODE_RUNTIME_MODE", "cloud-managed")
         .env("OPCODE_DEVICE_ID", &config.device_id)
         .env("OPCODE_CLOUD_CONTROL_URL", cloud_control_url)
         .stdout(Stdio::from(log_file))
-        .stderr(Stdio::from(log_file_err))
-        .spawn()?;
+        .stderr(Stdio::from(log_file_err));
+    configure_terminal_command(&mut command, config, terminal_bootstrap);
+    let child = command.spawn()?;
 
     for _ in 0..20 {
         if opcode_is_healthy().await {
@@ -782,6 +896,31 @@ async fn maybe_spawn_opcode(
         log_path.display()
     )
     .into())
+}
+
+fn configure_terminal_command(
+    command: &mut Command,
+    config: &AgentConfig,
+    terminal_bootstrap: &RuntimeTerminalBootstrap,
+) {
+    command
+        .env(
+            "OPCODE_RUNTIME_NODE_ID",
+            format!("customer-{}", config.device_id),
+        )
+        .env(
+            "D1V_SHELL_ENABLED",
+            if terminal_bootstrap.enabled { "1" } else { "0" },
+        );
+    if terminal_bootstrap.enabled {
+        command
+            .env(
+                "D1V_SHELL_TICKET_PUBLIC_KEY",
+                terminal_bootstrap.public_key.as_deref().unwrap_or_default(),
+            )
+            .env("D1V_SHELL_TICKET_ISSUER", &terminal_bootstrap.issuer)
+            .env("D1V_SHELL_TICKET_AUDIENCE", &terminal_bootstrap.audience);
+    }
 }
 
 async fn opcode_is_healthy() -> bool {
@@ -1505,9 +1644,15 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
         },
         AgentCommand::Start(args) => {
             let config = load_agent_config()?;
-            let _child =
-                maybe_spawn_opcode(ctx, &config, args.opcode_bin.as_deref(), &base_url(ctx))
-                    .await?;
+            let terminal_bootstrap = fetch_runtime_terminal_bootstrap(ctx).await;
+            let _child = maybe_spawn_opcode(
+                ctx,
+                &config,
+                args.opcode_bin.as_deref(),
+                &base_url(ctx),
+                &terminal_bootstrap,
+            )
+            .await?;
             let token = ctx
                 .tokens
                 .lookup()?
@@ -1603,6 +1748,7 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsStr;
     use std::sync::{Arc, Mutex as StdMutex};
 
     use tokio::net::TcpListener;
@@ -1610,6 +1756,24 @@ mod tests {
     use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 
     use super::*;
+
+    fn test_agent_config() -> AgentConfig {
+        AgentConfig {
+            device_id: "device-1".to_string(),
+            device_name: "Test".to_string(),
+            home_root: Some("/tmp/d1v".to_string()),
+            opcode_base_url: DEFAULT_OPCODE_BASE.to_string(),
+            project_bindings: vec![],
+        }
+    }
+
+    fn command_env(command: &Command, name: &str) -> Option<String> {
+        command
+            .get_envs()
+            .find(|(key, _)| *key == OsStr::new(name))
+            .and_then(|(_, value)| value)
+            .map(|value| value.to_string_lossy().to_string())
+    }
 
     #[test]
     fn parse_listening_ports_extracts_unique_ports() {
@@ -1630,6 +1794,91 @@ localhost:3000\n\
         unsafe {
             env::remove_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS");
         }
+    }
+
+    #[test]
+    fn terminal_bootstrap_requires_complete_public_configuration() {
+        let valid = RuntimeTerminalBootstrap {
+            enabled: true,
+            public_key: Some(" public\\nkey ".to_string()),
+            issuer: "issuer".to_string(),
+            audience: "audience".to_string(),
+        }
+        .validated();
+        assert!(valid.enabled);
+        assert_eq!(valid.public_key.as_deref(), Some("public\nkey"));
+
+        let incomplete = RuntimeTerminalBootstrap {
+            enabled: true,
+            public_key: None,
+            issuer: "issuer".to_string(),
+            audience: "audience".to_string(),
+        }
+        .validated();
+        assert!(!incomplete.enabled);
+    }
+
+    #[test]
+    fn terminal_bootstrap_configures_managed_runtime_environment() {
+        let config = test_agent_config();
+        let bootstrap = RuntimeTerminalBootstrap {
+            enabled: true,
+            public_key: Some("public-key".to_string()),
+            issuer: "issuer".to_string(),
+            audience: "audience".to_string(),
+        };
+        let mut command = Command::new("opcode-api");
+
+        configure_terminal_command(&mut command, &config, &bootstrap);
+
+        assert_eq!(
+            command_env(&command, "OPCODE_RUNTIME_NODE_ID").as_deref(),
+            Some("customer-device-1")
+        );
+        assert_eq!(
+            command_env(&command, "D1V_SHELL_ENABLED").as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            command_env(&command, "D1V_SHELL_TICKET_PUBLIC_KEY").as_deref(),
+            Some("public-key")
+        );
+        assert_eq!(
+            command_env(&command, "D1V_SHELL_TICKET_ISSUER").as_deref(),
+            Some("issuer")
+        );
+        assert_eq!(
+            command_env(&command, "D1V_SHELL_TICKET_AUDIENCE").as_deref(),
+            Some("audience")
+        );
+    }
+
+    #[test]
+    fn runtime_registration_only_advertises_verified_terminal_capability() {
+        let config = test_agent_config();
+        let disabled = runtime_node_capabilities(&config, &OpcodeRuntimeCapabilities::default());
+        assert_eq!(disabled["device_id"], "device-1");
+        assert!(disabled.get("supports_terminal").is_none());
+        assert!(disabled.get("terminal_base_url").is_none());
+
+        let external = runtime_node_capabilities(
+            &config,
+            &OpcodeRuntimeCapabilities {
+                supports_terminal: true,
+                terminal_base_url: Some("https://example.com".to_string()),
+            },
+        );
+        assert!(external.get("supports_terminal").is_none());
+
+        let enabled = runtime_node_capabilities(
+            &config,
+            &OpcodeRuntimeCapabilities {
+                supports_terminal: true,
+                terminal_base_url: Some("http://127.0.0.1:9191/".to_string()),
+            },
+        );
+        assert_eq!(enabled["supports_terminal"], true);
+        assert_eq!(enabled["terminal_base_url"], "http://127.0.0.1:9191");
     }
 
     #[tokio::test]
