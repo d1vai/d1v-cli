@@ -1,0 +1,68 @@
+name: Terminal Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "d1v-api/src/api/shell.rs"
+      - "d1v-cli/src/agent.rs"
+      - "d1v-cli/src/commands.rs"
+      - "d1v-cli/src/main.rs"
+      - "d1v-cli/src/shell/**"
+      - "scripts/test-local-terminal-relay-e2e.py"
+      - "scripts/test-shell-e2e.py"
+      - ".github/workflows/terminal-smoke.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "d1v-api/src/api/shell.rs"
+      - "d1v-cli/src/agent.rs"
+      - "d1v-cli/src/commands.rs"
+      - "d1v-cli/src/main.rs"
+      - "d1v-cli/src/shell/**"
+      - "scripts/test-local-terminal-relay-e2e.py"
+      - "scripts/test-shell-e2e.py"
+      - ".github/workflows/terminal-smoke.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terminal-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli-and-agent-relay:
+    runs-on: [self-hosted, linux, x64, d1vai]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout d1v-cli
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - name: Run CLI terminal unit tests
+        run: |
+          cargo test -p d1v-cli shell::
+          cargo test -p d1v-cli agent::tests
+
+      - name: Build CLI
+        run: cargo build -p d1v-cli
+
+      - name: Set up relay E2E dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/d1v-terminal-venv"
+          "$RUNNER_TEMP/d1v-terminal-venv/bin/python" -m pip install aiohttp
+
+      - name: Run shell and exec process E2E
+        run: |
+          "$RUNNER_TEMP/d1v-terminal-venv/bin/python" \
+            scripts/test-shell-e2e.py target/debug/d1v
+
+      - name: Run Agent relay E2E
+        run: |
+          "$RUNNER_TEMP/d1v-terminal-venv/bin/python" \
+            scripts/test-agent-relay-e2e.py target/debug/d1v
