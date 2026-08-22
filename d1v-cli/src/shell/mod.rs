@@ -733,7 +733,7 @@ mod tests {
             input_reader,
             output_writer,
             false,
-            Duration::from_millis(10),
+            Duration::from_millis(500),
         )
         .await
         .unwrap();
@@ -829,7 +829,7 @@ mod tests {
             ticket_expires_at: "2026-08-22T12:00:30Z".parse::<Timestamp>().unwrap(),
         };
         let (exit_code, stdout, stderr) =
-            run_exec_connection_with_heartbeat(connection, true, Duration::from_millis(10))
+            run_exec_connection_with_heartbeat(connection, true, Duration::from_millis(500))
                 .await
                 .unwrap();
         server.await.unwrap();
