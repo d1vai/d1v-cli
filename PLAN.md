@@ -27,19 +27,20 @@
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`.
     - Acceptance: command arguments are unambiguous, stdout remains script-safe, JSON fields and process exit behavior are deterministic, and no ticket is printed.
     - Evidence: `d1v exec --help` passed and exposes project/organization targeting plus trailing argv; three API shell tests and ten CLI shell/exec tests passed. The exec loopback WebSocket test asserted the ticket header, negotiated subprotocol, open frame, stdout (`0x01`), stderr (`0x02`), nonzero exit 23, and stable JSON fields without a ticket. Text mode writes stdout/stderr to separate process streams; JSON mode captures each stream up to 16 MiB and emits one object before preserving the remote exit status. Command validation enforces mutually exclusive scopes and the backend argv count/size/NUL limits. Cleanup is attempted after every completed transport result.
-  - [ ] `in_progress` Document adoption paths and run full CLI regression plus local mocked API/WebSocket smoke tests.
+  - [x] Document adoption paths and run full CLI regression plus local mocked API/WebSocket smoke tests.
     - Validators: all selected validators.
     - Acceptance: README/help examples match implementation; format, test, help, JSON debug, logged-out behavior, API errors, PTY lifecycle, and exec status are recorded below.
+    - Evidence: English and Simplified Chinese READMEs document personal/project/organization shells, native completion, argv-safe Exec, JSON fields, exit behavior, and ticket/history security boundaries. `cargo fmt --all -- --check` and `cargo test --workspace` passed with 326 passed, one existing ignored, and zero failed. Top-level help exposes Shell and Exec; JSON debug returned one valid object and exit 0. Command smokes returned exit 4 for logged-out and expired-token states, exit 1 for conflicting project/organization scope, and exit 3 for a loopback connection failure. In-process API and real loopback WebSocket fixtures cover authenticated request bodies, PTY lifecycle, Exec stdout/stderr channels, JSON shape, and nonzero remote status.
 
 ### Validator Handoff
 
-- Result: in progress.
-- Checked: architecture, CLI command/help conventions, typed REST routes, authentication headers, path/query/body shapes, terminal protocol framing, loopback PTY relay, and loopback Exec stream separation/JSON/exit behavior.
-- Passed: planning-first, typed client/protocol, interactive Shell, and non-interactive Exec todos.
-- Failed: the required `d1v --format json debug` smoke blocked for more than 90 seconds while querying macOS Keychain a second time after Context initialization; it exited only after SIGINT (130).
-- Not checked: implementation, local smoke, regression, or production deployment.
+- Result: passed for the CLI implementation and local validation scope.
+- Checked: architecture, command/help UX, typed REST routes, auth states, path/query/body shapes, protocol framing, PTY lifecycle, Exec stream/JSON/exit behavior, docs, formatting, and full workspace regression.
+- Passed: all four current-execution todos and all selected local validators.
+- Failed: none after fixes; the initial unbounded macOS Keychain lookup was corrected with a cached result and a three-second provider timeout, then the JSON debug smoke passed.
+- Not checked: a real deployed container and production control-plane/runtime deployment; those require the root deployment sequence and production credentials.
 - Risk: a real container E2E requires an enabled deployed control plane and Runtime node; local tests will use an in-process HTTP/WebSocket fixture.
-- Plan update: cache the selected token provider result to remove duplicate Keychain reads, then rerun documentation, auth/error smoke coverage, and full CLI regression.
+- Plan update: CLI Shell/Exec work is complete; continue with root relay parity, cross-repository E2E/load tests, and deployment gates.
 
 ## 设计思想与需求背景
 

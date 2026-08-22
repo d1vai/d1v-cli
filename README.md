@@ -284,6 +284,29 @@ d1v auth login
 | GitHub    | `d1v github status|bind|installations|repos|import` |
 | Database  | `d1v db schema|data|branches|tables|rows|token|migrate` |
 
+### Container Terminal And Exec
+
+Open an interactive terminal at the personal workspace root or directly in a project directory:
+
+```sh
+d1v shell
+d1v shell <project_id>
+d1v shell --organization-id <organization_id>
+```
+
+The interactive terminal uses the container's native Bash/Zsh completion. Run a non-interactive command by passing argv after `--`:
+
+```sh
+d1v exec -- git status --short
+d1v exec --project-id <project_id> -- npm test
+d1v exec --organization-id <organization_id> -- pwd
+d1v --format json exec --project-id <project_id> -- sh -c 'printf ok; printf problem >&2; exit 7'
+```
+
+Text mode streams remote stdout and stderr to the matching local streams. JSON mode returns `session_id`, `project_id`, `cwd`, `exit_code`, `stdout`, and `stderr`, while the CLI process preserves a nonzero remote exit status. Interactive shell does not support JSON output.
+
+Shell tickets are short-lived and sent in the WebSocket header, never in the URL or command output. Terminal input and output are not persisted by the terminal service.
+
 ### Container Integration Ensure
 
 When a container runtime injects `D1V_API_KEY` (or `D1V_AUTH_TOKEN`), `D1V_BASE_URL`, and `D1V_PROJECT_ID`, agents can enable project integrations on demand without a browser login:

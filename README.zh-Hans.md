@@ -275,6 +275,29 @@ d1v auth login
 | GitHub    | `d1v github status|bind|installations|repos|import` |
 | 数据库    | `d1v db schema|data|branches|tables|rows|token|migrate` |
 
+### 容器终端与命令执行
+
+可以进入个人 workspace 根目录、具体项目目录或组织 workspace：
+
+```sh
+d1v shell
+d1v shell <project_id>
+d1v shell --organization-id <organization_id>
+```
+
+交互终端直接使用容器内 Bash/Zsh 的原生自动补全。非交互命令把 argv 放在 `--` 后传入：
+
+```sh
+d1v exec -- git status --short
+d1v exec --project-id <project_id> -- npm test
+d1v exec --organization-id <organization_id> -- pwd
+d1v --format json exec --project-id <project_id> -- sh -c 'printf ok; printf problem >&2; exit 7'
+```
+
+文本模式会把远端 stdout、stderr 分别流式写到本地对应输出流。JSON 模式稳定返回 `session_id`、`project_id`、`cwd`、`exit_code`、`stdout` 和 `stderr`，同时 CLI 进程会保留远端的非零退出码。交互式 shell 不支持 JSON 输出。
+
+Shell ticket 有效期很短，只通过 WebSocket header 发送，不会进入 URL 或命令输出。终端服务不会持久化终端输入和输出内容。
+
 ### 容器内按需启用集成
 
 当容器运行时注入了 `D1V_API_KEY`（或 `D1V_AUTH_TOKEN`）、`D1V_BASE_URL`、`D1V_PROJECT_ID` 之后，agent 可以直接按需启用项目集成，不需要再走浏览器登录：
