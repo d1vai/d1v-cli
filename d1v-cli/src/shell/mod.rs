@@ -1,4 +1,6 @@
-use std::io::{self, IsTerminal};
+use std::io::{self, IsTerminal, Read};
+use std::pin::Pin;
+use std::task::{Context as TaskContext, Poll};
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -7,7 +9,8 @@ use crossterm::terminal::{self, disable_raw_mode, enable_raw_mode};
 use d1v_api::{CreateShellSessionRequest, ShellConnection};
 use futures_util::{SinkExt, StreamExt};
 use serde::Serialize;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf};
+use tokio::sync::mpsc;
 use tokio::time::MissedTickBehavior;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
@@ -73,6 +76,76 @@ impl RawTerminal {
     fn enter() -> io::Result<Self> {
         enable_raw_mode()?;
         Ok(Self)
+    }
+}
+
+struct ThreadedStdin {
+    receiver: mpsc::Receiver<io::Result<Vec<u8>>>,
+    pending: Vec<u8>,
+    offset: usize,
+}
+
+impl ThreadedStdin {
+    fn spawn() -> io::Result<Self> {
+        let (sender, receiver) = mpsc::channel(8);
+        std::thread::Builder::new()
+            .name("d1v-terminal-stdin".into())
+            .spawn(move || {
+                let mut stdin = io::stdin();
+                loop {
+                    let mut buffer = vec![0_u8; 16 * 1024];
+                    match stdin.read(&mut buffer) {
+                        Ok(count) => {
+                            buffer.truncate(count);
+                            let eof = count == 0;
+                            if sender.blocking_send(Ok(buffer)).is_err() || eof {
+                                return;
+                            }
+                        }
+                        Err(error) => {
+                            let _ = sender.blocking_send(Err(error));
+                            return;
+                        }
+                    }
+                }
+            })?;
+        Ok(Self {
+            receiver,
+            pending: Vec::new(),
+            offset: 0,
+        })
+    }
+}
+
+impl AsyncRead for ThreadedStdin {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut TaskContext<'_>,
+        buffer: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        loop {
+            if self.offset < self.pending.len() {
+                let count = buffer
+                    .remaining()
+                    .min(self.pending.len().saturating_sub(self.offset));
+                let end = self.offset + count;
+                buffer.put_slice(&self.pending[self.offset..end]);
+                self.offset = end;
+                return Poll::Ready(Ok(()));
+            }
+            match self.receiver.poll_recv(cx) {
+                Poll::Ready(Some(Ok(payload))) => {
+                    self.pending = payload;
+                    self.offset = 0;
+                    if self.pending.is_empty() {
+                        return Poll::Ready(Ok(()));
+                    }
+                }
+                Poll::Ready(Some(Err(error))) => return Poll::Ready(Err(error)),
+                Poll::Ready(None) => return Poll::Ready(Ok(())),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
     }
 }
 
@@ -213,11 +286,12 @@ async fn run_terminal(
     initial_cols: u16,
     initial_rows: u16,
 ) -> Result<i32> {
+    let _raw_terminal = RawTerminal::enter()?;
     run_terminal_with_io(
         connection,
         initial_cols,
         initial_rows,
-        tokio::io::stdin(),
+        ThreadedStdin::spawn()?,
         tokio::io::stdout(),
         true,
     )
@@ -270,7 +344,6 @@ where
         .await
         .map_err(|error| anyhow!("failed to open terminal stream: {error}"))?;
 
-    let _raw_terminal = interactive_tty.then(RawTerminal::enter).transpose()?;
     let mut input = vec![0_u8; 16 * 1024];
     let mut size = (initial_cols, initial_rows);
     let mut resize_interval = tokio::time::interval(Duration::from_millis(100));

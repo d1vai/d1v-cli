@@ -2,26 +2,28 @@
 
 ## Current Execution
 
-- Goal: forward terminal WebSocket handshake metadata through the local device agent relay.
-- Background: the backend relay now sends a restricted Origin, one-time shell ticket header, and `d1v-terminal.v1`; the local CLI agent must preserve these during its upstream handshake without widening generic relay permissions.
-- Selected validators: `@session-runtime-qa`, `@auth-state-qa`, `@security-privacy-qa`, `@migration-compat-qa`.
+- Goal: add a repeatable process-level E2E for `d1v shell` and `d1v exec`.
+- Background: Rust unit tests cover protocol helpers and loopback sockets, but release verification also needs to execute the compiled CLI against the complete HTTP create -> authenticated WebSocket -> output/exit -> DELETE lifecycle.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`.
 - Todo:
-  - [x] Add restricted header/subprotocol forwarding to local WebSocket tunnels.
-    - Acceptance: only Origin and `x-d1v-shell-ticket` are forwarded; only `d1v-terminal.v1` is offered; the ticket never enters the URL or diagnostics.
-    - Evidence: the structured Tungstenite request builder ignores Authorization and unknown protocols, forwards only Origin and `x-d1v-shell-ticket`, keeps the ticket out of the URI, and rejects a missing terminal subprotocol negotiation.
-  - [x] Run a real loopback WebSocket handshake and the full CLI workspace regression.
-    - Acceptance: server observes the expected header and negotiated subprotocol; existing generic relay, Shell, and Exec behavior does not regress.
-    - Evidence: a real loopback server asserted the terminal URI had no query, observed the allowed Origin/ticket header and `d1v-terminal.v1`, confirmed Authorization was absent, and completed tunnel cleanup. `cargo fmt --all -- --check` and `cargo test --workspace` passed with 327 passed, one existing ignored, and zero failed.
+  - [x] Add `scripts/test-shell-e2e.py` with a real compiled CLI and loopback control/runtime server.
+    - Acceptance: validates bearer auth, workspace/project/organization request shapes, one-time ticket header, negotiated `d1v-terminal.v1`, binary stdout/stderr channels, JSON stability, non-zero remote exit propagation, resize/signal controls, terminal restoration, and DELETE cleanup.
+    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`.
+    - Evidence: the process E2E passed against a freshly built debug binary. It caught and fixed a real shutdown hang caused by uncancellable `tokio::io::stdin()` reads; the bounded threaded stdin bridge now lets remote exit complete while its PTY remains open, and the test verifies raw-mode restoration afterward. Project/org request shapes, valid/expired auth, ticket header redaction, protocol negotiation, stdout/stderr channels, JSON output, exit 23, resize, Ctrl-C input, non-TTY rejection, and all three DELETE cleanups passed.
+  - [x] Run formatting, the process E2E, command help/debug smoke, and full workspace tests.
+    - Acceptance: E2E passes with a locally built binary; `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo run -p d1v-cli -- --help`, and JSON debug remain green.
+    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@auth-state-qa`, `@session-runtime-qa`.
+    - Evidence: `rustup run 1.95.0 cargo fmt --all -- --check` passed; the workspace completed 327 tests with one existing ignored and zero failures; the process E2E passed; command help exited successfully; JSON debug parsed with stable `version` and `base_url` fields. The explicit toolchain is required because the machine's default stable installation has mismatched Cargo 1.91 and rustc 1.95 components.
 
 ### Validator Handoff
 
-- Result: passed for local agent relay handshake parity.
-- Checked: backend control message parsing, structured upstream handshake, header/protocol allowlists, URI ticket exclusion, negotiation, cleanup, and full workspace regression.
-- Passed: both current-execution todos plus prior Shell/Exec implementation and adoption work.
+- Result: passed for compiled CLI Shell/Exec behavior and workspace regression.
+- Checked: compiled CLI HTTP/WebSocket lifecycle, interactive PTY lifecycle, auth, request scopes, binary output, JSON, exit codes, resize, Ctrl-C, raw-mode restoration, and cleanup.
+- Passed: both current-execution todos plus prior Shell/Exec implementation, documentation, and relay handshake work.
 - Failed: none.
-- Not checked: a real local Runtime Agent terminal gateway target and production relay deployment.
-- Risk: local opcode-api does not yet expose the Runtime Agent terminal gateway unless `terminal_base_url` targets one; this step only establishes secure transport parity.
-- Plan update: local relay handshake forwarding is complete; return to root cross-repository E2E and deployment gates.
+- Not checked: live production Runtime Agent and production relay deployment.
+- Risk: a loopback E2E proves CLI behavior but does not replace the root live Runtime Agent or production tests.
+- Plan update: process E2E and the remote-exit stdin lifecycle fix are complete; return to root integration and deployment gates.
 
 ## 设计思想与需求背景
 
