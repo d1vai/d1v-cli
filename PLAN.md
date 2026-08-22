@@ -14,19 +14,20 @@
     - Acceptance: uses real `d1v agent`, `opcode-api`, Ed25519 tickets, PTY bytes, resize, Ctrl-C, Tab, status, terminate, and replay protection; reports p50/p95/p99, errors, RSS, file descriptors, and environment scope.
     - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
     - Evidence: 200 command roundtrips completed with zero errors; p50/p95/p99 were 3.45/4.376/5.03 ms on the recorded loopback debug-runtime profile. This is not a production SLO result.
-  - [ ] Run formatting, full workspace tests, help/JSON smoke, and the real relay E2E after all integration changes.
+  - [x] Run formatting, full workspace tests, help/JSON smoke, and the real relay E2E after all integration changes.
     - Acceptance: `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo run -p d1v-cli -- --help`, JSON debug parsing, and the local terminal relay E2E all pass.
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
+    - Evidence: Rust 1.95 formatting passed; the workspace completed 332 tests with one existing ignored and zero failures; help exposes `shell`, `exec`, `runtime`, and `skill`; JSON debug returned valid `version` and `base_url`; the final real local terminal relay E2E passed.
 
 ### Validator Handoff
 
-- Result: implementation and reduced local relay benchmark passed; full workspace and production integration gates remain open.
+- Result: passed for the CLI-managed completion release, full workspace regression, and reduced local relay benchmark; root production integration gates remain open.
 - Checked: managed completion asset installation, terminal bootstrap injection, real local PTY completion, relay lifecycle, and machine-readable latency/resource evidence.
-- Passed: installer/Agent unit tests, real local relay E2E, and the 200-roundtrip reduced profile.
+- Passed: installer/Agent unit tests, Rust formatting, 332 workspace tests, help/JSON smoke, real local relay E2E, and the 200-roundtrip reduced profile.
 - Failed: none.
-- Not checked: final full workspace suite, live production Runtime Agent, production browser flow, representative-node load/soak, and production relay deployment.
+- Not checked: live production Runtime Agent, production browser flow, representative-node load/soak, and production relay deployment.
 - Risk: loopback debug-runtime latency excludes control-plane creation, container cold start, cross-region networking, and production node contention.
-- Plan update: run the remaining full validators, then return to root browser, image, deployment, and production verification gates.
+- Plan update: CLI validators are complete; return to root browser, image, deployment, and production verification gates.
 
 ## 设计思想与需求背景
 
