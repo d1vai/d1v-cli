@@ -19,10 +19,11 @@
     - Validators: `@api-backend-qa`, `@session-runtime-qa`.
     - Acceptance: project/workspace requests, organization scope, no-store ticket handling, protocol framing, and server errors have stable typed behavior.
     - Evidence: `d1v-api` mock-server tests passed for authenticated organization workspace creation, project/session path encoding, and close metadata; four protocol unit tests passed for open/input/output/exit framing and invalid frames; `cargo check --workspace` passed. `ShellConnection` intentionally omits `Debug` and `Serialize` so tickets cannot enter standard diagnostics or JSON output.
-  - [ ] `in_progress` Add interactive `d1v shell` with raw-mode PTY forwarding, resize, signals, terminal restoration, and exit semantics.
+  - [x] Add interactive `d1v shell` with raw-mode PTY forwarding, resize, signals, terminal restoration, and exit semantics.
     - Validators: `@cli-ux-qa`, `@auth-state-qa`, `@session-runtime-qa`.
     - Acceptance: project and organization targeting are discoverable; stdin/stdout are binary-clean; all normal/error paths restore the terminal and close the server session.
-  - [ ] Add non-interactive `d1v exec` with stable human and JSON output.
+    - Evidence: `d1v shell --help` exposes optional project and organization-root targeting; eight focused tests passed, including a real loopback WebSocket handshake that asserted ticket header/subprotocol, open frame, binary input/output, and exit code 7. Raw mode is held by a Drop guard, cleanup calls the idempotent DELETE API after every returned transport result, resize is clamped to the API contract, and `cargo check --workspace` passed.
+  - [ ] `in_progress` Add non-interactive `d1v exec` with stable human and JSON output.
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`.
     - Acceptance: command arguments are unambiguous, stdout remains script-safe, JSON fields and process exit behavior are deterministic, and no ticket is printed.
   - [ ] Document adoption paths and run full CLI regression plus local mocked API/WebSocket smoke tests.
@@ -32,12 +33,12 @@
 ### Validator Handoff
 
 - Result: in progress.
-- Checked: architecture, existing CLI conventions, typed REST routes, authentication headers, path/query/body shapes, and terminal protocol framing.
-- Passed: planning-first requirement and typed client/protocol todo.
+- Checked: architecture, CLI command/help conventions, typed REST routes, authentication headers, path/query/body shapes, terminal protocol framing, and a loopback WebSocket PTY relay.
+- Passed: planning-first, typed client/protocol, and interactive Shell todos.
 - Failed: none.
 - Not checked: implementation, local smoke, regression, or production deployment.
 - Risk: a real container E2E requires an enabled deployed control plane and Runtime node; local tests will use an in-process HTTP/WebSocket fixture.
-- Plan update: interactive PTY work is active.
+- Plan update: non-interactive Exec work is active.
 
 ## 设计思想与需求背景
 

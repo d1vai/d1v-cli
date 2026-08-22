@@ -28,6 +28,10 @@ pub enum Error {
     #[error("interrupted")]
     Interrupted,
 
+    /// The remote shell process returned a non-zero exit status.
+    #[error("remote process exited with status {0}")]
+    RemoteExit(i32),
+
     /// API client error (network, validation, HTTP status, etc.).
     #[error(transparent)]
     Api(APIError),
@@ -75,6 +79,7 @@ impl Error {
             Self::NotLoggedIn | Self::TokenExpired => ExitCode::from(Self::EXIT_NOT_LOGGED_IN),
             Self::Canceled => ExitCode::from(Self::EXIT_CANCELED),
             Self::Interrupted => ExitCode::from(Self::EXIT_INTERRUPTED),
+            Self::RemoteExit(code) => ExitCode::from(u8::try_from(*code).unwrap_or(1).max(1)),
             Self::Api(e) if e.is_network() => ExitCode::from(Self::EXIT_NETWORK),
             _ => ExitCode::FAILURE,
         }
@@ -111,6 +116,9 @@ impl Error {
     }
 
     pub fn handle(&self, output: &Output) -> ExitCode {
+        if matches!(self, Self::RemoteExit(_)) {
+            return self.exit_code();
+        }
         if self.is_canceled() || self.is_interrupted() {
             if matches!(output.format, Format::Json) {
                 output.error(&self.localize());

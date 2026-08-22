@@ -17,6 +17,7 @@ impl Localize for Error {
             Self::TokenExpired => t!("error-token-expired"),
             Self::Canceled => t!("canceled"),
             Self::Interrupted => t!("interrupted"),
+            Self::RemoteExit(_) => self.to_string(),
             Self::Config(err) => err.localize(),
             Self::Token(err) => err.localize(),
             Self::Api(err) => err.localize(),

@@ -15,8 +15,8 @@ use d1v_cli::output::{Format, Output, format_duration};
 use d1v_cli::token::TokenSource;
 use d1v_cli::{
     BaseUrlCandidate, Context, agent, api_key, auth, base_url, config, db, debug, deploy, env,
-    expose, github, i18n, logging, node, project, runtime_install, session, skill, t, upgrade,
-    user, workspace,
+    expose, github, i18n, logging, node, project, runtime_install, session, shell, skill, t,
+    upgrade, user, workspace,
 };
 
 #[derive(Parser)]
@@ -121,6 +121,8 @@ enum Command {
         #[command(subcommand)]
         command: session::SessionCommand,
     },
+    /// Open an interactive shell in a workspace container
+    Shell(shell::ShellArgs),
     /// Manage local device agent runtime
     Agent {
         #[command(subcommand)]
@@ -174,6 +176,7 @@ impl Command {
             | Command::Db { .. }
             | Command::Deploy { .. }
             | Command::Session { .. }
+            | Command::Shell(..)
             | Command::Env { .. }
             | Command::ApiKey { .. } => true,
             Command::Expose(..) => false,
@@ -322,6 +325,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         Command::Expose(args) => expose::run(&ctx, args).await,
         Command::Node { command } => node::run(&ctx, command).await,
         Command::Session { command } => session::run(&ctx, command).await,
+        Command::Shell(args) => shell::run(&ctx, args).await,
         Command::Env { command } => env::run(&ctx, command).await,
         Command::ApiKey { command } => api_key::run(&ctx, command).await,
         Command::Agent { command } => agent::run(&ctx, command).await,
