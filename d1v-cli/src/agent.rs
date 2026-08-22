@@ -1241,8 +1241,15 @@ async fn open_local_ws_tunnel(
     subprotocols: Vec<String>,
     sender: mpsc::UnboundedSender<Message>,
 ) {
-    let ws_base = target_base_url
-        .unwrap_or(opcode_base)
+    let expects_terminal_protocol = subprotocols.iter().any(|value| value == "d1v-terminal.v1");
+    let target_base = target_base_url.unwrap_or(opcode_base);
+    if expects_terminal_protocol && !is_loopback_base_url(&target_base) {
+        let _ = sender.send(Message::Text(
+            json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"error","detail":"terminal_target_must_be_loopback"}).to_string(),
+        ));
+        return;
+    }
+    let ws_base = target_base
         .replace("http://", "ws://")
         .replace("https://", "wss://")
         .trim_end_matches('/')
@@ -1260,8 +1267,6 @@ async fn open_local_ws_tunnel(
             return;
         }
     };
-    let expects_terminal_protocol = subprotocols.iter().any(|value| value == "d1v-terminal.v1");
-
     match connect_async(request).await {
         Ok((socket, response)) => {
             if expects_terminal_protocol
@@ -1943,5 +1948,30 @@ localhost:3000\n\
         assert_eq!(events[0]["event"], "open");
         assert_eq!(events.last().unwrap()["event"], "close");
         assert!(!TUNNELS.lock().await.contains_key("tunnel-local"));
+    }
+
+    #[tokio::test]
+    async fn local_tunnel_rejects_non_loopback_terminal_target() {
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+
+        open_local_ws_tunnel(
+            "http://127.0.0.1:9191".into(),
+            "tunnel-external".into(),
+            "sh-external".into(),
+            Some("https://example.com".into()),
+            Some("/ws/terminal/sh-external".into()),
+            HashMap::new(),
+            vec!["d1v-terminal.v1".into()],
+            sender,
+        )
+        .await;
+
+        let Message::Text(event) = receiver.try_recv().unwrap() else {
+            panic!("expected text error event");
+        };
+        let payload: serde_json::Value = serde_json::from_str(&event).unwrap();
+        assert_eq!(payload["event"], "error");
+        assert_eq!(payload["detail"], "terminal_target_must_be_loopback");
+        assert!(!TUNNELS.lock().await.contains_key("tunnel-external"));
     }
 }
