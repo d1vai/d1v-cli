@@ -36,10 +36,10 @@
 - Result: in progress.
 - Checked: architecture, CLI command/help conventions, typed REST routes, authentication headers, path/query/body shapes, terminal protocol framing, loopback PTY relay, and loopback Exec stream separation/JSON/exit behavior.
 - Passed: planning-first, typed client/protocol, interactive Shell, and non-interactive Exec todos.
-- Failed: none.
+- Failed: the required `d1v --format json debug` smoke blocked for more than 90 seconds while querying macOS Keychain a second time after Context initialization; it exited only after SIGINT (130).
 - Not checked: implementation, local smoke, regression, or production deployment.
 - Risk: a real container E2E requires an enabled deployed control plane and Runtime node; local tests will use an in-process HTTP/WebSocket fixture.
-- Plan update: documentation, auth/error smoke coverage, and full CLI regression are active.
+- Plan update: cache the selected token provider result to remove duplicate Keychain reads, then rerun documentation, auth/error smoke coverage, and full CLI regression.
 
 ## 设计思想与需求背景
 

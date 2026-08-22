@@ -1,4 +1,5 @@
-use std::sync::LazyLock;
+use std::sync::{LazyLock, mpsc};
+use std::time::Duration;
 
 use secrecy::{ExposeSecret, SecretString};
 use tracing::debug;
@@ -7,6 +8,7 @@ use super::{Result, TokenError, TokenSource, TokenStore};
 
 pub const SERVICE: &str = "d1v-cli";
 pub const USER: &str = "token";
+const LOAD_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// Stores token in the OS keychain.
 pub struct KeyringProvider {
@@ -32,22 +34,48 @@ impl TokenSource for KeyringProvider {
     }
 
     fn lookup(&self) -> Result<Option<SecretString>> {
-        if !*KEYRING_STORE_AVAILABLE {
-            return Err(TokenError::KeyringUnavailable);
-        }
+        let service = self.service;
+        let user = self.user;
+        run_lookup_with_timeout(LOAD_TIMEOUT, move || load_password(service, user))
+    }
+}
 
-        let entry = match self.entry() {
-            Ok(entry) => entry,
-            Err(err) => return Err(TokenError::KeyringLoad(err)),
-        };
+fn run_lookup_with_timeout<F>(timeout: Duration, lookup: F) -> Result<Option<SecretString>>
+where
+    F: FnOnce() -> Result<Option<SecretString>> + Send + 'static,
+{
+    let (sender, receiver) = mpsc::sync_channel(1);
+    std::thread::Builder::new()
+        .name("d1v-keyring-load".into())
+        .spawn(move || {
+            let _ = sender.send(lookup());
+        })
+        .map_err(|_| TokenError::KeyringUnavailable)?;
 
-        match entry.get_password() {
-            Ok(password) => Ok(Some(SecretString::from(password))),
-            Err(keyring_core::Error::NoEntry) => Ok(None),
-            Err(err) => {
-                debug!(error = %err, "failed to load keyring credential");
-                Err(TokenError::KeyringLoad(err))
-            }
+    match receiver.recv_timeout(timeout) {
+        Ok(result) => result,
+        Err(mpsc::RecvTimeoutError::Timeout) => Err(TokenError::KeyringLoadTimeout),
+        Err(mpsc::RecvTimeoutError::Disconnected) => Err(TokenError::KeyringUnavailable),
+    }
+}
+
+fn load_password(service: &'static str, user: &'static str) -> Result<Option<SecretString>> {
+    if !*KEYRING_STORE_AVAILABLE {
+        return Err(TokenError::KeyringUnavailable);
+    }
+
+    let provider = KeyringProvider::new(service, user);
+    let entry = match provider.entry() {
+        Ok(entry) => entry,
+        Err(err) => return Err(TokenError::KeyringLoad(err)),
+    };
+
+    match entry.get_password() {
+        Ok(password) => Ok(Some(SecretString::from(password))),
+        Err(keyring_core::Error::NoEntry) => Ok(None),
+        Err(err) => {
+            debug!(error = %err, "failed to load keyring credential");
+            Err(TokenError::KeyringLoad(err))
         }
     }
 }
@@ -122,5 +150,20 @@ fn install_keyring_store() -> std::result::Result<(), keyring_core::Error> {
         Err(keyring_core::Error::NotSupportedByStore(
             "no keyring store configured for this platform".to_string(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyring_load_timeout_is_bounded() {
+        let result = run_lookup_with_timeout(Duration::from_millis(5), || {
+            std::thread::sleep(Duration::from_millis(50));
+            Ok(None)
+        });
+
+        assert!(matches!(result, Err(TokenError::KeyringLoadTimeout)));
     }
 }

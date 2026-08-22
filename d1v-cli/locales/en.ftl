@@ -126,6 +126,7 @@ interrupted = Interrupted.
 error-no-token-store = no writable token store available
 error-keyring-unavailable = keyring is not available
 error-keyring-load = failed to load from keyring
+error-keyring-load-timeout = timed out while loading from keyring
 error-keyring-save = failed to save to keyring
 error-keyring-delete = failed to delete from keyring
 

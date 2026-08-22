@@ -20,6 +20,9 @@ pub enum TokenError {
     #[error("failed to load from keyring")]
     KeyringLoad(#[source] keyring_core::Error),
 
+    #[error("timed out while loading from keyring")]
+    KeyringLoadTimeout,
+
     #[error("failed to save to keyring")]
     KeyringSave(#[source] keyring_core::Error),
 

@@ -1,4 +1,5 @@
 use secrecy::SecretString;
+use std::sync::Mutex;
 use tracing::{debug, warn};
 
 use super::config::ConfigProvider;
@@ -14,11 +15,22 @@ use super::{Result, TokenError, TokenSource, TokenStore};
 pub struct TokenChain {
     sources: Vec<Box<dyn TokenSource>>,
     stores: Vec<Box<dyn TokenStore>>,
+    cached_lookup: Mutex<Option<Option<CachedLookup>>>,
+}
+
+#[derive(Clone)]
+struct CachedLookup {
+    source: &'static str,
+    token: SecretString,
 }
 
 impl TokenChain {
     pub fn new(sources: Vec<Box<dyn TokenSource>>, stores: Vec<Box<dyn TokenStore>>) -> Self {
-        Self { sources, stores }
+        Self {
+            sources,
+            stores,
+            cached_lookup: Mutex::new(None),
+        }
     }
 
     /// Returns the name of the first source that provides a token.
@@ -26,12 +38,23 @@ impl TokenChain {
         self.lookup_with_source().map(|(source, _)| source)
     }
 
-    fn lookup_with_source(&self) -> Option<(&str, SecretString)> {
+    fn lookup_with_source(&self) -> Option<(&'static str, SecretString)> {
+        if let Some(cached) = self.cached_lookup.lock().unwrap().as_ref() {
+            return cached
+                .as_ref()
+                .map(|value| (value.source, value.token.clone()));
+        }
+
+        let mut found = None;
         for source in &self.sources {
             match source.lookup() {
                 Ok(Some(token)) => {
                     debug!(provider = source.name(), "token loaded");
-                    return Some((source.name(), token));
+                    found = Some(CachedLookup {
+                        source: source.name(),
+                        token,
+                    });
+                    break;
                 }
                 Ok(None) => {
                     debug!(provider = source.name(), "no token found");
@@ -42,7 +65,8 @@ impl TokenChain {
             }
         }
 
-        None
+        *self.cached_lookup.lock().unwrap() = Some(found.clone());
+        found.map(|value| (value.source, value.token))
     }
 }
 
@@ -66,6 +90,10 @@ impl TokenStore for TokenChain {
             match store.save(token) {
                 Ok(()) => {
                     debug!(provider = store.name(), "token saved");
+                    *self.cached_lookup.lock().unwrap() = Some(Some(CachedLookup {
+                        source: store.name(),
+                        token: token.clone(),
+                    }));
                     return Ok(());
                 }
                 Err(err) => {
@@ -84,6 +112,8 @@ impl TokenStore for TokenChain {
                 Err(err) => warn!(provider = store.name(), error = %err, "failed to delete token"),
             }
         }
+
+        *self.cached_lookup.lock().unwrap() = Some(None);
 
         Ok(())
     }
@@ -110,7 +140,7 @@ impl Default for TokenChain {
 mod tests {
     use super::*;
     use secrecy::ExposeSecret;
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use std::rc::Rc;
 
     struct InMemoryProvider {
@@ -185,6 +215,21 @@ mod tests {
 
     struct FailingStore;
 
+    struct CountingProvider {
+        calls: Rc<Cell<usize>>,
+    }
+
+    impl TokenSource for CountingProvider {
+        fn name(&self) -> &'static str {
+            "counting"
+        }
+
+        fn lookup(&self) -> Result<Option<SecretString>> {
+            self.calls.set(self.calls.get() + 1);
+            Ok(Some(SecretString::from("secret".to_string())))
+        }
+    }
+
     impl TokenStore for FailingStore {
         fn name(&self) -> &'static str {
             "failing"
@@ -230,6 +275,22 @@ mod tests {
         );
         let token = chain.lookup().unwrap().unwrap();
         assert_eq!(token.expose_secret(), "secret");
+    }
+
+    #[test]
+    fn lookup_and_source_reuse_cached_provider_result() {
+        let calls = Rc::new(Cell::new(0));
+        let chain = TokenChain::new(
+            vec![Box::new(CountingProvider {
+                calls: calls.clone(),
+            })],
+            vec![],
+        );
+
+        assert_eq!(chain.lookup().unwrap().unwrap().expose_secret(), "secret");
+        assert_eq!(chain.source(), Some("counting"));
+        assert_eq!(chain.lookup().unwrap().unwrap().expose_secret(), "secret");
+        assert_eq!(calls.get(), 1);
     }
 
     #[test]
