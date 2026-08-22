@@ -5,14 +5,18 @@ import argparse
 import asyncio
 import base64
 import json
+import math
 import os
+import platform
 import re
 import signal
 import socket
+import statistics
 import subprocess
 import tempfile
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +33,108 @@ PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEA6nql11TopNIvXEcadKmm9/vxanBhdc85k1c5VSjrDzw=
 -----END PUBLIC KEY-----
 """
+
+
+class BenchmarkRecorder:
+    def __init__(self, command_roundtrips: int) -> None:
+        self.command_roundtrips = command_roundtrips
+        self.samples: dict[str, list[float]] = {}
+        self.resources: dict[str, Any] = {}
+        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.started = time.perf_counter()
+
+    def record(self, name: str, started: float) -> None:
+        self.samples.setdefault(name, []).append(
+            round((time.perf_counter() - started) * 1000, 3)
+        )
+
+    @staticmethod
+    def percentile(values: list[float], fraction: float) -> float:
+        ordered = sorted(values)
+        index = max(0, min(len(ordered) - 1, math.ceil(len(ordered) * fraction) - 1))
+        return ordered[index]
+
+    def report(self) -> dict[str, Any]:
+        metrics = {}
+        for name, values in sorted(self.samples.items()):
+            metrics[name] = {
+                "samples": len(values),
+                "p50_ms": round(statistics.median(values), 3),
+                "p95_ms": self.percentile(values, 0.95),
+                "p99_ms": self.percentile(values, 0.99),
+                "max_ms": max(values),
+            }
+        return {
+            "profile": "local-relay-reduced",
+            "transport": "relay",
+            "runtime_build": "debug",
+            "scope": "hot path only; excludes control-plane create and container cold start",
+            "started_at": self.started_at,
+            "elapsed_seconds": round(time.perf_counter() - self.started, 3),
+            "command_roundtrips": self.command_roundtrips,
+            "success_rate": 1.0,
+            "errors": [],
+            "metrics": metrics,
+            "resources": self.resources,
+            "environment": local_environment(),
+        }
+
+
+def command_output(args: list[str]) -> str | None:
+    try:
+        return subprocess.check_output(
+            args, text=True, stderr=subprocess.DEVNULL, timeout=5
+        ).strip()
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return None
+
+
+def local_environment() -> dict[str, Any]:
+    memory = command_output(["sysctl", "-n", "hw.memsize"])
+    if memory is None:
+        try:
+            memory = next(
+                line.split(":", 1)[1].strip()
+                for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines()
+                if line.startswith("MemTotal:")
+            )
+        except (OSError, StopIteration):
+            memory = "unknown"
+    return {
+        "node_cpu": f"{os.cpu_count() or 'unknown'} logical CPUs; {platform.machine()}",
+        "node_memory": memory,
+        "docker_version": command_output(
+            ["docker", "version", "--format", "{{.Server.Version}}"]
+        )
+        or "not used",
+        "network_rtt_ms": "loopback",
+        "image_state": "source-built debug runtime",
+        "container_limits": "not applicable; local process runtime",
+        "platform": platform.platform(),
+    }
+
+
+def process_resources(process_ids: list[int]) -> dict[str, Any]:
+    rss_kib = 0
+    open_fds = 0
+    measured = []
+    for process_id in process_ids:
+        rss = command_output(["ps", "-o", "rss=", "-p", str(process_id)])
+        if rss and rss.isdigit():
+            rss_kib += int(rss)
+        fd_path = Path(f"/proc/{process_id}/fd")
+        try:
+            fd_count = len(list(fd_path.iterdir()))
+        except OSError:
+            lsof = command_output(["lsof", "-a", "-p", str(process_id), "-d", "0-999999"])
+            fd_count = max(0, len(lsof.splitlines()) - 1) if lsof else 0
+        open_fds += fd_count
+        measured.append(process_id)
+    return {
+        "process_count": len(measured),
+        "combined_process_rss_kib": rss_kib,
+        "combined_open_fds": open_fds,
+    }
 
 
 def api_response(data: Any) -> web.Response:
@@ -186,10 +292,13 @@ async def relay_http(
             return payload
 
 
-async def exercise_terminal_relay(websocket: web.WebSocketResponse) -> None:
+async def exercise_terminal_relay(
+    websocket: web.WebSocketResponse, recorder: BenchmarkRecorder
+) -> None:
     session_id = "sh-local-relay-e2e"
     signed = terminal_ticket(session_id, jti="ticket-local-relay-e2e")
     tunnel = RelayTerminal(websocket, "terminal-primary")
+    ready_started = time.perf_counter()
     await websocket.send_json(
         {
             "type": "ws_open",
@@ -212,24 +321,40 @@ async def exercise_terminal_relay(websocket: web.WebSocketResponse) -> None:
         }
     )
     ready = await tunnel.wait_control("ready")
+    recorder.record("terminal.ready", ready_started)
     if ready.get("cwd") != "/workspace-root/projects/project-1":
         raise RuntimeError("terminal opened in the wrong virtual cwd")
 
     output = await tunnel.command("pwd")
     if b"project-1" not in output:
         raise RuntimeError("terminal did not map the project cwd")
-    output = await tunnel.command(
-        "type d1v-project >/dev/null && "
-        "COMP_WORDS=(d1v-project pro) COMP_CWORD=1 _d1v_project_completion && "
-        "printf 'project-completion:%s\\n' \"${COMPREPLY[*]}\""
-    )
-    if b"project-completion:project-1" not in output:
-        raise RuntimeError("managed project completion was not loaded")
-    await tunnel.send_text({"type": "resize", "cols": 132, "rows": 52})
-    await asyncio.sleep(0.1)
-    output = await tunnel.command("stty size")
-    if b"52 132" not in output:
-        raise RuntimeError("terminal resize did not reach the PTY")
+    validation_samples = min(20, recorder.command_roundtrips)
+    for _ in range(validation_samples):
+        completion_started = time.perf_counter()
+        output = await tunnel.command(
+            "type d1v-project >/dev/null && "
+            "COMP_WORDS=(d1v-project pro) COMP_CWORD=1 _d1v_project_completion && "
+            "printf 'project-completion:%s\\n' \"${COMPREPLY[*]}\""
+        )
+        if b"project-completion:project-1" not in output:
+            raise RuntimeError("managed project completion was not loaded")
+        recorder.record("terminal.project-completion", completion_started)
+
+    for index in range(recorder.command_roundtrips):
+        roundtrip_started = time.perf_counter()
+        output = await tunnel.command(f"printf 'benchmark-{index}\\n'")
+        if f"benchmark-{index}".encode() not in output:
+            raise RuntimeError("terminal benchmark output was corrupted")
+        recorder.record("terminal.command-roundtrip", roundtrip_started)
+
+    for index in range(validation_samples):
+        cols, rows = (132, 52) if index % 2 == 0 else (120, 40)
+        resize_started = time.perf_counter()
+        await tunnel.send_text({"type": "resize", "cols": cols, "rows": rows})
+        output = await tunnel.command("stty size")
+        if f"{rows} {cols}".encode() not in output:
+            raise RuntimeError("terminal resize did not reach the PTY")
+        recorder.record("terminal.resize-verification", resize_started)
 
     await tunnel.send_input(b"sleep 30\n")
     await asyncio.sleep(0.25)
@@ -243,10 +368,14 @@ async def exercise_terminal_relay(websocket: web.WebSocketResponse) -> None:
     await tunnel.command(
         f"mkdir -p {completion_dir} && touch {completion_dir}/{completion_file}"
     )
-    start = len(tunnel.stdout)
-    await tunnel.send_input(f"cat {completion_dir}/nested-\t".encode())
-    await tunnel.wait_output(completion_file.encode(), start=start)
-    await tunnel.send_text({"type": "signal", "signal": "SIGINT"})
+    for _ in range(validation_samples):
+        start = len(tunnel.stdout)
+        tab_started = time.perf_counter()
+        await tunnel.send_input(f"cat {completion_dir}/nested-\t".encode())
+        await tunnel.wait_output(completion_file.encode(), start=start)
+        recorder.record("terminal.native-tab-completion", tab_started)
+        await tunnel.send_text({"type": "signal", "signal": "SIGINT"})
+        await tunnel.command(":")
 
     status = await relay_http(
         websocket,
@@ -293,7 +422,9 @@ async def exercise_terminal_relay(websocket: web.WebSocketResponse) -> None:
             break
 
 
-async def build_control_plane(done: asyncio.Event) -> web.Application:
+async def build_control_plane(
+    done: asyncio.Event, recorder: BenchmarkRecorder
+) -> web.Application:
     app = web.Application()
     app["state"] = {
         "done": done,
@@ -338,7 +469,7 @@ async def build_control_plane(done: asyncio.Event) -> web.Application:
         request.app["state"]["exercise_started"] = True
         await request.app["state"]["registered"].wait()
         try:
-            await exercise_terminal_relay(websocket)
+            await exercise_terminal_relay(websocket, recorder)
         except Exception as error:
             request.app["state"]["error"] = error
         finally:
@@ -393,17 +524,22 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("d1v_binary", type=Path)
     parser.add_argument("opcode_binary", type=Path)
+    parser.add_argument("--roundtrips", type=int, default=1)
+    parser.add_argument("--json", dest="json_path", type=Path)
     args = parser.parse_args()
     d1v_binary = args.d1v_binary.resolve()
     opcode_binary = args.opcode_binary.resolve()
     if not d1v_binary.exists() or not opcode_binary.exists():
         raise FileNotFoundError("d1v and opcode-api binaries are required")
+    if args.roundtrips < 1 or args.roundtrips > 10_000:
+        raise ValueError("--roundtrips must be between 1 and 10000")
     with socket.socket() as probe:
         if probe.connect_ex(("127.0.0.1", 9191)) == 0:
             raise RuntimeError("port 9191 is already in use")
 
     done = asyncio.Event()
-    control_plane = await build_control_plane(done)
+    recorder = BenchmarkRecorder(args.roundtrips)
+    control_plane = await build_control_plane(done, recorder)
     runner, base_url = await start_site(control_plane)
     temp_home = Path(tempfile.mkdtemp(prefix="d1v-terminal-relay-e2e-"))
     workspace = temp_home / "runtime-home"
@@ -446,6 +582,7 @@ async def main() -> int:
     try:
         await asyncio.wait_for(done.wait(), timeout=30.0)
         opcode_children = child_processes(agent.pid)
+        recorder.resources = process_resources([agent.pid, *opcode_children])
         if control_plane["state"]["error"] is not None:
             raise RuntimeError("terminal relay exercise failed") from control_plane["state"][
                 "error"
@@ -469,6 +606,12 @@ async def main() -> int:
     if agent.returncode not in (0, -signal.SIGTERM):
         output = (await agent.stdout.read()).decode(errors="replace") if agent.stdout else ""
         raise RuntimeError(f"agent failed: {output}")
+    if args.json_path is not None:
+        args.json_path.parent.mkdir(parents=True, exist_ok=True)
+        args.json_path.write_text(
+            json.dumps(recorder.report(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     return 0
 
 
