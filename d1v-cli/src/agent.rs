@@ -18,6 +18,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::{Mutex, mpsc};
 use tokio::time::sleep;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::header::{ORIGIN, SEC_WEBSOCKET_PROTOCOL};
+use tokio_tungstenite::tungstenite::http::{HeaderName, HeaderValue};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
 use url::{Host, Url};
 
@@ -1095,6 +1098,8 @@ async fn open_local_ws_tunnel(
     session_id: String,
     target_base_url: Option<String>,
     websocket_path: Option<String>,
+    headers: HashMap<String, String>,
+    subprotocols: Vec<String>,
     sender: mpsc::UnboundedSender<Message>,
 ) {
     let ws_base = target_base_url
@@ -1107,9 +1112,31 @@ async fn open_local_ws_tunnel(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| format!("/ws/claude/{}", session_id));
     let ws_url = format!("{}{}", ws_base, ws_path);
+    let request = match local_ws_tunnel_request(&ws_url, &headers, &subprotocols) {
+        Ok(request) => request,
+        Err(err) => {
+            let _ = sender.send(Message::Text(
+                json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"error","detail":err.to_string()}).to_string(),
+            ));
+            return;
+        }
+    };
+    let expects_terminal_protocol = subprotocols.iter().any(|value| value == "d1v-terminal.v1");
 
-    match connect_async(ws_url.as_str()).await {
-        Ok((socket, _)) => {
+    match connect_async(request).await {
+        Ok((socket, response)) => {
+            if expects_terminal_protocol
+                && response
+                    .headers()
+                    .get(SEC_WEBSOCKET_PROTOCOL)
+                    .and_then(|value| value.to_str().ok())
+                    != Some("d1v-terminal.v1")
+            {
+                let _ = sender.send(Message::Text(
+                    json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"error","detail":"upstream_websocket_subprotocol_mismatch"}).to_string(),
+                ));
+                return;
+            }
             let (write, mut read) = socket.split();
             let write = Arc::new(Mutex::new(write));
             let _ = sender.send(Message::Text(
@@ -1154,6 +1181,35 @@ async fn open_local_ws_tunnel(
     let _ = sender.send(Message::Text(
         json!({"type":"ws_event","tunnel_id":tunnel_id,"event":"close"}).to_string(),
     ));
+}
+
+fn local_ws_tunnel_request(
+    ws_url: &str,
+    headers: &HashMap<String, String>,
+    subprotocols: &[String],
+) -> anyhow::Result<tokio_tungstenite::tungstenite::http::Request<()>> {
+    let mut request = ws_url
+        .into_client_request()
+        .map_err(|error| anyhow!("invalid relay WebSocket URL: {error}"))?;
+    for (name, value) in headers {
+        let header = match name.trim().to_ascii_lowercase().as_str() {
+            "origin" => ORIGIN,
+            "x-d1v-shell-ticket" => HeaderName::from_static("x-d1v-shell-ticket"),
+            _ => continue,
+        };
+        request.headers_mut().insert(
+            header,
+            HeaderValue::from_str(value)
+                .map_err(|_| anyhow!("invalid relay WebSocket handshake header"))?,
+        );
+    }
+    if subprotocols.iter().any(|value| value == "d1v-terminal.v1") {
+        request.headers_mut().insert(
+            SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static("d1v-terminal.v1"),
+        );
+    }
+    Ok(request)
 }
 
 pub(crate) async fn run_agent_relay_forever(
@@ -1281,6 +1337,28 @@ pub(crate) async fn run_agent_relay_forever(
                         .get("websocket_path")
                         .and_then(|v| v.as_str())
                         .map(str::to_string);
+                    let headers = payload
+                        .get("headers")
+                        .and_then(|value| value.as_object())
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(|(key, value)| {
+                                    value.as_str().map(|value| (key.clone(), value.to_string()))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let subprotocols = payload
+                        .get("subprotocols")
+                        .and_then(|value| value.as_array())
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(|value| value.as_str().map(str::to_string))
+                                .collect()
+                        })
+                        .unwrap_or_default();
                     let sender = out_tx.clone();
                     let opcode_base = config.opcode_base_url.clone();
                     tokio::spawn(async move {
@@ -1290,6 +1368,8 @@ pub(crate) async fn run_agent_relay_forever(
                             session_id,
                             target_base_url,
                             websocket_path,
+                            headers,
+                            subprotocols,
                             sender,
                         )
                         .await;
@@ -1523,6 +1603,12 @@ pub async fn run(ctx: &Context, command: AgentCommand) -> Result {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex as StdMutex};
+
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::accept_hdr_async;
+    use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
+
     use super::*;
 
     #[test]
@@ -1544,5 +1630,69 @@ localhost:3000\n\
         unsafe {
             env::remove_var("D1V_RUNTIME_AUTO_EXPOSE_CANDIDATE_PORTS");
         }
+    }
+
+    #[tokio::test]
+    async fn local_tunnel_forwards_restricted_terminal_handshake() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let saw_handshake = Arc::new(StdMutex::new(false));
+        let server_handshake = saw_handshake.clone();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket =
+                accept_hdr_async(stream, move |request: &Request, mut response: Response| {
+                    assert_eq!(request.uri().path(), "/ws/terminal/sh-local");
+                    assert!(request.uri().query().is_none());
+                    assert_eq!(request.headers().get(ORIGIN).unwrap(), "https://www.d1v.ai");
+                    assert_eq!(
+                        request.headers().get("x-d1v-shell-ticket").unwrap(),
+                        "secret-ticket"
+                    );
+                    assert!(request.headers().get("authorization").is_none());
+                    assert_eq!(
+                        request.headers().get(SEC_WEBSOCKET_PROTOCOL).unwrap(),
+                        "d1v-terminal.v1"
+                    );
+                    response.headers_mut().insert(
+                        SEC_WEBSOCKET_PROTOCOL,
+                        HeaderValue::from_static("d1v-terminal.v1"),
+                    );
+                    *server_handshake.lock().unwrap() = true;
+                    Ok(response)
+                })
+                .await
+                .unwrap();
+            socket.close(None).await.unwrap();
+        });
+        let (sender, mut receiver) = mpsc::unbounded_channel();
+
+        open_local_ws_tunnel(
+            "http://127.0.0.1:9191".into(),
+            "tunnel-local".into(),
+            "sh-local".into(),
+            Some(format!("http://{address}")),
+            Some("/ws/terminal/sh-local".into()),
+            HashMap::from([
+                ("Origin".into(), "https://www.d1v.ai".into()),
+                ("X-D1V-Shell-Ticket".into(), "secret-ticket".into()),
+                ("Authorization".into(), "must-not-forward".into()),
+            ]),
+            vec!["d1v-terminal.v1".into(), "must-not-forward".into()],
+            sender,
+        )
+        .await;
+        server.await.unwrap();
+
+        let mut events = Vec::new();
+        while let Ok(message) = receiver.try_recv() {
+            if let Message::Text(text) = message {
+                events.push(serde_json::from_str::<serde_json::Value>(&text).unwrap());
+            }
+        }
+        assert!(*saw_handshake.lock().unwrap());
+        assert_eq!(events[0]["event"], "open");
+        assert_eq!(events.last().unwrap()["event"], "close");
+        assert!(!TUNNELS.lock().await.contains_key("tunnel-local"));
     }
 }

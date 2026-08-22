@@ -2,45 +2,26 @@
 
 ## Current Execution
 
-- Goal: ship `d1v shell` and `d1v exec` on the shared, ticketed container terminal protocol used by the web terminal.
-- Background:
-  - `backend_admin` exposes authorized personal, organization, and project shell-session APIs.
-  - Runtime Agent exposes the binary `d1v-terminal.v1` PTY WebSocket protocol with one-time tickets, resize, signals, exit status, and lifecycle cleanup.
-  - The CLI already uses Crossterm, Tokio, and Tokio Tungstenite; this work must reuse the existing context, token chain, base URL, and output conventions.
-- Selected validators:
-  - `@cli-ux-qa`
-  - `@cli-json-qa`
-  - `@api-backend-qa`
-  - `@auth-state-qa`
-  - `@session-runtime-qa`
-  - `@docs-adoption-qa`
+- Goal: forward terminal WebSocket handshake metadata through the local device agent relay.
+- Background: the backend relay now sends a restricted Origin, one-time shell ticket header, and `d1v-terminal.v1`; the local CLI agent must preserve these during its upstream handshake without widening generic relay permissions.
+- Selected validators: `@session-runtime-qa`, `@auth-state-qa`, `@security-privacy-qa`, `@migration-compat-qa`.
 - Todo:
-  - [x] Add typed shell-session REST/protocol clients and unit tests.
-    - Validators: `@api-backend-qa`, `@session-runtime-qa`.
-    - Acceptance: project/workspace requests, organization scope, no-store ticket handling, protocol framing, and server errors have stable typed behavior.
-    - Evidence: `d1v-api` mock-server tests passed for authenticated organization workspace creation, project/session path encoding, and close metadata; four protocol unit tests passed for open/input/output/exit framing and invalid frames; `cargo check --workspace` passed. `ShellConnection` intentionally omits `Debug` and `Serialize` so tickets cannot enter standard diagnostics or JSON output.
-  - [x] Add interactive `d1v shell` with raw-mode PTY forwarding, resize, signals, terminal restoration, and exit semantics.
-    - Validators: `@cli-ux-qa`, `@auth-state-qa`, `@session-runtime-qa`.
-    - Acceptance: project and organization targeting are discoverable; stdin/stdout are binary-clean; all normal/error paths restore the terminal and close the server session.
-    - Evidence: `d1v shell --help` exposes optional project and organization-root targeting; eight focused tests passed, including a real loopback WebSocket handshake that asserted ticket header/subprotocol, open frame, binary input/output, and exit code 7. Raw mode is held by a Drop guard, cleanup calls the idempotent DELETE API after every returned transport result, resize is clamped to the API contract, and `cargo check --workspace` passed.
-  - [x] Add non-interactive `d1v exec` with stable human and JSON output.
-    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`.
-    - Acceptance: command arguments are unambiguous, stdout remains script-safe, JSON fields and process exit behavior are deterministic, and no ticket is printed.
-    - Evidence: `d1v exec --help` passed and exposes project/organization targeting plus trailing argv; three API shell tests and ten CLI shell/exec tests passed. The exec loopback WebSocket test asserted the ticket header, negotiated subprotocol, open frame, stdout (`0x01`), stderr (`0x02`), nonzero exit 23, and stable JSON fields without a ticket. Text mode writes stdout/stderr to separate process streams; JSON mode captures each stream up to 16 MiB and emits one object before preserving the remote exit status. Command validation enforces mutually exclusive scopes and the backend argv count/size/NUL limits. Cleanup is attempted after every completed transport result.
-  - [x] Document adoption paths and run full CLI regression plus local mocked API/WebSocket smoke tests.
-    - Validators: all selected validators.
-    - Acceptance: README/help examples match implementation; format, test, help, JSON debug, logged-out behavior, API errors, PTY lifecycle, and exec status are recorded below.
-    - Evidence: English and Simplified Chinese READMEs document personal/project/organization shells, native completion, argv-safe Exec, JSON fields, exit behavior, and ticket/history security boundaries. `cargo fmt --all -- --check` and `cargo test --workspace` passed with 326 passed, one existing ignored, and zero failed. Top-level help exposes Shell and Exec; JSON debug returned one valid object and exit 0. Command smokes returned exit 4 for logged-out and expired-token states, exit 1 for conflicting project/organization scope, and exit 3 for a loopback connection failure. In-process API and real loopback WebSocket fixtures cover authenticated request bodies, PTY lifecycle, Exec stdout/stderr channels, JSON shape, and nonzero remote status.
+  - [x] Add restricted header/subprotocol forwarding to local WebSocket tunnels.
+    - Acceptance: only Origin and `x-d1v-shell-ticket` are forwarded; only `d1v-terminal.v1` is offered; the ticket never enters the URL or diagnostics.
+    - Evidence: the structured Tungstenite request builder ignores Authorization and unknown protocols, forwards only Origin and `x-d1v-shell-ticket`, keeps the ticket out of the URI, and rejects a missing terminal subprotocol negotiation.
+  - [x] Run a real loopback WebSocket handshake and the full CLI workspace regression.
+    - Acceptance: server observes the expected header and negotiated subprotocol; existing generic relay, Shell, and Exec behavior does not regress.
+    - Evidence: a real loopback server asserted the terminal URI had no query, observed the allowed Origin/ticket header and `d1v-terminal.v1`, confirmed Authorization was absent, and completed tunnel cleanup. `cargo fmt --all -- --check` and `cargo test --workspace` passed with 327 passed, one existing ignored, and zero failed.
 
 ### Validator Handoff
 
-- Result: passed for the CLI implementation and local validation scope.
-- Checked: architecture, command/help UX, typed REST routes, auth states, path/query/body shapes, protocol framing, PTY lifecycle, Exec stream/JSON/exit behavior, docs, formatting, and full workspace regression.
-- Passed: all four current-execution todos and all selected local validators.
-- Failed: none after fixes; the initial unbounded macOS Keychain lookup was corrected with a cached result and a three-second provider timeout, then the JSON debug smoke passed.
-- Not checked: a real deployed container and production control-plane/runtime deployment; those require the root deployment sequence and production credentials.
-- Risk: a real container E2E requires an enabled deployed control plane and Runtime node; local tests will use an in-process HTTP/WebSocket fixture.
-- Plan update: CLI Shell/Exec work is complete; continue with root relay parity, cross-repository E2E/load tests, and deployment gates.
+- Result: passed for local agent relay handshake parity.
+- Checked: backend control message parsing, structured upstream handshake, header/protocol allowlists, URI ticket exclusion, negotiation, cleanup, and full workspace regression.
+- Passed: both current-execution todos plus prior Shell/Exec implementation and adoption work.
+- Failed: none.
+- Not checked: a real local Runtime Agent terminal gateway target and production relay deployment.
+- Risk: local opcode-api does not yet expose the Runtime Agent terminal gateway unless `terminal_base_url` targets one; this step only establishes secure transport parity.
+- Plan update: local relay handshake forwarding is complete; return to root cross-repository E2E and deployment gates.
 
 ## 设计思想与需求背景
 
