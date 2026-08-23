@@ -10,19 +10,19 @@
     - Acceptance: Cargo metadata and the compiled `d1v --version` agree on `0.1.24`; API package publication is handled by the separate dependency-contract todo.
     - Validators: `@deploy-release-qa`, `@migration-compat-qa`.
     - Evidence: Cargo metadata reports `d1v-cli 0.1.24`; the locally compiled binary reports `d1v 0.1.24`.
-  - [ ] Publish the shell API contract as `d1v-api 0.1.8` and bind the CLI release to it.
+  - [x] Publish the shell API contract as `d1v-api 0.1.8` and bind the CLI release to it.
     - Acceptance: `d1v-api` package metadata is `0.1.8`; `d1v-cli` declares `d1v-api 0.1.8`; Cargo's isolated package verification compiles the CLI against the registry package rather than relying only on the workspace path.
     - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@deploy-release-qa`, `@migration-compat-qa`.
-    - Evidence: workspace metadata and lockfile resolve API `0.1.8` with CLI `0.1.24`; formatting, all-target checks, and all 332 tests pass; `cargo publish -p d1v-api --locked --dry-run --allow-dirty` packaged 34 files and independently compiled the package. CLI registry verification remains pending until API `0.1.8` is public.
+    - Evidence: workspace metadata and lockfile resolve API `0.1.8` with CLI `0.1.24`; formatting, all-target checks, and all 332 tests pass; `cargo publish -p d1v-api --locked --dry-run --allow-dirty` packaged 34 files and independently compiled the package. Publish workflow `32611234873` succeeded; crates.io reports both versions public and not yanked; both static downloads return HTTP 200. The final CLI dry-run packaged 87 files, downloaded public `d1v-api 0.1.8`, and independently compiled `d1v-cli 0.1.24`.
   - [x] Make ordered workspace publication wait for each new crate to become downloadable.
     - Acceptance: a newly uploaded API crate must be observable from crates.io before publishing the dependent CLI; polling has a bounded timeout and automated tests run before upload.
     - Validators: `@deploy-release-qa`, `@ops-reliability-qa`.
     - Evidence: after correcting the test harness's module registration and frozen-instance mock target, both retry-success and bounded-timeout tests pass. Publish CI runs these tests before upload; Python syntax, Rust formatting, and all 332 workspace tests also pass.
-  - [ ] Run the local release gate before creating the immutable tag.
+  - [x] Run the local release gate before creating the immutable tag.
     - Acceptance: formatting, all-target checks, full workspace tests, publish dry-run, CLI help/JSON output, and shell/exec help all pass on the release commit.
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
-    - Evidence: formatting, Cargo metadata, compiled version, all-target checks, and 332 workspace tests passed with one existing ignored test. The first publish dry-run did not start because the host's default `python3` predates the script's required structural pattern matching. The compatible rerun reached isolated package verification and correctly rejected the unpublished shell API dependency; the versioning correction is implemented and API package verification passes.
-  - [ ] Push the release commit and signed-off `v0.1.24` tag, then wait for Release and Publish workflows.
+    - Evidence: formatting, Cargo metadata, compiled version, all-target checks, 332 workspace tests with one existing ignored test, command-surface smoke, shell/exec process E2E, Agent relay E2E, Runtime E2E `32610205087`, CI `32610205082`, API package dry-run, and final CLI registry package dry-run all pass. The gate exposed and corrected the unpublished API contract before tagging.
+  - [ ] Push the release commit and annotated `v0.1.24` tag, then wait for Release and Publish workflows.
     - Acceptance: all seven platform builds succeed, checksums and attestations are attached, the GitHub release is public, and crates.io serves `d1v-cli 0.1.24`.
     - Validators: `@deploy-release-qa`.
   - [ ] Verify the real user installation path and release artifact.
@@ -32,12 +32,12 @@
 ### Validator Handoff
 
 - Result: in progress.
-- Checked: the latest public tag is `v0.1.23`; terminal workflows and their CI/E2E gates already pass on `main`; package and lockfile metadata now agree on `0.1.24`.
-- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, isolated API package verification, and ordered-publication unit tests.
-- Failed: the first local publish dry-run used an incompatible host Python interpreter; the compatible rerun exposed that published `d1v-api 0.1.7` lacks the new shell contract used by the CLI. The API version and CLI dependency must be advanced together.
-- Not checked: CLI registry package verification against public API `0.1.8`, GitHub release assets, crates.io publication, and public installer resolution.
-- Risk: a tag is immutable deployment input, so it must not be pushed until every local release validator passes.
-- Plan update: publish the new API contract before verifying and publishing the CLI package; GitHub binary publication and downstream installation verification follow.
+- Checked: the latest binary tag is `v0.1.23`; package and lockfile metadata agree on CLI `0.1.24` and API `0.1.8`; both crates are now public and not yanked.
+- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, remote CI/Runtime E2E, isolated API/CLI package verification, crates.io publication, and ordered-publication unit tests.
+- Failed: none remaining. Early validation exposed and corrected the host Python mismatch, unpublished API contract, and two test-harness errors before production publication.
+- Not checked: GitHub release assets, checksums/attestations, and public installer resolution.
+- Risk: `Cargo.lock` contains an existing yanked indirect `spin 0.9.8`; Cargo still resolves and verifies the published packages, so replacement is deferred to a focused dependency update. The tag remains immutable deployment input.
+- Plan update: registry publication is complete; create the immutable binary tag, wait for all platform assets, then verify installation and update the root architecture evidence.
 
 ## 设计思想与需求背景
 
