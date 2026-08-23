@@ -2,44 +2,47 @@
 
 ## Current Execution
 
-- Goal: release the tested terminal and container shell workflows through the public CLI distribution channels as `v0.1.24`.
-- Background: `main` contains the completed `d1v shell` / `d1v exec` implementation, heartbeat reliability fix, process and relay E2E coverage, and bilingual adoption docs, but the latest downloadable release remains `v0.1.23`.
-- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
+- Goal: install the pinned enhanced Bash editor shipped in an Opcode runtime
+  release next to the runtime binary and managed shell init.
+- Background: runtime archives now contain `ble.sh/` in addition to
+  `opcode-api` and `d1v-shell-init.sh`. The current CLI installer extracts the
+  directory but only installs the binary and one shell-init file, so a device
+  runtime upgrade would silently omit the editor required for history
+  autosuggestions and command-line syntax highlighting.
+- Selected validators: `@session-runtime-qa`, `@ops-reliability-qa`,
+  `@security-privacy-qa`, `@migration-compat-qa`.
 - Todo:
-  - [x] Bump the CLI package and lockfile versions from `0.1.23` to `0.1.24`.
-    - Acceptance: Cargo metadata and the compiled `d1v --version` agree on `0.1.24`; API package publication is handled by the separate dependency-contract todo.
-    - Validators: `@deploy-release-qa`, `@migration-compat-qa`.
-    - Evidence: Cargo metadata reports `d1v-cli 0.1.24`; the locally compiled binary reports `d1v 0.1.24`.
-  - [x] Publish the shell API contract as `d1v-api 0.1.8` and bind the CLI release to it.
-    - Acceptance: `d1v-api` package metadata is `0.1.8`; `d1v-cli` declares `d1v-api 0.1.8`; Cargo's isolated package verification compiles the CLI against the registry package rather than relying only on the workspace path.
-    - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@deploy-release-qa`, `@migration-compat-qa`.
-    - Evidence: workspace metadata and lockfile resolve API `0.1.8` with CLI `0.1.24`; formatting, all-target checks, and all 332 tests pass; `cargo publish -p d1v-api --locked --dry-run --allow-dirty` packaged 34 files and independently compiled the package. Publish workflow `32611234873` succeeded; crates.io reports both versions public and not yanked; both static downloads return HTTP 200. The final CLI dry-run packaged 87 files, downloaded public `d1v-api 0.1.8`, and independently compiled `d1v-cli 0.1.24`.
-  - [x] Make ordered workspace publication wait for each new crate to become downloadable.
-    - Acceptance: a newly uploaded API crate must be observable from crates.io before publishing the dependent CLI; polling has a bounded timeout and automated tests run before upload.
-    - Validators: `@deploy-release-qa`, `@ops-reliability-qa`.
-    - Evidence: after correcting the test harness's module registration and frozen-instance mock target, both retry-success and bounded-timeout tests pass. Publish CI runs these tests before upload; Python syntax, Rust formatting, and all 332 workspace tests also pass.
-  - [x] Run the local release gate before creating the immutable tag.
-    - Acceptance: formatting, all-target checks, full workspace tests, publish dry-run, CLI help/JSON output, and shell/exec help all pass on the release commit.
-    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
-    - Evidence: formatting, Cargo metadata, compiled version, all-target checks, 332 workspace tests with one existing ignored test, command-surface smoke, shell/exec process E2E, Agent relay E2E, Runtime E2E `32610205087`, CI `32610205082`, API package dry-run, and final CLI registry package dry-run all pass. The gate exposed and corrected the unpublished API contract before tagging.
-  - [x] Push the release commit and annotated `v0.1.24` tag, then wait for Release and Publish workflows.
-    - Acceptance: all seven platform builds succeed, checksums and attestations are attached, the GitHub release is public, and crates.io serves `d1v-cli 0.1.24`.
-    - Validators: `@deploy-release-qa`.
-    - Evidence: annotated tag `v0.1.24` points to `fbec316`; Release `32611365650` completed all seven platform builds plus checksum, attestation, and public release steps; tag Publish `32611365718` completed idempotently; tag CI `32611365719` passed on Windows, macOS, and Ubuntu.
-  - [x] Verify the real user installation path and release artifact.
-    - Acceptance: the public installer resolves `v0.1.24`; the native macOS artifact passes checksum validation and reports `d1v 0.1.24`; `shell --help` and `exec --help` expose the released command surface.
-    - Validators: `@cli-ux-qa`, `@docs-adoption-qa`, `@deploy-release-qa`.
-    - Evidence: `https://d1v.ai/install/d1v-cli.sh` returned the production script and resolved latest to the `v0.1.24` arm64 macOS asset; an isolated install passed checksum verification, reported `d1v 0.1.24`, and exposed project/organization `shell` and `exec` help; `gh attestation verify` accepted the downloaded native artifact.
+  - [ ] Add a stable runtime editor asset path derived from the runtime binary.
+    - Acceptance: a runtime installed at `<dir>/opcode-api` resolves the editor
+      directory to `<dir>/ble.sh` without changing existing shell-init paths or
+      command behavior.
+    - Validators: `@session-runtime-qa`, `@migration-compat-qa`.
+  - [ ] Install the extracted editor directory using a staged replacement.
+    - Acceptance: regular files and directories are copied, archive-provided
+      symlinks and unsupported file types are rejected, a failed replacement
+      leaves the previous usable directory recoverable, and stale staging paths
+      are bounded to the exact runtime asset target.
+    - Validators: `@ops-reliability-qa`, `@security-privacy-qa`.
+  - [ ] Add focused installer tests and run the repository validation gate.
+    - Acceptance: tests cover the destination, successful recursive install,
+      replacement of an older asset, and rejection of symlinks; `cargo fmt`,
+      focused tests, full `cargo test`, CLI help, and JSON debug pass.
+    - Validators: `@session-runtime-qa`, `@ops-reliability-qa`,
+      `@security-privacy-qa`, `@migration-compat-qa`.
 
 ### Validator Handoff
 
-- Result: passed for the public `v0.1.24` CLI release.
-- Checked: package/lockfile versions, public crates, seven binary targets, release checksums and attestation, latest installer resolution, native installation, version output, and shell/exec discoverability.
-- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, remote CI/Runtime E2E, isolated API/CLI package verification, crates.io publication, ordered-publication tests, Release/Publish workflows, checksum/attestation, and production installer smoke.
-- Failed: none remaining. Early validation exposed and corrected the host Python mismatch, unpublished API contract, and two test-harness errors before production publication.
-- Not checked: execution of non-native Linux and Windows binaries; their compilation and packaging jobs passed, but this host only executed the native arm64 macOS artifact.
-- Risk: `Cargo.lock` contains an existing yanked indirect `spin 0.9.8`; Cargo still resolves and verifies the published packages, so replacement is deferred to a focused dependency update. The tag remains immutable deployment input.
-- Plan update: release scope is complete; root architecture evidence must record the final version and workflow IDs.
+- Result: in progress.
+- Checked: runtime archive contents and the existing installer extraction and
+  single-file installation path.
+- Passed: planning and scope isolation.
+- Failed: none.
+- Not checked: Rust implementation, replacement recovery, symlink rejection,
+  focused/full tests, and command smoke.
+- Risk: installing an unvalidated archive directory could create a local
+  symlink escape or leave a partial editor after interruption; the implementation
+  must reject links and stage before replacement.
+- Plan update: implement and verify the three open todos in order.
 
 ## 设计思想与需求背景
 
