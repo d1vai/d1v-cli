@@ -2,32 +2,34 @@
 
 ## Current Execution
 
-- Goal: ship managed shell completion with the local Opcode runtime and record a repeatable real-relay performance baseline before the production integration gate.
-- Background: the terminal gateway intentionally skips user profiles for deterministic startup. Platform images contain a managed shell init, but binary local runtimes also need the same verified asset installed beside `opcode-api` and passed to the child process.
-- Selected validators: `@cli-ux-qa`, `@api-backend-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@security-privacy-qa`, `@ops-reliability-qa`.
+- Goal: release the tested terminal and container shell workflows through the public CLI distribution channels as `v0.1.24`.
+- Background: `main` contains the completed `d1v shell` / `d1v exec` implementation, heartbeat reliability fix, process and relay E2E coverage, and bilingual adoption docs, but the latest downloadable release remains `v0.1.23`.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
 - Todo:
-  - [x] Install the checksummed `d1v-shell-init.sh` asset beside the local runtime binary and inject it only when terminal bootstrap is enabled.
-    - Acceptance: old binary-only archives remain compatible; new archives install the asset atomically before switching the runtime binary; disabled terminal mode does not load it.
-    - Validators: `@ops-reliability-qa`, `@security-privacy-qa`, `@auth-state-qa`.
-    - Evidence: runtime installer tests and Agent environment tests passed; the real local Agent + Opcode relay E2E loaded `d1v-project` and completed `project-1` inside the PTY.
-  - [x] Extend the real local relay E2E with an optional machine-readable reduced benchmark profile.
-    - Acceptance: uses real `d1v agent`, `opcode-api`, Ed25519 tickets, PTY bytes, resize, Ctrl-C, Tab, status, terminate, and replay protection; reports p50/p95/p99, errors, RSS, file descriptors, and environment scope.
-    - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
-    - Evidence: 200 command roundtrips completed with zero errors; p50/p95/p99 were 3.45/4.376/5.03 ms on the recorded loopback debug-runtime profile. This is not a production SLO result.
-  - [x] Run formatting, full workspace tests, help/JSON smoke, and the real relay E2E after all integration changes.
-    - Acceptance: `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo run -p d1v-cli -- --help`, JSON debug parsing, and the local terminal relay E2E all pass.
-    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@auth-state-qa`, `@session-runtime-qa`, `@ops-reliability-qa`.
-    - Evidence: Rust 1.95 formatting passed; the workspace completed 332 tests with one existing ignored and zero failures; help exposes `shell`, `exec`, `runtime`, and `skill`; JSON debug returned valid `version` and `base_url`; the final real local terminal relay E2E passed.
+  - [x] Bump the CLI package and lockfile versions from `0.1.23` to `0.1.24`.
+    - Acceptance: Cargo metadata and the compiled `d1v --version` agree on `0.1.24`; no API crate version is changed.
+    - Validators: `@deploy-release-qa`, `@migration-compat-qa`.
+    - Evidence: Cargo metadata reports `d1v-cli 0.1.24` and unchanged `d1v-api 0.1.7`; the locally compiled binary reports `d1v 0.1.24`.
+  - [ ] Run the local release gate before creating the immutable tag.
+    - Acceptance: formatting, all-target checks, full workspace tests, publish dry-run, CLI help/JSON output, and shell/exec help all pass on the release commit.
+    - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
+    - Evidence: formatting, Cargo metadata, compiled version, all-target checks, and 332 workspace tests passed with one existing ignored test. The first publish dry-run did not start because the host's default `python3` predates the script's required structural pattern matching; rerun with the workflow-compatible Python toolchain.
+  - [ ] Push the release commit and signed-off `v0.1.24` tag, then wait for Release and Publish workflows.
+    - Acceptance: all seven platform builds succeed, checksums and attestations are attached, the GitHub release is public, and crates.io serves `d1v-cli 0.1.24`.
+    - Validators: `@deploy-release-qa`.
+  - [ ] Verify the real user installation path and release artifact.
+    - Acceptance: the public installer resolves `v0.1.24`; the native macOS artifact passes checksum validation and reports `d1v 0.1.24`; `shell --help` and `exec --help` expose the released command surface.
+    - Validators: `@cli-ux-qa`, `@docs-adoption-qa`, `@deploy-release-qa`.
 
 ### Validator Handoff
 
-- Result: passed for the CLI-managed completion release, full workspace regression, and reduced local relay benchmark; root production integration gates remain open.
-- Checked: managed completion asset installation, terminal bootstrap injection, real local PTY completion, relay lifecycle, and machine-readable latency/resource evidence.
-- Passed: installer/Agent unit tests, Rust formatting, 332 workspace tests, help/JSON smoke, real local relay E2E, and the 200-roundtrip reduced profile.
-- Failed: none.
-- Not checked: live production Runtime Agent, production browser flow, representative-node load/soak, and production relay deployment.
-- Risk: loopback debug-runtime latency excludes control-plane creation, container cold start, cross-region networking, and production node contention.
-- Plan update: CLI validators are complete; return to root browser, image, deployment, and production verification gates.
+- Result: in progress.
+- Checked: the latest public tag is `v0.1.23`; terminal workflows and their CI/E2E gates already pass on `main`; package and lockfile metadata now agree on `0.1.24`.
+- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, and command-surface smoke.
+- Failed: the first local publish dry-run used an incompatible host Python interpreter and exited before invoking Cargo; corrective rerun is pending with a workflow-compatible interpreter.
+- Not checked: clean-tree publish dry-run, GitHub release assets, crates.io publication, and public installer resolution.
+- Risk: a tag is immutable deployment input, so it must not be pushed until every local release validator passes.
+- Plan update: version bump is the only implementation change in this execution; publication and downstream verification follow it.
 
 ## 设计思想与需求背景
 
