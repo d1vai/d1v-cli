@@ -12,37 +12,49 @@
 - Selected validators: `@session-runtime-qa`, `@ops-reliability-qa`,
   `@security-privacy-qa`, `@migration-compat-qa`.
 - Todo:
-  - [ ] Add a stable runtime editor asset path derived from the runtime binary.
+  - [x] Add a stable runtime editor asset path derived from the runtime binary.
     - Acceptance: a runtime installed at `<dir>/opcode-api` resolves the editor
       directory to `<dir>/ble.sh` without changing existing shell-init paths or
       command behavior.
     - Validators: `@session-runtime-qa`, `@migration-compat-qa`.
-  - [ ] Install the extracted editor directory using a staged replacement.
+    - Evidence: `runtime_blesh_path` resolves an `opcode-api` sibling named
+      `ble.sh`; the focused destination/install test passes without changing
+      `runtime_shell_init_path`.
+  - [x] Install the extracted editor directory using a staged replacement.
     - Acceptance: regular files and directories are copied, archive-provided
       symlinks and unsupported file types are rejected, a failed replacement
       leaves the previous usable directory recoverable, and stale staging paths
       are bounded to the exact runtime asset target.
     - Validators: `@ops-reliability-qa`, `@security-privacy-qa`.
-  - [ ] Add focused installer tests and run the repository validation gate.
+    - Evidence: recursive installation uses exact `.new` and `.old` siblings,
+      rejects links and special files, cleans failed staging, and restores the
+      prior directory if activation fails. First install, replacement, and Unix
+      symlink rejection tests pass.
+  - [x] Add focused installer tests and run the repository validation gate.
     - Acceptance: tests cover the destination, successful recursive install,
       replacement of an older asset, and rejection of symlinks; `cargo fmt`,
       focused tests, full `cargo test`, CLI help, and JSON debug pass.
     - Validators: `@session-runtime-qa`, `@ops-reliability-qa`,
       `@security-privacy-qa`, `@migration-compat-qa`.
+    - Evidence: `cargo fmt --all`, 10 focused runtime installer tests, all 147
+      library tests, CLI `--help`, and parseable `--format json debug` pass.
 
 ### Validator Handoff
 
-- Result: in progress.
-- Checked: runtime archive contents and the existing installer extraction and
-  single-file installation path.
-- Passed: planning and scope isolation.
+- Result: passed for runtime enhanced-editor asset installation.
+- Checked: destination derivation, optional legacy-archive compatibility,
+  recursive regular-file copying, staged replacement, cleanup, link rejection,
+  focused/full tests, help output, and JSON output.
+- Passed: formatting, 10 focused tests, all 147 library tests, CLI help, and
+  parseable JSON debug output.
 - Failed: none.
-- Not checked: Rust implementation, replacement recovery, symlink rejection,
-  focused/full tests, and command smoke.
-- Risk: installing an unvalidated archive directory could create a local
-  symlink escape or leave a partial editor after interruption; the implementation
-  must reject links and stage before replacement.
-- Plan update: implement and verify the three open todos in order.
+- Not checked: downloading a newly published production runtime archive; the
+  opcode runtime release is published in a later controlled-rollout step.
+- Risk: an interruption after moving the prior directory but before activating
+  the replacement can leave the explicitly named `.old` directory for manual or
+  subsequent-run recovery; no unbounded or user-selected path is removed.
+- Plan update: complete; the Shell activation step can rely on the editor being
+  installed beside the managed shell init.
 
 ## 设计思想与需求背景
 

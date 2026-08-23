@@ -20,6 +20,7 @@ use crate::output::Format;
 const DEFAULT_RUNTIME_REPO: &str = "d1vai/opcode-api-runtime";
 const RUNTIME_ARCHIVE_BASENAME: &str = "opcode-api";
 const RUNTIME_SHELL_INIT_BASENAME: &str = "d1v-shell-init.sh";
+const RUNTIME_BLESH_DIRNAME: &str = "ble.sh";
 const RUNTIME_CHECKSUM_FILE: &str = "checksums.txt";
 
 #[derive(Debug, Args, Clone)]
@@ -264,6 +265,13 @@ pub fn runtime_shell_init_path(runtime_binary: &Path) -> PathBuf {
         .join(RUNTIME_SHELL_INIT_BASENAME)
 }
 
+pub fn runtime_blesh_path(runtime_binary: &Path) -> PathBuf {
+    runtime_binary
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(RUNTIME_BLESH_DIRNAME)
+}
+
 async fn install_release(ctx: &Context, release: &ReleaseInfo) -> Result<()> {
     if matches!(ctx.output.format, Format::Text) {
         ctx.info(format!(
@@ -287,6 +295,13 @@ async fn install_release(ctx: &Context, release: &ReleaseInfo) -> Result<()> {
         install_runtime_asset(
             &extracted_shell_init,
             &runtime_shell_init_path(&release.executable_path),
+        )?;
+    }
+    let extracted_blesh = paths.extracted_dir.join(RUNTIME_BLESH_DIRNAME);
+    if extracted_blesh.is_dir() {
+        install_runtime_directory(
+            &extracted_blesh,
+            &runtime_blesh_path(&release.executable_path),
         )?;
     }
     install_binary(&extracted_binary, &release.executable_path)?;
@@ -552,6 +567,87 @@ fn install_runtime_asset(source: &Path, destination: &Path) -> Result<()> {
     let replacement = destination.with_extension("new");
     fs::copy(source, &replacement)?;
     fs::rename(&replacement, destination)?;
+    Ok(())
+}
+
+fn install_runtime_directory(source: &Path, destination: &Path) -> Result<()> {
+    if !source.join("ble.sh").is_file() || !source.join("doc/LICENSE.md").is_file() {
+        return Err(Error::Other(anyhow::anyhow!(
+            "runtime editor asset is incomplete"
+        )));
+    }
+
+    let replacement = destination.with_extension("new");
+    let backup = destination.with_extension("old");
+    remove_runtime_path(&replacement)?;
+    remove_runtime_path(&backup)?;
+
+    if let Err(error) = copy_runtime_directory(source, &replacement) {
+        let _ = remove_runtime_path(&replacement);
+        return Err(error);
+    }
+
+    let had_previous = match fs::symlink_metadata(destination) {
+        Ok(_) => true,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+        Err(error) => return Err(error.into()),
+    };
+    if had_previous {
+        fs::rename(destination, &backup)?;
+    }
+    if let Err(error) = fs::rename(&replacement, destination) {
+        if had_previous {
+            let _ = fs::rename(&backup, destination);
+        }
+        let _ = remove_runtime_path(&replacement);
+        return Err(error.into());
+    }
+    remove_runtime_path(&backup)?;
+    Ok(())
+}
+
+fn copy_runtime_directory(source: &Path, destination: &Path) -> Result<()> {
+    let source_metadata = fs::symlink_metadata(source)?;
+    if !source_metadata.is_dir() || source_metadata.file_type().is_symlink() {
+        return Err(Error::Other(anyhow::anyhow!(
+            "runtime editor asset must be a regular directory"
+        )));
+    }
+    fs::create_dir(destination)?;
+
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let target = destination.join(entry.file_name());
+        if file_type.is_symlink() {
+            return Err(Error::Other(anyhow::anyhow!(
+                "runtime editor asset contains a symbolic link"
+            )));
+        }
+        if file_type.is_dir() {
+            copy_runtime_directory(&entry.path(), &target)?;
+        } else if file_type.is_file() {
+            fs::copy(entry.path(), &target)?;
+        } else {
+            return Err(Error::Other(anyhow::anyhow!(
+                "runtime editor asset contains an unsupported file type"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn remove_runtime_path(path: &Path) -> Result<()> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+        fs::remove_dir_all(path)?;
+    } else {
+        fs::remove_file(path)?;
+    }
     Ok(())
 }
 
@@ -848,5 +944,69 @@ mod tests {
             fs::read_to_string(destination).unwrap(),
             "# managed completion\n"
         );
+    }
+
+    fn write_blesh_fixture(root: &Path, marker: &str) {
+        fs::create_dir_all(root.join("doc")).unwrap();
+        fs::create_dir_all(root.join("lib")).unwrap();
+        fs::write(root.join("ble.sh"), marker).unwrap();
+        fs::write(root.join("doc/LICENSE.md"), "BSD 3-Clause").unwrap();
+        fs::write(root.join("lib/core-syntax.sh"), "syntax").unwrap();
+    }
+
+    #[test]
+    fn installs_runtime_blesh_next_to_binary() {
+        let directory = tempfile::tempdir().unwrap();
+        let binary = directory.path().join("bin/opcode-api");
+        let source = directory.path().join("source-ble.sh");
+        fs::create_dir_all(binary.parent().unwrap()).unwrap();
+        write_blesh_fixture(&source, "new editor");
+
+        let destination = runtime_blesh_path(&binary);
+        install_runtime_directory(&source, &destination).unwrap();
+
+        assert_eq!(destination, directory.path().join("bin/ble.sh"));
+        assert_eq!(
+            fs::read_to_string(destination.join("ble.sh")).unwrap(),
+            "new editor"
+        );
+        assert!(destination.join("lib/core-syntax.sh").is_file());
+        assert!(!destination.with_extension("new").exists());
+        assert!(!destination.with_extension("old").exists());
+    }
+
+    #[test]
+    fn replaces_previous_runtime_blesh_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source");
+        let destination = directory.path().join("ble.sh");
+        write_blesh_fixture(&source, "new editor");
+        write_blesh_fixture(&destination, "old editor");
+
+        install_runtime_directory(&source, &destination).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(destination.join("ble.sh")).unwrap(),
+            "new editor"
+        );
+        assert!(!destination.with_extension("old").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symbolic_links_in_runtime_blesh_directory() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source");
+        let destination = directory.path().join("installed");
+        write_blesh_fixture(&source, "new editor");
+        symlink("/tmp", source.join("unsafe-link")).unwrap();
+
+        let error = install_runtime_directory(&source, &destination).unwrap_err();
+
+        assert!(error.to_string().contains("symbolic link"));
+        assert!(!destination.exists());
+        assert!(!destination.with_extension("new").exists());
     }
 }
