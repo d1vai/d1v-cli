@@ -5,6 +5,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.error import HTTPError
@@ -12,6 +13,8 @@ from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CRATES = ["d1v-api", "d1v-cli"]
+PUBLISH_TIMEOUT_SECONDS = 300
+PUBLISH_POLL_SECONDS = 5
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,27 @@ class Publisher:
         print(f"Running: {' '.join(command)}")
         subprocess.check_call(command, cwd=self.root)
 
+    def wait_until_published(
+        self,
+        crate: Crate,
+        *,
+        timeout_seconds: float = PUBLISH_TIMEOUT_SECONDS,
+        poll_seconds: float = PUBLISH_POLL_SECONDS,
+    ) -> None:
+        deadline = time.monotonic() + timeout_seconds
+        while not crate.is_published():
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"timed out waiting for {crate.name} {crate.version} on crates.io"
+                )
+            print(
+                f"Waiting for {crate.name} {crate.version} to become downloadable...",
+                flush=True,
+            )
+            time.sleep(poll_seconds)
+
+        print(f"Available on crates.io: {crate.name} {crate.version}.")
+
     def run(self, names: list[str]) -> None:
         if self.dry_run:
             print("Dry run: cargo publish will be invoked with --dry-run.")
@@ -76,6 +100,8 @@ class Publisher:
                 print(f"Skip {crate.name} {crate.version}: already on crates.io.")
                 continue
             self.publish(crate)
+            if not self.dry_run:
+                self.wait_until_published(crate)
             published += 1
 
         if published:

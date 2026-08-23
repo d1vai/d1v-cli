@@ -14,6 +14,10 @@
     - Acceptance: `d1v-api` package metadata is `0.1.8`; `d1v-cli` declares `d1v-api 0.1.8`; Cargo's isolated package verification compiles the CLI against the registry package rather than relying only on the workspace path.
     - Validators: `@api-backend-qa`, `@session-runtime-qa`, `@deploy-release-qa`, `@migration-compat-qa`.
     - Evidence: workspace metadata and lockfile resolve API `0.1.8` with CLI `0.1.24`; formatting, all-target checks, and all 332 tests pass; `cargo publish -p d1v-api --locked --dry-run --allow-dirty` packaged 34 files and independently compiled the package. CLI registry verification remains pending until API `0.1.8` is public.
+  - [x] Make ordered workspace publication wait for each new crate to become downloadable.
+    - Acceptance: a newly uploaded API crate must be observable from crates.io before publishing the dependent CLI; polling has a bounded timeout and automated tests run before upload.
+    - Validators: `@deploy-release-qa`, `@ops-reliability-qa`.
+    - Evidence: after correcting the test harness's module registration and frozen-instance mock target, both retry-success and bounded-timeout tests pass. Publish CI runs these tests before upload; Python syntax, Rust formatting, and all 332 workspace tests also pass.
   - [ ] Run the local release gate before creating the immutable tag.
     - Acceptance: formatting, all-target checks, full workspace tests, publish dry-run, CLI help/JSON output, and shell/exec help all pass on the release commit.
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
@@ -29,7 +33,7 @@
 
 - Result: in progress.
 - Checked: the latest public tag is `v0.1.23`; terminal workflows and their CI/E2E gates already pass on `main`; package and lockfile metadata now agree on `0.1.24`.
-- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, and isolated API package verification.
+- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, isolated API package verification, and ordered-publication unit tests.
 - Failed: the first local publish dry-run used an incompatible host Python interpreter; the compatible rerun exposed that published `d1v-api 0.1.7` lacks the new shell contract used by the CLI. The API version and CLI dependency must be advanced together.
 - Not checked: CLI registry package verification against public API `0.1.8`, GitHub release assets, crates.io publication, and public installer resolution.
 - Risk: a tag is immutable deployment input, so it must not be pushed until every local release validator passes.

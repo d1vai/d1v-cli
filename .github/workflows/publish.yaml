@@ -34,6 +34,9 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Test publisher
+        run: python -m unittest scripts/test_publish.py
+
       - name: Dry-run publish
         if: env.DRY_RUN == 'true'
         run: python scripts/publish.py --dry-run
