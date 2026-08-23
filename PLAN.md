@@ -22,22 +22,24 @@
     - Acceptance: formatting, all-target checks, full workspace tests, publish dry-run, CLI help/JSON output, and shell/exec help all pass on the release commit.
     - Validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@auth-state-qa`, `@docs-adoption-qa`, `@session-runtime-qa`, `@deploy-release-qa`.
     - Evidence: formatting, Cargo metadata, compiled version, all-target checks, 332 workspace tests with one existing ignored test, command-surface smoke, shell/exec process E2E, Agent relay E2E, Runtime E2E `32610205087`, CI `32610205082`, API package dry-run, and final CLI registry package dry-run all pass. The gate exposed and corrected the unpublished API contract before tagging.
-  - [ ] Push the release commit and annotated `v0.1.24` tag, then wait for Release and Publish workflows.
+  - [x] Push the release commit and annotated `v0.1.24` tag, then wait for Release and Publish workflows.
     - Acceptance: all seven platform builds succeed, checksums and attestations are attached, the GitHub release is public, and crates.io serves `d1v-cli 0.1.24`.
     - Validators: `@deploy-release-qa`.
-  - [ ] Verify the real user installation path and release artifact.
+    - Evidence: annotated tag `v0.1.24` points to `fbec316`; Release `32611365650` completed all seven platform builds plus checksum, attestation, and public release steps; tag Publish `32611365718` completed idempotently; tag CI `32611365719` passed on Windows, macOS, and Ubuntu.
+  - [x] Verify the real user installation path and release artifact.
     - Acceptance: the public installer resolves `v0.1.24`; the native macOS artifact passes checksum validation and reports `d1v 0.1.24`; `shell --help` and `exec --help` expose the released command surface.
     - Validators: `@cli-ux-qa`, `@docs-adoption-qa`, `@deploy-release-qa`.
+    - Evidence: `https://d1v.ai/install/d1v-cli.sh` returned the production script and resolved latest to the `v0.1.24` arm64 macOS asset; an isolated install passed checksum verification, reported `d1v 0.1.24`, and exposed project/organization `shell` and `exec` help; `gh attestation verify` accepted the downloaded native artifact.
 
 ### Validator Handoff
 
-- Result: in progress.
-- Checked: the latest binary tag is `v0.1.23`; package and lockfile metadata agree on CLI `0.1.24` and API `0.1.8`; both crates are now public and not yanked.
-- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, remote CI/Runtime E2E, isolated API/CLI package verification, crates.io publication, and ordered-publication unit tests.
+- Result: passed for the public `v0.1.24` CLI release.
+- Checked: package/lockfile versions, public crates, seven binary targets, release checksums and attestation, latest installer resolution, native installation, version output, and shell/exec discoverability.
+- Passed: pre-release repository/workflow inspection, release version consistency, formatting, all-target compilation, workspace tests, command-surface smoke, shell/exec and Agent relay process E2E, remote CI/Runtime E2E, isolated API/CLI package verification, crates.io publication, ordered-publication tests, Release/Publish workflows, checksum/attestation, and production installer smoke.
 - Failed: none remaining. Early validation exposed and corrected the host Python mismatch, unpublished API contract, and two test-harness errors before production publication.
-- Not checked: GitHub release assets, checksums/attestations, and public installer resolution.
+- Not checked: execution of non-native Linux and Windows binaries; their compilation and packaging jobs passed, but this host only executed the native arm64 macOS artifact.
 - Risk: `Cargo.lock` contains an existing yanked indirect `spin 0.9.8`; Cargo still resolves and verifies the published packages, so replacement is deferred to a focused dependency update. The tag remains immutable deployment input.
-- Plan update: registry publication is complete; create the immutable binary tag, wait for all platform assets, then verify installation and update the root architecture evidence.
+- Plan update: release scope is complete; root architecture evidence must record the final version and workflow IDs.
 
 ## 设计思想与需求背景
 
