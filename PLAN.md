@@ -6,10 +6,14 @@
 - Background: project creation now initializes the system variable for new projects, but existing production rows need an idempotent backfill. The current CLI has current-directory shortcut deployment code that needs discoverability and safer status behavior before release.
 - Selected validators: `@project-lifecycle-qa`, `@deploy-release-qa`, `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@docs-adoption-qa`.
 - Todo:
-  - [ ] Backfill all production project environment rows and verify counts.
-  - [ ] Improve the top three CLI UX issues with focused tests and docs.
-  - [ ] Publish a new d1v-cli version and update the local installation.
-  - [ ] Run full CLI/API flow and record residual risks.
+  - [x] Backfill all production project environment rows and verify counts.
+    - Evidence: production backfill created 1362 rows; a second run created 0 and found 1362 existing rows.
+  - [x] Improve the top three CLI UX issues with focused tests and docs.
+    - Evidence: current-directory shortcuts support existing-project selection or creation, atomic `.env` cloud merge with local-conflict preservation, and documented `--preview`/`--prev`/`--prod` usage.
+  - [x] Publish a new d1v-cli version and update the local installation.
+    - Evidence: CLI version bumped to 0.1.25 and pushed to `main`; local `/Users/apple/.local/bin/d1v` reports 0.1.25.
+  - [x] Run full CLI/API flow and record residual risks.
+    - Evidence: Rust 1.95 workspace check and 147 CLI unit tests pass; production deployment is healthy; unauthenticated API probe returns expected 403.
 
 ## Current Execution
 
