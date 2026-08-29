@@ -37,7 +37,8 @@
     - Evidence: selector renders at most 12 options and follows the selected item; 3 unit tests cover long-list windowing and navigation to the last item.
   - [x] Verify workspace and release CLI/API version `0.1.27`.
     - Evidence: `cargo fmt --all`, `cargo test --workspace` (54 API unit + 14 client + 87 project + 32 user + 150 CLI tests), help, and valid JSON debug output passed.
-  - [ ] Commit, push, and tag `v0.1.27` to trigger release workflows.
+  - [x] Commit, push, and tag `v0.1.27` to trigger release workflows.
+    - Evidence: commit `3e46ccd` and tag `v0.1.27` are pushed; Publish and Release workflows passed, GitHub Release contains 7 target assets plus checksums, and crates.io returns HTTP 200 for `d1v-api 0.1.10` and `d1v-cli 0.1.27`.
 
 ## Current Execution
 
