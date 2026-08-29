@@ -1,4 +1,15 @@
-# Goal: Make D1V Local Runtime A First-Class Managed Runtime
+# Goal: Backfill project IDs, improve CLI UX, publish and verify d1v-cli
+
+## Current Execution
+
+- Goal: add `D1V_PROJECT_ID` to every production project, make the three highest-impact CLI interactions clearer with minimal changes, publish the CLI, update the local binary, and run the end-to-end command checks.
+- Background: project creation now initializes the system variable for new projects, but existing production rows need an idempotent backfill. The current CLI has current-directory shortcut deployment code that needs discoverability and safer status behavior before release.
+- Selected validators: `@project-lifecycle-qa`, `@deploy-release-qa`, `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [ ] Backfill all production project environment rows and verify counts.
+  - [ ] Improve the top three CLI UX issues with focused tests and docs.
+  - [ ] Publish a new d1v-cli version and update the local installation.
+  - [ ] Run full CLI/API flow and record residual risks.
 
 ## Current Execution
 

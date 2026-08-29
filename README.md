@@ -19,6 +19,18 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 Run `d1v --help` for all available commands.
 
+Deploy the current directory without repeating the project ID:
+
+```sh
+d1v --preview   # or: d1v --prev
+d1v --prod
+```
+
+The CLI reads `D1V_PROJECT_ID` from `.env` (or `.d1v/project.json`). When it
+is missing in an interactive terminal, choose an existing project or create
+one named after the current directory. Cloud environment variables are then
+merged into `.env`; local values are kept by default when keys conflict.
+
 ## Local Runtime
 
 D1V supports a local runtime in addition to the existing cloud runtime.

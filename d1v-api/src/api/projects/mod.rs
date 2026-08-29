@@ -156,6 +156,7 @@ impl ProjectsApi {
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
+        organization_id: Option<u64>,
         repository: Option<&Repository>,
     ) -> Result<CreateProjectResponse, Error> {
         #[skip_serializing_none]
@@ -168,6 +169,7 @@ impl ProjectsApi {
             enable_pay: Option<bool>,
             enable_database: Option<bool>,
             enable_resend: Option<bool>,
+            organization_id: Option<u64>,
             #[serde(flatten)]
             repository: Option<&'a Repository>,
         }
@@ -182,6 +184,7 @@ impl ProjectsApi {
                 enable_pay,
                 enable_database,
                 enable_resend,
+                organization_id,
                 repository,
             })
             .ok()

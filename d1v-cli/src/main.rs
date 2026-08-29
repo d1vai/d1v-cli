@@ -1,7 +1,6 @@
 use std::io::{IsTerminal, stdin};
 use std::process::ExitCode;
 
-use anyhow::anyhow;
 use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand, parser::ValueSource};
 use colorchoice_clap::Color;
 use futures_util::FutureExt as _;
@@ -308,7 +307,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
     }
 
     if cli.preview || cli.prod {
-        return quick_deploy::run(&ctx, cli.preview).await;
+        return d1v_cli::quick_deploy::run(&ctx, cli.preview).await;
     }
 
     let command = cli

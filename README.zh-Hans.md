@@ -19,6 +19,17 @@
 
 运行 `d1v --help` 查看所有可用命令。
 
+在当前目录快速部署，无需重复填写项目 ID：
+
+```sh
+d1v --preview   # 或：d1v --prev
+d1v --prod
+```
+
+CLI 会优先从 `.env`（或 `.d1v/project.json`）读取 `D1V_PROJECT_ID`。交互终端
+中如果未绑定项目，可选择已有项目或按当前目录名创建项目。随后云端环境变量会合并
+到 `.env`，冲突时默认保留本地值。
+
 ## 本地 Runtime
 
 D1V 现在同时支持云端 runtime 和本地 runtime。
