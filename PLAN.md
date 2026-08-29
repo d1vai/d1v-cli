@@ -36,14 +36,16 @@
 - Passed: formatting; 54 API unit, 14 API client, 87 project, 32 user, and 151
   CLI tests; help/JSON smoke; `pnpm test:skill`; diff whitespace checks.
 - Failed: none attributable to this change.
-- Not checked: a live raw-GitHub download and deployed website redirect; both
-  require the three repository commits to be pushed and the website deployment
-  to finish.
+- Not checked: deployed website redirect. The pushed raw GitHub URL was fetched
+  successfully and contains the expected frontmatter and deployment safeguards.
+  The `d1vai` deploy workflow for commit `852e7ef` failed before assigning a
+  runner or producing logs, matching the preceding website deploy failure.
 - Risk: the website-wide `pnpm typecheck` currently fails on unrelated
   `dashboard-comps.tsx` and locale translation-key errors. The Skill route's
   dedicated contract test passes.
-- Plan update: complete locally; publish the CLI source before relying on the
-  new raw GitHub default URL, then confirm the deployed redirect.
+- Plan update: CLI source is published in `c5b279b`; the legacy endpoint source
+  is published in `d1vai` commit `852e7ef` and awaits repair of the separate
+  website deploy infrastructure before its live redirect can be confirmed.
 
 # Goal: Add CLI request progress, confirmed deployments, and Homebrew tap automation
 
