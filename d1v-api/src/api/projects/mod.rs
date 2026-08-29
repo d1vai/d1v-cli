@@ -78,6 +78,7 @@ impl ProjectsApi {
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
+        organization_id: Option<u64>,
     ) -> Result<CreateProjectResponse, Error> {
         #[skip_serializing_none]
         #[derive(Serialize)]
@@ -87,6 +88,7 @@ impl ProjectsApi {
             enable_pay: Option<bool>,
             enable_database: Option<bool>,
             enable_resend: Option<bool>,
+            organization_id: Option<u64>,
         }
 
         self.client
@@ -97,6 +99,7 @@ impl ProjectsApi {
                 enable_pay,
                 enable_database,
                 enable_resend,
+                organization_id,
             })
             .ok()
             .await

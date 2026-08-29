@@ -64,6 +64,9 @@ pub struct CreateArgs {
     /// Enable payment integration in one-step creation
     #[arg(long)]
     pub enable_pay: Option<bool>,
+    /// Target organization ID; omit for a personal project
+    #[arg(long)]
+    pub organization_id: Option<u64>,
 }
 
 #[derive(Args)]
@@ -444,6 +447,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
                     .maybe_auto_deploy_on_execute(args.auto_deploy)
                     .maybe_enable_pay(args.enable_pay)
                     .maybe_enable_database(args.enable_database)
+                    .maybe_organization_id(args.organization_id)
                     .call()
                     .await?;
                 ctx.success(format!("Created project {}", result.project.id));
@@ -466,6 +470,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
                     .create(&name, &description)
                     .maybe_enable_database(args.enable_database)
                     .maybe_enable_pay(args.enable_pay)
+                    .maybe_organization_id(args.organization_id)
                     .call()
                     .await?;
                 ctx.success(format!("Created project {}", result.project.id));

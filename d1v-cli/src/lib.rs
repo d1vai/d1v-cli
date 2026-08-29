@@ -18,6 +18,7 @@ pub mod node;
 pub mod output;
 pub mod project;
 pub mod prompt;
+pub mod quick_deploy;
 #[cfg(feature = "record")]
 pub mod recorder;
 pub mod runtime_install;

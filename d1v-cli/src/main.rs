@@ -1,6 +1,7 @@
 use std::io::{IsTerminal, stdin};
 use std::process::ExitCode;
 
+use anyhow::anyhow;
 use clap::{ArgMatches, CommandFactory, FromArgMatches, Parser, Subcommand, parser::ValueSource};
 use colorchoice_clap::Color;
 use futures_util::FutureExt as _;
@@ -51,8 +52,16 @@ struct Cli {
     #[arg(long, value_name = "FILE", num_args = 0..=1, env = "D1V_RECORD_FILE")]
     record: Option<Option<std::path::PathBuf>>,
 
+    /// Deploy the current directory to Preview without a subcommand
+    #[arg(long, alias = "prev", conflicts_with = "prod")]
+    preview: bool,
+
+    /// Deploy the current directory to production without a subcommand
+    #[arg(long, conflicts_with = "preview")]
+    prod: bool,
+
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 fn banner() -> String {
@@ -265,13 +274,13 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
             .map_err(anyhow::Error::from)?
     };
 
-    let ctx = if matches!(&cli.command, Command::Skill { .. }) {
+    let ctx = if matches!(&cli.command, Some(Command::Skill { .. })) {
         Context::new_without_token_lookup(cli.format, cli.color.as_choice(), base_url_override)?
     } else {
         Context::new(cli.format, cli.color.as_choice(), base_url_override)?
     };
 
-    if cli.command.requires_auth() {
+    if cli.preview || cli.prod || cli.command.as_ref().is_some_and(Command::requires_auth) {
         if ctx.tokens.lookup()?.is_none() {
             return Err(Error::NotLoggedIn);
         }
@@ -298,7 +307,14 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
         }
     }
 
-    match cli.command {
+    if cli.preview || cli.prod {
+        return quick_deploy::run(&ctx, cli.preview).await;
+    }
+
+    let command = cli
+        .command
+        .ok_or_else(|| anyhow::anyhow!("a command or --preview/--prod is required"))?;
+    match command {
         Command::Auth { command } => match command {
             AuthCommand::Login {
                 password,
@@ -405,8 +421,10 @@ async fn main() -> ExitCode {
     // 后台检查新版本（不阻塞主流程）
     // 仅在 stderr 是终端 + 不是 upgrade/uninstall 命令时执行
     let check_update_task = if std::io::stderr().is_terminal()
-        && !matches!(cli.command, Command::Upgrade(..) | Command::Uninstall(..))
-    {
+        && !matches!(
+            cli.command,
+            Some(Command::Upgrade(..)) | Some(Command::Uninstall(..))
+        ) {
         Some(tokio::spawn(upgrade::check_update_hint()))
     } else {
         None
