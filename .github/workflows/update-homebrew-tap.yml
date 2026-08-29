@@ -23,21 +23,18 @@ jobs:
           RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
-          test -n "${GH_TOKEN}"
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "HOMEBREW_TAP_TOKEN must be a GitHub App or fine-grained token with contents and pull-requests write access to d1vai/homebrew-tap." >&2
+            exit 1
+          fi
           version="${RELEASE_TAG#v}"
           tmp="$(mktemp -d)"
           git clone "https://x-access-token:${GH_TOKEN}@github.com/d1vai/homebrew-tap.git" "${tmp}/tap"
           cd "${tmp}/tap"
-          mkdir -p Formula/d
-          curl -fsSL "https://github.com/d1vai/d1v-cli/releases/download/${RELEASE_TAG}/checksums.txt" -o checksums.txt
-          arm_sha="$(awk '/d1v-aarch64-apple-darwin\.tar\.gz$/ {print $1}' checksums.txt)"
-          intel_sha="$(awk '/d1v-x86_64-apple-darwin\.tar\.gz$/ {print $1}' checksums.txt)"
-          test "${#arm_sha}" -eq 64
-          test "${#intel_sha}" -eq 64
-          sed -e "s/^  version .*/  version \"${version}\"/" \
-            -e "s/REPLACE_AARCH64_SHA256/${arm_sha}/" \
-            -e "s/REPLACE_X86_64_SHA256/${intel_sha}/" \
-            "${GITHUB_WORKSPACE}/Formula/d/d1v.rb" > Formula/d/d1v.rb
+          python3 scripts/update_d1v_formula.py
+          brew style Formula/d1v.rb
+          brew install --formula Formula/d1v.rb
+          brew test d1v
           git config user.name github-actions
           git config user.email github-actions@github.com
           git checkout -b "update-d1v-${version}"

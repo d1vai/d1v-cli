@@ -42,6 +42,17 @@
 
 ## Current Execution
 
+- Goal: publish the v0.1.27 Tap update and submit the source-build Formula to Homebrew core.
+- Todo:
+  - [x] Create a Tap PR with verified v0.1.27 asset checksums.
+    - Evidence: https://github.com/d1vai/homebrew-tap/pull/1
+  - [x] Submit a Homebrew core Formula PR using `cargo install --locked`.
+    - Evidence: https://github.com/Homebrew/homebrew-core/pull/301328; local equivalent source build installed `d1v 0.1.27`.
+  - [x] Repair the Tap workflow to use the Tap's Formula path and update script.
+    - Evidence: workflow now updates `Formula/d1v.rb`, runs style/install/test, and reports a missing cross-repository token explicitly.
+
+## Current Execution
+
 - Goal: add `D1V_PROJECT_ID` to every production project, make the three highest-impact CLI interactions clearer with minimal changes, publish the CLI, update the local binary, and run the end-to-end command checks.
 - Background: project creation now initializes the system variable for new projects, but existing production rows need an idempotent backfill. The current CLI has current-directory shortcut deployment code that needs discoverability and safer status behavior before release.
 - Selected validators: `@project-lifecycle-qa`, `@deploy-release-qa`, `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@docs-adoption-qa`.
