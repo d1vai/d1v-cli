@@ -1,3 +1,50 @@
+# Goal: Publish the canonical d1v coding-agent Skill from the CLI repository
+
+## Current Execution
+
+- Goal: make the existing official d1v Skill a versioned, reviewable asset in
+  `d1v-cli`, retain the existing `d1v skill install` and website URLs, and
+  update its deployment safety guidance for the current CLI release flow.
+- Background: the installed Skill is currently served from a TypeScript string
+  in the website repository. This prevents a directory PR from linking to a
+  canonical `SKILL.md` in the official CLI repository and risks content drift.
+- Selected validators: `@cli-ux-qa`, `@deploy-release-qa`,
+  `@docs-adoption-qa`.
+- Todo:
+  - [x] Add the canonical `skills/d1v/SKILL.md` with verified CLI commands and
+    deployment/release safety rules.
+    - Evidence: the public Skill keeps the existing workspace and container
+      guidance, removes unsafe secret-export defaults, and documents READY-only
+      preview success plus interactive, explicit production confirmation.
+  - [x] Point `d1v skill install` and the legacy website endpoint at that
+    canonical file without changing their public entry points.
+    - Evidence: `d1v skill install` defaults to the raw GitHub `SKILL.md`; the
+      existing `https://www.d1v.ai/cli-skill.md` endpoint redirects there.
+  - [x] Add content contract checks and run Rust, website, and command-surface
+    validation; record the evidence below.
+    - Evidence: `cargo fmt --all`, `cargo test --workspace`, `d1v skill install
+      --help`, `d1v --help`, `d1v --format json debug`, and `pnpm test:skill`
+      passed. `pnpm typecheck` is blocked by pre-existing dashboard icon and
+      i18n translation-key errors outside the Skill route.
+
+### Validator Handoff
+
+- Result: passed for the canonical Skill, CLI installer source, legacy endpoint
+  redirect, and documentation changes.
+- Checked: SKILL frontmatter/production safeguards, CLI default URL and help,
+  full Rust suite, JSON debug output, website redirect contract, README links.
+- Passed: formatting; 54 API unit, 14 API client, 87 project, 32 user, and 151
+  CLI tests; help/JSON smoke; `pnpm test:skill`; diff whitespace checks.
+- Failed: none attributable to this change.
+- Not checked: a live raw-GitHub download and deployed website redirect; both
+  require the three repository commits to be pushed and the website deployment
+  to finish.
+- Risk: the website-wide `pnpm typecheck` currently fails on unrelated
+  `dashboard-comps.tsx` and locale translation-key errors. The Skill route's
+  dedicated contract test passes.
+- Plan update: complete locally; publish the CLI source before relying on the
+  new raw GitHub default URL, then confirm the deployed redirect.
+
 # Goal: Add CLI request progress, confirmed deployments, and Homebrew tap automation
 
 ## Current Execution

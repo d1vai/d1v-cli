@@ -31,6 +31,23 @@ is missing in an interactive terminal, choose an existing project or create
 one named after the current directory. Cloud environment variables are then
 merged into `.env`; local values are kept by default when keys conflict.
 
+## Coding Agent Skill
+
+The official, versioned d1v Skill lives at
+[`skills/d1v/SKILL.md`](skills/d1v/SKILL.md). It gives Codex and Claude Code
+safe instructions for project workspaces, container commands, preview
+deployments, and user-confirmed production releases.
+
+Install or update it for the locally configured coding agents:
+
+```sh
+d1v skill install --agent all
+```
+
+Use `--agent codex` or `--agent claude` to install it for just one agent. The
+legacy `https://www.d1v.ai/cli-skill.md` URL remains available and redirects to
+this canonical file.
+
 ## Local Runtime
 
 D1V supports a local runtime in addition to the existing cloud runtime.

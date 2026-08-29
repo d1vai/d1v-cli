@@ -30,6 +30,21 @@ CLI 会优先从 `.env`（或 `.d1v/project.json`）读取 `D1V_PROJECT_ID`。�
 中如果未绑定项目，可选择已有项目或按当前目录名创建项目。随后云端环境变量会合并
 到 `.env`，冲突时默认保留本地值。
 
+## 编程 Agent Skill
+
+官方且可版本化的 d1v Skill 位于
+[`skills/d1v/SKILL.md`](skills/d1v/SKILL.md)。它为 Codex 和 Claude Code
+提供项目工作区、容器命令、Preview 部署和经用户确认的生产发布操作指引。
+
+为本机已配置的编程 Agent 安装或更新 Skill：
+
+```sh
+d1v skill install --agent all
+```
+
+只安装一个 Agent 时使用 `--agent codex` 或 `--agent claude`。旧地址
+`https://www.d1v.ai/cli-skill.md` 保持可用，并会重定向到这份官方文件。
+
 ## 本地 Runtime
 
 D1V 现在同时支持云端 runtime 和本地 runtime。

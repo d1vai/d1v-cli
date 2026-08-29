@@ -8,7 +8,10 @@ use clap::{Args, Subcommand, ValueEnum};
 use crate::Context;
 use crate::error::Result;
 
-const DEFAULT_SKILL_URL: &str = "https://www.d1v.ai/cli-skill.md";
+const DEFAULT_SKILL_URL: &str =
+    "https://raw.githubusercontent.com/d1vai/d1v-cli/main/skills/d1v/SKILL.md";
+#[cfg(test)]
+const OFFICIAL_SKILL: &str = include_str!("../../skills/d1v/SKILL.md");
 
 #[derive(Subcommand)]
 pub enum SkillCommand {
@@ -108,7 +111,7 @@ fn write_atomic(destination: &Path, contents: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_skill;
+    use super::{OFFICIAL_SKILL, validate_skill};
 
     #[test]
     fn accepts_d1v_skill_frontmatter() {
@@ -118,5 +121,13 @@ mod tests {
     #[test]
     fn rejects_untrusted_markdown_shape() {
         assert!(validate_skill("# Not a skill").is_err());
+    }
+
+    #[test]
+    fn official_skill_is_valid_and_has_deployment_safeguards() {
+        validate_skill(OFFICIAL_SKILL).unwrap();
+        assert!(OFFICIAL_SKILL.contains("explicit user confirmation"));
+        assert!(OFFICIAL_SKILL.contains("rejects non-interactive production releases"));
+        assert!(OFFICIAL_SKILL.contains("`d1v deploy preview` waits"));
     }
 }
