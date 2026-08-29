@@ -1,14 +1,134 @@
+use anyhow::anyhow;
 use clap::{Args, Subcommand};
+use d1v_api::{CreateReleaseRequest, ProductionRelease};
 use d1v_api::{
     DeploymentInfo, DeploymentListOptions, DeploymentListResponse, DeploymentLogsResponse,
     DeploymentResponse,
 };
 use serde::Serialize;
+use std::io::{self, IsTerminal};
+use std::time::Duration;
 
 use crate::Context;
 use crate::error::Result;
 use crate::text::{Field, Fields, Line, Span, Table, TableRow, Text};
 use crate::theme;
+use crate::ui::{Confirm, Select, SelectOption};
+
+pub async fn wait_for_preview(ctx: &Context, project_id: &str) -> Result<DeploymentResponse> {
+    let started = ctx.client.deployment().preview(project_id).await?;
+    let deployment_id = started.deployment_id.clone();
+    for _ in 0..300 {
+        let status = ctx.client.deployment().preview_status(project_id).await?;
+        let message = status.message.to_ascii_uppercase();
+        if message.contains("READY") && !message.contains("NOT_READY") {
+            let url = status
+                .production_url
+                .clone()
+                .or(status.vercel_url.clone())
+                .or(started.production_url.clone())
+                .or(started.vercel_url.clone());
+            let mut result = status;
+            result.deployment_id = result.deployment_id.or(deployment_id.clone());
+            result.production_url = url;
+            return Ok(result);
+        }
+        if ["ERROR", "FAILED", "CANCELED"]
+            .iter()
+            .any(|s| message.contains(s))
+        {
+            return Err(anyhow!("preview deployment failed: {}", status.message).into());
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+    Err(anyhow!(
+        "preview deployment timed out after 10 minutes (deployment ID: {})",
+        deployment_id.as_deref().unwrap_or("unknown")
+    )
+    .into())
+}
+
+pub async fn production_release(ctx: &Context, project_id: &str) -> Result<ProductionRelease> {
+    if !io::stdin().is_terminal() {
+        return Err(anyhow!(
+            "production release requires an interactive TTY; rerun d1v deploy prod in a terminal"
+        )
+        .into());
+    }
+    let preflight = ctx
+        .client
+        .deployment()
+        .get_release_preflight(project_id)
+        .await?;
+    ctx.info(format!(
+        "Release preflight: first_release={} env_vars={} {}",
+        preflight.first_release.unwrap_or(false),
+        preflight.environment_variables.len(),
+        preflight.recommended_action.as_deref().unwrap_or("")
+    ));
+    let mut decisions = serde_json::Map::new();
+    for variable in &preflight.environment_variables {
+        if variable.needs_value.unwrap_or(false)
+            || (variable.has_development_value == Some(true)
+                && variable.has_production_value != Some(true))
+        {
+            let choice = Select::new(format!("Production value for {}", variable.key))
+                .options([
+                    SelectOption::new("development", "Reuse development value"),
+                    SelectOption::new("production", "Use existing production value"),
+                    SelectOption::new("skip", "Do not copy"),
+                ])
+                .prompt()?;
+            decisions.insert(
+                variable.key.clone(),
+                serde_json::Value::String(choice.to_string()),
+            );
+        }
+    }
+    if !Confirm::new(format!("Confirm production release for {project_id}?"))
+        .default(false)
+        .prompt()?
+    {
+        return Err(anyhow!("production release canceled").into());
+    }
+    let key = format!("d1v-{}-{}", std::process::id(), jiff::Timestamp::now());
+    let release = ctx
+        .client
+        .deployment()
+        .create_production_release(
+            project_id,
+            &CreateReleaseRequest {
+                idempotency_key: key,
+                environment_decisions: Some(serde_json::Value::Object(decisions)),
+            },
+        )
+        .await?;
+    let release_id = release
+        .id
+        .clone()
+        .ok_or_else(|| anyhow!("release response did not include an id"))?;
+    for _ in 0..300 {
+        let status = ctx
+            .client
+            .deployment()
+            .get_production_release(project_id, &release_id)
+            .await?;
+        match status.status.to_ascii_lowercase().as_str() {
+            "succeeded" | "success" | "ready" => return Ok(status),
+            "failed" | "error" | "canceled" | "cancelled" => {
+                return Err(anyhow!(
+                    "production release failed (phase={}, code={}): {}",
+                    status.phase.as_deref().unwrap_or("-"),
+                    status.error_code.as_deref().unwrap_or("-"),
+                    status.error_message.as_deref().unwrap_or("unknown error")
+                )
+                .into());
+            }
+            _ => tokio::time::sleep(Duration::from_secs(2)).await,
+        }
+    }
+    Err(anyhow!("production release timed out after 10 minutes (release ID: {release_id})").into())
+}
 
 #[derive(Subcommand)]
 pub enum DeployCommand {
@@ -165,7 +285,7 @@ fn field_opt(label: &'static str, value: Option<&str>) -> Field {
 pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
     match command {
         DeployCommand::Preview(args) => {
-            let deployment = ctx.client.deployment().preview(&args.project_id).await?;
+            let deployment = wait_for_preview(ctx, &args.project_id).await?;
             ctx.success(format!(
                 "Preview deployment requested for {}",
                 args.project_id
@@ -181,7 +301,15 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             )
         }
         DeployCommand::Prod(args) => {
-            let deployment = ctx.client.deployment().production(&args.project_id).await?;
+            let release = production_release(ctx, &args.project_id).await?;
+            let deployment = DeploymentResponse {
+                success: true,
+                message: release.status.clone(),
+                commit_hash: None,
+                production_url: release.production_url.clone(),
+                vercel_url: None,
+                deployment_id: release.deployment_id.clone().or(release.id.clone()),
+            };
             ctx.success(format!(
                 "Production deployment requested for {}",
                 args.project_id

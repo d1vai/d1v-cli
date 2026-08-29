@@ -12,7 +12,7 @@ mod time;
 pub mod user_agent;
 mod validate;
 
-pub use crate::client::{Client, ClientBuilder, RequestBuilder};
+pub use crate::client::{Client, ClientBuilder, ProgressEvent, ProgressHandler, RequestBuilder};
 pub use crate::error::{
     ApiCode, ApiError, BadRequestKind, Error, HttpStatusError, Location, ServerValidationError,
     ValidationDetail,
@@ -25,8 +25,9 @@ pub use crate::user_agent::UserAgent;
 pub use crate::api::user::{DailyCount, PromptDailyActivity, User};
 pub use crate::api::{
     deployment::{
-        DeploymentInfo, DeploymentListOptions, DeploymentListResponse, DeploymentLogsResponse,
-        DeploymentResponse,
+        CreateReleaseRequest, DeploymentInfo, DeploymentListOptions, DeploymentListResponse,
+        DeploymentLogsResponse, DeploymentResponse, ProductionRelease, ReleaseEnvironmentVariable,
+        ReleasePreflight,
     },
     github_app::{
         GitHubAppConnectUrl, GitHubAppInstallation, GitHubAppRepository, GitHubAppStatus,

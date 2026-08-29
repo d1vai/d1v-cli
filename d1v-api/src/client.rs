@@ -16,11 +16,30 @@ pub struct Client {
     inner: Arc<ClientInner>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProgressEvent {
+    Started,
+    Finished,
+}
+
+pub type ProgressHandler = Arc<dyn Fn(ProgressEvent) + Send + Sync>;
+
 struct ClientInner {
     http: reqwest::Client,
     base_url: Url,
     token: RwLock<Option<Token>>,
+    progress: Option<ProgressHandler>,
+}
+
+impl std::fmt::Debug for ClientInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientInner")
+            .field("http", &self.http)
+            .field("base_url", &self.base_url)
+            .field("token", &self.token)
+            .field("progress", &self.progress.as_ref().map(|_| "configured"))
+            .finish()
+    }
 }
 
 pub struct ClientBuilder {
@@ -28,6 +47,7 @@ pub struct ClientBuilder {
     base_url: String,
     token: Option<Token>,
     client_name: Option<String>,
+    progress: Option<ProgressHandler>,
 }
 
 impl ClientBuilder {
@@ -56,6 +76,12 @@ impl ClientBuilder {
     #[must_use]
     pub fn client_name(mut self, client_name: impl Into<String>) -> Self {
         self.client_name = Some(client_name.into());
+        self
+    }
+
+    #[must_use]
+    pub fn progress_handler(mut self, handler: ProgressHandler) -> Self {
+        self.progress = Some(handler);
         self
     }
 
@@ -106,6 +132,7 @@ impl ClientBuilder {
                 http: builder.build()?,
                 base_url,
                 token: RwLock::new(self.token),
+                progress: self.progress,
             }),
         })
     }
@@ -137,6 +164,7 @@ impl From<reqwest::ClientBuilder> for ClientBuilder {
             base_url: crate::DEFAULT_BASE_URL.to_string(),
             token: None,
             client_name: None,
+            progress: None,
         }
     }
 }
@@ -157,6 +185,7 @@ impl Client {
                 http: client,
                 base_url: Url::parse(base_url.as_ref())?,
                 token: RwLock::new(None),
+                progress: None,
             }),
         })
     }
@@ -299,7 +328,20 @@ impl RequestBuilder {
         #[cfg(feature = "record")]
         let req_record = crate::record::Request::from(&request);
 
-        let resp = self.client.inner.http.execute(request).await?;
+        if let Some(handler) = &self.client.inner.progress {
+            handler(ProgressEvent::Started);
+        }
+        struct ProgressGuard(Option<ProgressHandler>);
+        impl Drop for ProgressGuard {
+            fn drop(&mut self) {
+                if let Some(handler) = self.0.take() {
+                    handler(ProgressEvent::Finished);
+                }
+            }
+        }
+        let _progress_guard = ProgressGuard(self.client.inner.progress.clone());
+        let result = self.client.inner.http.execute(request).await;
+        let resp = result?;
         let status = resp.status();
 
         #[cfg(feature = "record")]

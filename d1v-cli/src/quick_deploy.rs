@@ -3,7 +3,6 @@
 use std::fs;
 use std::io::IsTerminal;
 use std::path::Path;
-use std::time::Duration;
 
 use crate::ui::{Select, SelectOption};
 use crate::{Context, Result, workspace};
@@ -176,9 +175,17 @@ pub async fn run(ctx: &Context, preview: bool) -> Result<()> {
     let project_id = resolve_project(ctx, &path).await?;
     merge_cloud_env(ctx, &path, &project_id).await?;
     let deployment = if preview {
-        ctx.client.deployment().preview(&project_id).await?
+        crate::deploy::wait_for_preview(ctx, &project_id).await?
     } else {
-        ctx.client.deployment().production(&project_id).await?
+        let release = crate::deploy::production_release(ctx, &project_id).await?;
+        d1v_api::DeploymentResponse {
+            success: true,
+            message: release.status,
+            commit_hash: None,
+            production_url: release.production_url,
+            vercel_url: None,
+            deployment_id: release.deployment_id.or(release.id),
+        }
     };
     ctx.present(
         crate::text::Line::raw(format!(
@@ -189,22 +196,10 @@ pub async fn run(ctx: &Context, preview: bool) -> Result<()> {
         )),
         &deployment,
     )?;
-    if !preview {
-        if deployment.success {
-            ctx.success("Production deployment is READY");
-        }
-        return Ok(());
-    }
-    for _ in 0..90 {
-        tokio::time::sleep(Duration::from_secs(1)).await;
-        let status = ctx.client.deployment().preview_status(&project_id).await?;
-        if status.message == "deployment state: READY" {
-            ctx.success("Deployment is READY");
-            return Ok(());
-        }
-        if status.message.contains("ERROR") || status.message.contains("FAILED") {
-            return Err(anyhow!(status.message).into());
-        }
-    }
-    Err(anyhow!("deployment did not become READY within 90 seconds").into())
+    ctx.success(if preview {
+        "Preview deployment is READY"
+    } else {
+        "Production release is READY"
+    });
+    Ok(())
 }

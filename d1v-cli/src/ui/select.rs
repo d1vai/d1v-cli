@@ -5,6 +5,11 @@ use super::widgets::{Answered, SelectItem, SelectList};
 use super::{Terminal, as_u16, ctrl_c_hint_line, nav_hint_line};
 use crate::error::Error;
 
+/// Maximum number of options rendered at once in an inline prompt.
+/// Keeping this bounded prevents long project lists from pushing the prompt
+/// below the terminal viewport; the window follows the active option.
+const MAX_VISIBLE_OPTIONS: usize = 12;
+
 /// A single choice in a [`Select`] prompt.
 pub struct SelectOption<T> {
     label: String,
@@ -145,6 +150,14 @@ impl State {
     }
 }
 
+fn visible_window(selected: usize, total: usize, visible: usize) -> std::ops::Range<usize> {
+    assert!(total > 0 && visible > 0 && visible <= total);
+    let start = selected
+        .saturating_sub(visible / 2)
+        .min(total.saturating_sub(visible));
+    start..start + visible
+}
+
 /// Vertical list selector prompt.
 pub struct Select<T> {
     label: String,
@@ -216,8 +229,10 @@ impl<T> Select<T> {
             .map(|option| (option.label.clone(), option.description.clone()))
             .collect();
 
-        let mut term =
-            Terminal::new(as_u16(n) + 6 + if self.description.is_some() { 2 } else { 0 })?;
+        let visible_count = n.min(MAX_VISIBLE_OPTIONS);
+        let mut term = Terminal::new(
+            as_u16(visible_count) + 6 + if self.description.is_some() { 2 } else { 0 },
+        )?;
 
         loop {
             let hint = if state.exit_pending {
@@ -226,7 +241,9 @@ impl<T> Select<T> {
                 nav_hint_line()
             };
 
-            let items: Vec<SelectItem<'_>> = display
+            let window = visible_window(state.selected, n, visible_count);
+            let window_start = window.start;
+            let items: Vec<SelectItem<'_>> = display[window]
                 .iter()
                 .map(|(label, desc)| SelectItem {
                     label: label.as_str(),
@@ -235,7 +252,8 @@ impl<T> Select<T> {
                 .collect();
 
             let selected = state.selected;
-            term.render(&self.build_widget(&items, selected, hint))?;
+            let selected_in_window = selected - window_start;
+            term.render(&self.build_widget(&items, selected_in_window, hint))?;
 
             let Some(action) = SelectAction::read(n)? else {
                 continue;
@@ -248,15 +266,47 @@ impl<T> Select<T> {
                     return Ok(option.value);
                 }
                 Some(Outcome::Cancel) => {
-                    term.finish(&self.build_widget(&items, selected, nav_hint_line()))?;
+                    term.finish(&self.build_widget(&items, selected_in_window, nav_hint_line()))?;
                     return Err(Error::Canceled);
                 }
                 Some(Outcome::Interrupt) => {
-                    term.finish(&self.build_widget(&items, selected, ctrl_c_hint_line()))?;
+                    term.finish(&self.build_widget(
+                        &items,
+                        selected_in_window,
+                        ctrl_c_hint_line(),
+                    ))?;
                     return Err(Error::Interrupted);
                 }
                 None => {}
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MAX_VISIBLE_OPTIONS, State, visible_window};
+
+    #[test]
+    fn visible_window_keeps_selected_option_visible_in_long_list() {
+        let total = 30;
+        let window = visible_window(29, total, MAX_VISIBLE_OPTIONS);
+        assert_eq!(window, 18..30);
+        assert!(window.contains(&29));
+    }
+
+    #[test]
+    fn visible_window_centers_selection_when_possible() {
+        assert_eq!(visible_window(10, 30, MAX_VISIBLE_OPTIONS), 4..16);
+    }
+
+    #[test]
+    fn navigation_reaches_the_last_project_in_a_long_list() {
+        let mut state = State::new(30, None);
+        for _ in 0..29 {
+            state.handle(super::SelectAction::Down, 30);
+        }
+        assert_eq!(state.selected, 29);
+        assert!(visible_window(state.selected, 30, MAX_VISIBLE_OPTIONS).contains(&29));
     }
 }

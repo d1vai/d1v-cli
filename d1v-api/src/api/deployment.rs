@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
 use crate::{Client, Error};
+use serde_json::Value;
 
 pub struct DeploymentApi {
     client: Client,
@@ -63,6 +64,41 @@ pub struct DeploymentLogsResponse {
     pub from_cache: bool,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReleasePreflight {
+    pub first_release: Option<bool>,
+    pub database_summary: Option<String>,
+    pub environment_variables: Vec<ReleaseEnvironmentVariable>,
+    pub recommended_action: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReleaseEnvironmentVariable {
+    pub key: String,
+    pub has_development_value: Option<bool>,
+    pub has_production_value: Option<bool>,
+    pub needs_value: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProductionRelease {
+    pub id: Option<String>,
+    pub status: String,
+    pub phase: Option<String>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+    pub production_url: Option<String>,
+    pub deployment_id: Option<String>,
+    pub details: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateReleaseRequest {
+    pub idempotency_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment_decisions: Option<Value>,
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct DeploymentListOptions {
@@ -71,6 +107,63 @@ pub struct DeploymentListOptions {
 }
 
 impl DeploymentApi {
+    pub async fn get_release_preflight(
+        &self,
+        project_id: impl AsRef<str>,
+    ) -> Result<ReleasePreflight, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/release-preflight",
+                project_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn create_production_release(
+        &self,
+        project_id: impl AsRef<str>,
+        request: &CreateReleaseRequest,
+    ) -> Result<ProductionRelease, Error> {
+        self.client
+            .post(format!("/api/projects/{}/releases", project_id.as_ref()))
+            .json(request)
+            .ok()
+            .await
+    }
+
+    pub async fn get_production_release(
+        &self,
+        project_id: impl AsRef<str>,
+        release_id: impl AsRef<str>,
+    ) -> Result<ProductionRelease, Error> {
+        self.client
+            .get(format!(
+                "/api/projects/{}/releases/{}",
+                project_id.as_ref(),
+                release_id.as_ref()
+            ))
+            .ok()
+            .await
+    }
+
+    pub async fn retry_production_release(
+        &self,
+        project_id: impl AsRef<str>,
+        release_id: impl AsRef<str>,
+        idempotency_key: impl AsRef<str>,
+    ) -> Result<ProductionRelease, Error> {
+        self.client
+            .post(format!(
+                "/api/projects/{}/releases/{}/retry",
+                project_id.as_ref(),
+                release_id.as_ref()
+            ))
+            .json(&serde_json::json!({"idempotency_key": idempotency_key.as_ref()}))
+            .ok()
+            .await
+    }
+
     pub async fn preview(&self, project_id: impl AsRef<str>) -> Result<DeploymentResponse, Error> {
         self.client
             .post(format!("/api/deployment/{}/preview", project_id.as_ref()))

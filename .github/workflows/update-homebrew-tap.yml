@@ -1,0 +1,47 @@
+name: Update Homebrew Tap
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+jobs:
+  formula:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v') }}
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout CLI release metadata
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Update tap formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN}"
+          version="${RELEASE_TAG#v}"
+          tmp="$(mktemp -d)"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/d1vai/homebrew-tap.git" "${tmp}/tap"
+          cd "${tmp}/tap"
+          mkdir -p Formula/d
+          curl -fsSL "https://github.com/d1vai/d1v-cli/releases/download/${RELEASE_TAG}/checksums.txt" -o checksums.txt
+          arm_sha="$(awk '/d1v-aarch64-apple-darwin\.tar\.gz$/ {print $1}' checksums.txt)"
+          intel_sha="$(awk '/d1v-x86_64-apple-darwin\.tar\.gz$/ {print $1}' checksums.txt)"
+          test "${#arm_sha}" -eq 64
+          test "${#intel_sha}" -eq 64
+          sed -e "s/^  version .*/  version \"${version}\"/" \
+            -e "s/REPLACE_AARCH64_SHA256/${arm_sha}/" \
+            -e "s/REPLACE_X86_64_SHA256/${intel_sha}/" \
+            "${GITHUB_WORKSPACE}/Formula/d/d1v.rb" > Formula/d/d1v.rb
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git checkout -b "update-d1v-${version}"
+          git add Formula/d/d1v.rb
+          git commit -m "d1v ${version}"
+          git push origin HEAD
+          gh pr create --title "d1v ${version}" --body "Automated formula update from the verified GitHub Release." --base main --head "update-d1v-${version}"

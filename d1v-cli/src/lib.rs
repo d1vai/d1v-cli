@@ -35,10 +35,12 @@ pub mod user;
 pub mod workspace;
 
 use std::fmt::Display;
+use std::io::{IsTerminal, stderr};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anstream::ColorChoice;
-use d1v_api::{Client, UserAgent};
+use d1v_api::{Client, ProgressEvent, UserAgent};
 use serde::Serialize;
 
 use crate::config::Config;
@@ -88,12 +90,36 @@ impl Context {
         ];
         let base_url = BaseUrl::resolve(candidates);
 
+        let spinner = if matches!(format, Format::Text) && stderr().is_terminal() {
+            let spinner = indicatif::ProgressBar::new_spinner();
+            spinner.enable_steady_tick(Duration::from_millis(80));
+            spinner.set_message("Working...");
+            spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+            Some(spinner)
+        } else {
+            None
+        };
+        let spinner_for_handler = spinner.clone();
+
         let mut builder = Client::builder()
             .base_url(base_url.as_str())
             .user_agent(&UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .client_name("d1v-cli")
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(30));
+
+        if let Some(spinner) = spinner_for_handler {
+            builder = builder.progress_handler(Arc::new(move |event| match event {
+                ProgressEvent::Started => {
+                    spinner.set_draw_target(indicatif::ProgressDrawTarget::stderr());
+                    spinner.set_message("Working...");
+                }
+                ProgressEvent::Finished => {
+                    spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+                    spinner.tick();
+                }
+            }));
+        }
 
         if load_token {
             if let Ok(Some(token)) = tokens.lookup() {

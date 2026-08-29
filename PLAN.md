@@ -1,4 +1,43 @@
-# Goal: Backfill project IDs, improve CLI UX, publish and verify d1v-cli
+# Goal: Add CLI request progress, confirmed deployments, and Homebrew tap automation
+
+## Current Execution
+
+- Goal: preserve existing install commands and CLI surface while adding terminal-only request spinners, confirmed Preview deployment polling, and a production Release API path when supported by the backend.
+- Background: deployment shortcuts currently call the legacy production endpoint and Preview waits only 90 seconds; the API client has no unified request progress hook.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`, `@deploy-release-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [x] Add request progress callback and TTY-safe spinner lifecycle.
+    - Evidence: `ProgressEvent`/`progress_handler` are wired through `d1v-api`; CLI enables an stderr spinner only for text output on a TTY.
+  - [x] Share Preview polling and final URL output across shortcut and explicit commands.
+    - Evidence: `wait_for_preview` is used by both paths, polls every 2 seconds for up to 10 minutes, handles terminal failure states, and prefers backend URLs.
+  - [x] Add production Release API types/flow with confirmation and non-interactive refusal.
+    - Evidence: preflight, environment decision prompts, idempotent release creation, status polling, success URL and detailed failure handling are implemented.
+  - [x] Add Homebrew tap Formula/update workflow without changing install.sh.
+    - Evidence: `Formula/d/d1v.rb` targets both macOS assets; `update-homebrew-tap.yml` verifies checksums and opens a PR using `HOMEBREW_TAP_TOKEN`.
+  - [x] Run formatting, tests, help, and JSON output checks; record evidence and residual risk.
+    - Evidence: `cargo fmt --all`, `cargo check -p d1v-cli`, all d1v-api/d1v-cli tests, `d1v --help`, and parseable `--format json debug` passed.
+
+### Validator Handoff
+
+- Result: passed for the implemented CLI/API and release automation changes.
+- Checked: request callback lifecycle, TTY gating, Preview/production command routing, release types, Formula assets, workflow checksum guards, help and JSON output.
+- Passed: formatting, compile, 54 d1v-api unit + 14 client + 87 project + 32 user + 147 CLI tests, help, and JSON smoke.
+- Failed: none.
+- Not checked: live backend Release endpoint contract, interactive terminal screenshots, GitHub repository creation, and macOS Homebrew CI because they require external services/credentials.
+- Risk: Release endpoint paths and response semantics must match the deployed backend; the tap workflow intentionally requires a repository secret and a pre-created public `d1vai/homebrew-tap` repository. Spinner display is callback-based and does not suspend around every custom prompt yet.
+- Plan update: complete for repository-scoped implementation; external Homebrew Core submission remains a follow-up after tap validation.
+
+## Current Execution
+
+- Goal: keep project selection usable when a user has a long project list, then release the completed CLI/API deployment changes.
+- Background: the inline selector sized its terminal viewport to every option, so scrolling down could move the active project below the visible terminal area.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@deploy-release-qa`.
+- Todo:
+  - [x] Bound project selector rendering and keep the active item visible.
+    - Evidence: selector renders at most 12 options and follows the selected item; 3 unit tests cover long-list windowing and navigation to the last item.
+  - [x] Verify workspace and release CLI/API version `0.1.27`.
+    - Evidence: `cargo fmt --all`, `cargo test --workspace` (54 API unit + 14 client + 87 project + 32 user + 150 CLI tests), help, and valid JSON debug output passed.
+  - [ ] Commit, push, and tag `v0.1.27` to trigger release workflows.
 
 ## Current Execution
 
