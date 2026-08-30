@@ -8,7 +8,7 @@ PRINT_ONLY="false"
 NO_MODIFY_PATH="false"
 UNINSTALL="false"
 API_KEY=""
-SKILL_TARGET=""
+SKILL_TARGET="auto"
 AUTH_NEXT="d1v auth login"
 
 usage() {
@@ -24,7 +24,7 @@ Options:
   --print-url           Print the resolved download URL and exit
   --uninstall           Remove the installed d1v binary
   --api-key <key>       Save a user API key after installation
-  --install-skill <to>  Install the d1v skill for codex, claude, or all
+  --install-skill <to>  Install the d1v skill for auto, codex, claude, or all
   --no-modify-path      Do not append INSTALL_DIR to shell rc files
   --help                Show this help
 EOF
@@ -55,7 +55,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --install-skill)
       SKILL_TARGET="${2:-}"
-      case "$SKILL_TARGET" in codex|claude|all) ;; *) echo "--install-skill must be codex, claude, or all" >&2; exit 1 ;; esac
+      case "$SKILL_TARGET" in auto|codex|claude|all) ;; *) echo "--install-skill must be auto, codex, claude, or all" >&2; exit 1 ;; esac
       shift 2
       ;;
     --no-modify-path)
@@ -97,6 +97,10 @@ need_cmd uname
 need_cmd mktemp
 need_cmd install
 need_cmd shasum
+
+has_coding_agent() {
+  command -v codex >/dev/null 2>&1 || command -v claude >/dev/null 2>&1
+}
 
 append_path() {
   local rc_file="$1"
@@ -233,6 +237,12 @@ if [ -n "$API_KEY" ]; then
   API_KEY=""
   AUTH_NEXT="d1v auth status"
   echo "Authenticated d1v CLI with the supplied API key."
+fi
+
+if [ "$SKILL_TARGET" = "auto" ] && ! has_coding_agent; then
+  echo "No Codex or Claude Code executable found on PATH; skipping d1v skill installation."
+  echo "Run 'd1v skill install --agent auto' after installing an Agent."
+  SKILL_TARGET=""
 fi
 
 if [ -n "$SKILL_TARGET" ]; then

@@ -36,13 +36,18 @@ CLI 会优先从 `.env`（或 `.d1v/project.json`）读取 `D1V_PROJECT_ID`。�
 [`skills/d1v/SKILL.md`](skills/d1v/SKILL.md)。它为 Codex 和 Claude Code
 提供项目工作区、容器命令、Preview 部署和经用户确认的生产发布操作指引。
 
-为本机已配置的编程 Agent 安装或更新 Skill：
+curl 安装器默认使用 `--install-skill auto`：它只会为 `PATH` 中已经存在的
+Codex 和 Claude Code 安装 Skill，不会安装这两个 Agent；若都未检测到则不写入
+任何文件并正常成功。手动执行时也建议使用：
 
 ```sh
-d1v skill install --agent all
+d1v skill install --agent auto
 ```
 
-只安装一个 Agent 时使用 `--agent codex` 或 `--agent claude`。旧地址
+需要明确指定目标时可使用 `--agent codex`、`--agent claude` 或 `--agent all`。
+Skill 分别写入 `${CODEX_HOME:-~/.codex}/skills/d1v` 和
+`${CLAUDE_CONFIG_DIR:-~/.claude}/skills/d1v`。内容相同不会重写；已有不同内容
+时会先在同一目录备份为 `SKILL.md.d1v-backup-<UTC timestamp>`，再替换。旧地址
 `https://www.d1v.ai/cli-skill.md` 保持可用，并会重定向到这份官方文件。
 
 ## 本地 Runtime

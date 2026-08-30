@@ -1,3 +1,51 @@
+# Goal: Automatically install the d1v Skill for detected coding agents
+
+## Current Execution
+
+- Goal: make ordinary d1v CLI installation gracefully install the official
+  Skill only for Codex and Claude Code executables already available on PATH.
+- Background: the installer currently requires an explicit target; `all`
+  writes both destinations and can overwrite a user-modified Skill without a
+  recoverable copy.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [x] Add `auto` detection, stable install reporting, and safe Skill backup
+    behavior in the CLI while retaining explicit target semantics.
+    - Evidence: auto resolves only executable `codex`/`claude` commands on
+      PATH; explicit targets remain unconditional; different skills are
+      timestamp-backed-up before an atomic replacement; JSON emits one result
+      object.
+  - [x] Make both release installers and the install page use `auto` by
+    default; retain opt-out and explicit selection.
+    - Evidence: both scripts pass `--agent auto` by default, perform
+      `command -v` preflight, skip cleanly when neither executable exists, and
+      accept all explicit modes; the install page defaults to Auto-detect and
+      retains Codex, Claude, Both, and CLI-only selections.
+  - [x] Add focused Rust/shell/web contract coverage, documentation, and run
+    the required formatter, test, help, and JSON validation.
+    - Evidence: `cargo fmt --all -- --check`, `cargo test --workspace`, skill
+      and root help, JSON debug, isolated no-agent JSON smoke, installer E2E,
+      shell syntax checks, and `pnpm test:skill` passed.
+
+### Validator Handoff
+
+- Result: passed for auto Skill installation and existing-skill preservation.
+- Checked: PATH-only detection, explicit target behavior, no-agent success,
+  JSON stdout, backup/update behavior, installer defaults, web command
+  generation, docs, formatter, Rust workspace suite, and installer E2E.
+- Passed: 158 CLI unit tests (10 Skill tests), 54 API unit tests, 14 API client tests, 87
+  project tests, 32 user tests, shell checks, and both website skill contracts.
+- Failed: `pnpm typecheck` remains blocked by pre-existing
+  `dashboard-comps.tsx` `CircleDot`/translation-key errors and corresponding
+  locale typing errors, outside this install route.
+- Not checked: a live GitHub Release installer invocation; the script behavior
+  is covered with the existing checksum/download mock.
+- Risk: a process interruption after the old Skill has moved to its explicit
+  backup but before the replacement rename can leave the backup in place for
+  recovery; a normal replacement failure restores it automatically.
+- Plan update: complete for repository-scoped implementation; no commit or
+  push was requested in this turn.
+
 # Goal: Publish the canonical d1v coding-agent Skill from the CLI repository
 
 ## Current Execution

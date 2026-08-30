@@ -38,15 +38,22 @@ The official, versioned d1v Skill lives at
 safe instructions for project workspaces, container commands, preview
 deployments, and user-confirmed production releases.
 
-Install or update it for the locally configured coding agents:
+The curl installer uses `--install-skill auto` by default. It installs only
+for Codex and Claude Code executables already available on `PATH`; it does not
+install either coding agent and succeeds without changes when neither is found.
+Use the same behavior manually:
 
 ```sh
-d1v skill install --agent all
+d1v skill install --agent auto
 ```
 
-Use `--agent codex` or `--agent claude` to install it for just one agent. The
-legacy `https://www.d1v.ai/cli-skill.md` URL remains available and redirects to
-this canonical file.
+Use `--agent codex`, `--agent claude`, or `--agent all` to explicitly choose
+targets. Skills are written below `${CODEX_HOME:-~/.codex}/skills/d1v` and
+`${CLAUDE_CONFIG_DIR:-~/.claude}/skills/d1v`. An identical Skill is left alone;
+a different existing `SKILL.md` is backed up beside it as
+`SKILL.md.d1v-backup-<UTC timestamp>` before replacement. The legacy
+`https://www.d1v.ai/cli-skill.md` URL remains available and redirects to this
+canonical file.
 
 ## Local Runtime
 

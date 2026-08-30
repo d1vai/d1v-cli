@@ -82,6 +82,8 @@ chmod +x "$destination/d1v"
 EOF
 
 chmod +x "$FAKE_BIN/curl" "$FAKE_BIN/shasum" "$FAKE_BIN/tar"
+printf '#!/usr/bin/env bash\n' >"$FAKE_BIN/codex"
+chmod +x "$FAKE_BIN/codex"
 
 run_installer() {
   local installer="$1"
@@ -124,6 +126,7 @@ run_plain_installer() {
   )"
 
   printf '%s' "$output" | grep -F "d1v auth login" >/dev/null
+  [ "$(cat "$RECORD_DIR/skill-args")" = "skill install --agent auto" ]
   if printf '%s' "$output" | grep -F "d1v auth status" >/dev/null; then
     echo "$label plain installer incorrectly reported an authenticated next step" >&2
     exit 1
@@ -134,5 +137,28 @@ run_plain_installer "$ROOT_DIR/install.sh" "cli"
 run_plain_installer "$ROOT_DIR/../d1vai/public/install/d1v-cli.sh" "web"
 run_installer "$ROOT_DIR/install.sh" "cli"
 run_installer "$ROOT_DIR/../d1vai/public/install/d1v-cli.sh" "web"
+
+run_no_agent_installer() {
+  local installer="$1"
+  local label="$2"
+  local install_dir="$WORK_DIR/$label-no-agent-bin"
+  local output
+
+  rm -f "$RECORD_DIR/skill-args"
+  mv "$FAKE_BIN/codex" "$WORK_DIR/codex-disabled"
+  output="$(
+    PATH="$FAKE_BIN:/usr/bin:/bin" bash "$installer" \
+      --version v0.0.0-e2e \
+      --install-dir "$install_dir" \
+      --no-modify-path
+  )"
+  mv "$WORK_DIR/codex-disabled" "$FAKE_BIN/codex"
+
+  printf '%s' "$output" | grep -F "skipping d1v skill installation" >/dev/null
+  [ ! -e "$RECORD_DIR/skill-args" ]
+}
+
+run_no_agent_installer "$ROOT_DIR/install.sh" "cli"
+run_no_agent_installer "$ROOT_DIR/../d1vai/public/install/d1v-cli.sh" "web"
 
 echo "Installer API-key bootstrap E2E passed."
