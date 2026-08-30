@@ -385,6 +385,8 @@ fn extract_binary(archive_path: &Path, paths: &WorkingPaths) -> Result<PathBuf> 
 }
 
 fn install_binary(source: &Path, destination: &Path) -> Result<()> {
+    // Authentication lives in the OS keyring/config file, never beside the
+    // executable. Keep this operation limited to the binary replacement.
     ensure_executable(source)?;
 
     let replacement = destination.with_extension("new");
@@ -649,5 +651,29 @@ mod tests {
             digest,
             "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
         );
+    }
+
+    #[test]
+    fn binary_upgrade_leaves_auth_config_untouched() {
+        let temp = tempfile::tempdir().unwrap();
+        let install_dir = temp.path().join("bin");
+        let config_dir = temp.path().join(".d1v");
+        std::fs::create_dir_all(&install_dir).unwrap();
+        std::fs::create_dir_all(&config_dir).unwrap();
+        let config = config_dir.join("config.toml");
+        std::fs::write(&config, "api_key = \"sk-test\"\n").unwrap();
+
+        let source = temp.path().join("new-d1v");
+        let destination = install_dir.join("d1v");
+        std::fs::write(&source, b"new binary").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        install_binary(&source, &destination).unwrap();
+        assert_eq!(std::fs::read(&config).unwrap(), b"api_key = \"sk-test\"\n");
+        assert_eq!(std::fs::read(&destination).unwrap(), b"new binary");
     }
 }

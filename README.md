@@ -206,6 +206,10 @@ d1v upgrade --version v0.1.5
 d1v uninstall
 ```
 
+`d1v upgrade` replaces only the executable. Your login remains available from
+the same OS keyring entry or `~/.d1v/config.toml`; upgrading does not sign you
+out or copy credentials into the release archive.
+
 ### Global Options
 
 | Option     | Description                | Default         |

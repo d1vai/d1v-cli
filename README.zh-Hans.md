@@ -201,6 +201,9 @@ d1v upgrade --version v0.1.5
 d1v uninstall
 ```
 
+`d1v upgrade` 只替换可执行文件。登录状态继续使用原来的系统 keyring 条目或
+`~/.d1v/config.toml`，升级不会退出登录，也不会把凭据复制到发布包中。
+
 ### 全局选项
 
 | 选项       | 描述                  | 默认值      |

@@ -46,6 +46,39 @@
 - Plan update: complete for repository-scoped implementation; no commit or
   push was requested in this turn.
 
+# Goal: Preserve authentication across CLI upgrades
+
+## Current Execution
+
+- Goal: ensure `d1v upgrade` replaces only the executable and keeps the
+  existing keyring/config authentication state available afterward.
+- Background: users should not need to log in again after a binary upgrade.
+- Selected validators: `@auth-state-qa`, `@cli-ux-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [x] Lock the binary-only replacement boundary with a regression test and
+    document the persistent auth stores.
+    - Evidence: `install_binary` does not access auth state; the regression
+      test confirms a config containing an API key remains byte-for-byte intact
+      while the executable is replaced. Keyring identifiers remain the stable
+      `d1v-cli`/`token` pair.
+  - [x] Run focused and workspace validation.
+    - Evidence: `cargo fmt --all -- --check` and `cargo test --workspace`
+      passed after the auth-continuity test; installer and website contracts
+      remain green.
+
+### Validator Handoff
+
+- Result: passed for authentication continuity across upgrades.
+- Checked: executable replacement isolation, config preservation, stable
+  keyring identifiers, upgrade documentation, and full Rust tests.
+- Passed: 159 CLI tests including the new continuity test, plus all API tests.
+- Failed: none for this change.
+- Not checked: an interactive macOS Keychain upgrade, because it requires a
+  live installed release and user keychain session.
+- Risk: external keychain availability can still affect login lookup, but an
+  upgrade itself does not mutate keyring or config state.
+- Plan update: complete for repository-scoped implementation.
+
 # Goal: Publish the canonical d1v coding-agent Skill from the CLI repository
 
 ## Current Execution
