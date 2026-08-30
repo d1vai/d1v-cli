@@ -198,6 +198,11 @@ d1v project list
 d1v github status
 ```
 
+To authenticate through an existing browser session and save a revocable device
+API key, use `d1v auth login --browser`. The browser approves a one-time,
+10-minute session; the CLI stores the resulting key in the same keyring/config
+location used by other login methods.
+
 Upgrade later:
 
 ```sh

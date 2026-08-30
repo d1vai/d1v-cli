@@ -64,6 +64,7 @@ futures-util = "0.3"
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 url = "2.5"
 base64 = "0.22"
+getrandom = "0.3"
 
 [dev-dependencies]
 indoc = "2"

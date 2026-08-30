@@ -309,6 +309,16 @@ impl RequestBuilder {
         }
     }
 
+    #[must_use]
+    pub fn header(self, name: &'static str, value: HeaderValue) -> Self {
+        Self {
+            inner: self
+                .inner
+                .map(|inner| inner.header(reqwest::header::HeaderName::from_static(name), value)),
+            ..self
+        }
+    }
+
     pub async fn send(self) -> Result<Response, Error> {
         let mut inner = self.inner?.header(ACCEPT, "application/json");
 

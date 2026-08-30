@@ -237,6 +237,9 @@ enum ConfigCommand {
 enum AuthCommand {
     /// Log in with email and verification code
     Login {
+        /// Log in through your browser and save a durable device API key
+        #[arg(long, conflicts_with_all = ["password", "with_token", "api_key"])]
+        browser: bool,
         /// Use password instead of verification code
         #[arg(short, long, conflicts_with = "with_token", conflicts_with = "api_key")]
         password: bool,
@@ -316,11 +319,14 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
     match command {
         Command::Auth { command } => match command {
             AuthCommand::Login {
+                browser,
                 password,
                 with_token,
                 api_key,
             } => {
-                if api_key {
+                if browser {
+                    auth::login_with_browser(&ctx).await
+                } else if api_key {
                     auth::login_with_api_key(&ctx)
                 } else if with_token {
                     auth::login_with_token(&ctx)

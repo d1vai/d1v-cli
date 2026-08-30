@@ -1,6 +1,10 @@
-use std::io::{IsTerminal, stdin};
+use std::fs::{self, OpenOptions};
+use std::io::{IsTerminal, Write, stdin};
+use std::path::PathBuf;
+use std::time::Duration;
 
 use anstyle::Style;
+use base64::Engine;
 use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
@@ -28,9 +32,102 @@ pub async fn login(ctx: &Context, password: bool) -> Result<()> {
     Ok(())
 }
 
+/// Uses a one-time browser approval session to obtain a durable, revocable API key.
+pub async fn login_with_browser(ctx: &Context) -> Result<()> {
+    let device_id = load_or_create_device_id()?;
+    let session = ctx
+        .client
+        .user()
+        .create_cli_login_session(&device_id, "This device")
+        .await?;
+
+    // The browser URL contains a one-time nonce but never the key or poll secret.
+    if open::that(&session.browser_url).is_err() {
+        ctx.message(format!(
+            "Open this URL in your browser:\n{}",
+            session.browser_url
+        ));
+    } else {
+        ctx.info("Your browser has opened. Complete login there, then return here.");
+    }
+
+    for _ in 0..300 {
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        let status = ctx
+            .client
+            .user()
+            .cli_login_status(&session.session_id, &session.poll_secret)
+            .await?;
+        match status.status.as_str() {
+            "pending" => continue,
+            "approved" => {
+                let key = ctx
+                    .client
+                    .user()
+                    .consume_cli_login_session(&session.session_id, &session.poll_secret)
+                    .await?
+                    .api_key;
+                ctx.tokens.save(&key)?;
+                ctx.client.token(key);
+                ctx.success(t!("auth-login-success"));
+                return Ok(());
+            }
+            "expired" => return Err(anyhow::anyhow!("browser login timed out").into()),
+            "consumed" => {
+                return Err(anyhow::anyhow!("browser login session was already consumed").into());
+            }
+            _ => return Err(anyhow::anyhow!("invalid browser login status").into()),
+        }
+    }
+    Err(anyhow::anyhow!("browser login timed out").into())
+}
+
+fn device_id_path() -> Result<PathBuf> {
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("home directory is unavailable"))?;
+    Ok(home.join(".d1v").join("device-id"))
+}
+
+fn load_or_create_device_id() -> Result<String> {
+    let path = device_id_path()?;
+    load_or_create_device_id_at(&path)
+}
+
+fn load_or_create_device_id_at(path: &std::path::Path) -> Result<String> {
+    if let Ok(value) = fs::read_to_string(&path) {
+        let value = value.trim();
+        if value.len() >= 16 && value.len() <= 128 {
+            return Ok(value.to_owned());
+        }
+    }
+    let mut bytes = [0_u8; 32];
+    getrandom::fill(&mut bytes)
+        .map_err(|err| anyhow::anyhow!("failed to generate device ID: {err}"))?;
+    let value = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let parent = path.parent().expect("device id has a parent");
+    fs::create_dir_all(parent)?;
+    let temp = parent.join(format!(".device-id.{}.tmp", std::process::id()));
+    {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            file.set_permissions(fs::Permissions::from_mode(0o600))?;
+        }
+        file.write_all(value.as_bytes())?;
+        file.write_all(b"\n")?;
+        file.sync_all()?;
+    }
+    fs::rename(&temp, &path)?;
+    Ok(value)
+}
+
 /// Presents an interactive menu to choose a login method, then executes it.
 pub async fn login_interactive(ctx: &Context) -> Result<()> {
     enum Method {
+        Browser,
         ApiKey,
         Code,
         Password,
@@ -38,6 +135,10 @@ pub async fn login_interactive(ctx: &Context) -> Result<()> {
     }
 
     let method = Select::new(t!("auth-method-prompt"))
+        .option(SelectOption::new(
+            Method::Browser,
+            t!("auth-method-browser"),
+        ))
         .option(SelectOption::new(Method::ApiKey, t!("auth-method-api-key")))
         .option(SelectOption::new(Method::Code, t!("auth-method-code")))
         .option(SelectOption::new(
@@ -49,6 +150,7 @@ pub async fn login_interactive(ctx: &Context) -> Result<()> {
         .prompt()?;
 
     match method {
+        Method::Browser => login_with_browser(ctx).await,
         Method::ApiKey => login_with_api_key(ctx),
         Method::Code => login(ctx, false).await,
         Method::Password => login(ctx, true).await,
@@ -313,6 +415,23 @@ pub fn status(ctx: &Context) -> Result<()> {
 mod tests {
     use super::*;
     use crate::text::RenderExt;
+
+    #[test]
+    fn device_id_is_private_and_stable() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("state").join("device-id");
+        let first = load_or_create_device_id_at(&path).unwrap();
+        assert_eq!(first, load_or_create_device_id_at(&path).unwrap());
+        assert!(first.len() >= 16);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
 
     fn render(status: &AuthStatus) -> String {
         AuthStatusView { status }.display().to_string()

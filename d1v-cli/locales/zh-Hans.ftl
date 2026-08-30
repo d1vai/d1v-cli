@@ -21,6 +21,7 @@ auth-relogin-yes = 是，重新登录
 auth-relogin-no = 否，退出
 auth-relogin-success = 重新认证成功！
 auth-method-prompt = 登录方式
+auth-method-browser = 浏览器
 auth-method-code = 验证码
 auth-method-password = 密码
 auth-method-token = 认证令牌

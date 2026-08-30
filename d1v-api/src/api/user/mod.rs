@@ -1,8 +1,9 @@
 mod types;
 
 use bon::bon;
+use reqwest::header::HeaderValue;
 use secrecy::{ExposeSecret, SecretString};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use url::Url;
 
@@ -10,6 +11,24 @@ use crate::locale::{IntoLocale, Locale};
 use crate::validate::{Code, Email, Validate};
 use crate::{Client, Error, UrlError};
 pub use types::{CreatedApiKey, DailyCount, PromptDailyActivity, User, UserApiKey};
+
+#[derive(Deserialize)]
+pub struct CliLoginSession {
+    pub session_id: String,
+    pub browser_url: String,
+    pub poll_secret: SecretString,
+    pub expires_at: String,
+}
+
+#[derive(Deserialize)]
+pub struct CliLoginStatus {
+    pub status: String,
+}
+
+#[derive(Deserialize)]
+pub struct CliLoginConsume {
+    pub api_key: SecretString,
+}
 
 pub struct UserApi {
     client: Client,
@@ -25,6 +44,64 @@ impl Client {
 }
 
 impl UserApi {
+    /// Creates a browser approval session for a durable device API key.
+    pub async fn create_cli_login_session(
+        &self,
+        device_id: &str,
+        device_name: &str,
+    ) -> Result<CliLoginSession, Error> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            device_id: &'a str,
+            device_name: &'a str,
+        }
+        self.client
+            .post("/api/auth/cli/sessions")
+            .json(&Payload {
+                device_id,
+                device_name,
+            })
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    pub async fn cli_login_status(
+        &self,
+        session_id: &str,
+        poll_secret: &SecretString,
+    ) -> Result<CliLoginStatus, Error> {
+        self.client
+            .get(format!("/api/auth/cli/sessions/{session_id}"))
+            .header(
+                "x-d1v-cli-poll-secret",
+                HeaderValue::from_str(poll_secret.expose_secret())
+                    .expect("poll secret is URL-safe ASCII"),
+            )
+            .no_auth()
+            .ok()
+            .await
+    }
+
+    pub async fn consume_cli_login_session(
+        &self,
+        session_id: &str,
+        poll_secret: &SecretString,
+    ) -> Result<CliLoginConsume, Error> {
+        #[derive(Serialize)]
+        struct Payload<'a> {
+            poll_secret: &'a str,
+        }
+        self.client
+            .post(format!("/api/auth/cli/sessions/{session_id}/consume"))
+            .json(&Payload {
+                poll_secret: poll_secret.expose_secret(),
+            })
+            .no_auth()
+            .ok()
+            .await
+    }
+
     /// Sends a verification code to the given email.
     pub async fn send_code(
         &self,

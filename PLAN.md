@@ -1,3 +1,75 @@
+# Goal: Browser login exchanges for revocable CLI device API keys
+
+## Current Execution
+
+- Goal: implement `d1v auth login --browser` so browser authentication issues a
+  long-lived, revocable device API key without placing the key or polling secret
+  in a URL, normal output, or logs.
+- Background: browser JWTs are not suitable durable CLI credentials. The backend
+  already stores hashed user API keys and the CLI already persists them through
+  the keyring/config token chain.
+- Selected validators: `@cli-ux-qa`, `@cli-json-qa`, `@api-backend-qa`,
+  `@auth-state-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [x] Add short-lived, hashed CLI login sessions and atomic device-key rotation
+    to the backend, including migration and tests.
+    - Evidence: `CliLoginSession` stores only SHA-256 hashes of the browser
+      nonce and poll secret; consume conditionally claims the session, revokes
+      prior `d1v-cli` keys for the user/device, and creates a standard hashed
+      API key. `20260830_cli_login` provides the schema migration; focused
+      pytest covers pending, invalid secret, single consume, and rotation.
+  - [x] Add browser login session client flow, private persistent device ID, and
+    non-leaking CLI command surface.
+    - Evidence: `d1v auth login --browser` appears in help and conflicts with
+      other credential flags. It persists a random `~/.d1v/device-id` through
+      a 0600 temp file + rename, opens (or prints) the nonce-only browser URL,
+      polls via a secret header, then uses `TokenChain::save` for the API key.
+  - [x] Complete the web approval handoff after every login method and expose
+    device-key origin in API-key settings.
+    - Evidence: email, password, OAuth, SUI, and Web3 completion paths approve
+      CLI sessions after browser JWT issuance; OAuth retains the full callback
+      URL. API key DTO/settings display the `d1v-cli` origin and retain normal
+      revoke controls.
+  - [x] Run targeted backend, CLI, and web validation; record evidence.
+    - Evidence: `.venv/bin/python -m pytest -q backend_admin/tests/test_cli_login.py`
+      (2 passed), `cargo fmt --all -- --check`, `cargo test --workspace`
+      (160 CLI + 54 API unit + 14 client + 87 project + 32 user tests), CLI
+      help/conflict smoke, `pnpm exec biome check` on changed Web files, and
+      whitespace checks passed.
+
+### Validator Handoff
+
+- Result: passed for implementation and targeted validation.
+- Checked: session authentication/expiry state, nonce and secret hashing,
+  single consumption, device rotation, API-key persistence, browser command
+  help/conflicts, changed web formatting, and full Rust workspace tests.
+- Passed: targeted backend test suite, Rust formatter/test suite, CLI help and
+  conflict smoke, and Biome for all changed frontend files.
+- Failed: full `pnpm exec tsc --noEmit` remains blocked by pre-existing
+  `dashboard-comps.tsx` `CircleDot` and dashboard translation-key errors.
+- Not checked: a real browser-to-production endpoint flow, which needs a
+  deployed backend and signed-in browser session.
+- Risk: concurrent consumption has a conditional database update and row lock;
+  production databases enforce both, while SQLite test locking is advisory.
+- Plan update: complete for repository-scoped implementation; no deployment,
+  migration application, commit, or push was requested.
+
+## Commit Follow-up
+
+- Goal: commit the browser device-login feature and use the available ARM64
+  self-hosted runner for ordinary CLI CI execution.
+- Todo:
+  - [x] Move regular CLI CI Linux jobs to
+    `[self-hosted, linux, arm64, d1v-linux-runner-arm64]`.
+    - Evidence: push/PR `build` and manual/scheduled Linux `build-all` matrix
+      entries now request the named runner; release and publishing workflows
+      remain unchanged because they require hosted platform-specific runners.
+  - [x] Commit the backend, CLI, frontend, migration, tests, docs, and runner
+    changes after final status verification.
+    - Evidence: CLI commit `c85b0ad` contains the browser flow and ARM64 CI
+      runner configuration; parent and web commits record their respective
+      backend/migration and approval-handoff changes.
+
 # Goal: Automatically install the d1v Skill for detected coding agents
 
 ## Current Execution

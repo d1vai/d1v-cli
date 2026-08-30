@@ -899,6 +899,7 @@ dependencies = [
  "flate2",
  "fluent-templates",
  "futures-util",
+ "getrandom 0.3.4",
  "indicatif",
  "indoc",
  "itertools",

@@ -193,6 +193,10 @@ d1v project list
 d1v github status
 ```
 
+如需复用已有浏览器登录状态并保存一个可撤销的设备 API key，可使用
+`d1v auth login --browser`。浏览器只批准一个有效期 10 分钟的一次性会话；CLI 会将
+生成的 key 保存到与其他登录方式相同的 keyring/config 位置。
+
 后续升级：
 
 ```sh
