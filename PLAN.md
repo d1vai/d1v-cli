@@ -84,6 +84,16 @@
   - [ ] Push `main`, create `v0.1.28`, and monitor CI, Publish, and Release.
   - [ ] Record release URLs/assets and residual risk.
 
+### Release Correction
+
+- The `v0.1.28` Publish job exposed that the published `d1v-api 0.1.10`
+  package did not contain the new CLI session methods. The corrective release
+  bumps `d1v-api` to `0.1.11`, updates the CLI dependency, and uses CLI
+  `0.1.29`; `v0.1.28` remains immutable and its binary Release can complete,
+  but its crates.io publish is intentionally not retried.
+- Todo:
+  - [ ] Publish the corrective `v0.1.29` tag after local verification.
+
 # Goal: Automatically install the d1v Skill for detected coding agents
 
 ## Current Execution
