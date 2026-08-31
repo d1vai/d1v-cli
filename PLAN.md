@@ -72,17 +72,23 @@
 
 ## Current Execution
 
-- Goal: publish `d1v-cli` `0.1.28` with the browser device-login flow after
+- Goal: publish the `d1v-cli` release with the browser device-login flow after
   validating the repaired self-hosted CI runner.
 - Selected validators: `@cli-ux-qa`, `@deploy-release-qa`, `@docs-adoption-qa`.
 - Todo:
-  - [x] Bump the CLI package to `0.1.28` and pass local release checks.
-    - Evidence: `cargo test --workspace` passed (160 CLI tests and all API
-      suites); `cargo fmt --all -- --check` passed; `poetry run python
-      scripts/test_publish.py` passed; publisher dry-run resolved `d1v-cli`
-      `0.1.28` and found `d1v-api 0.1.10` already published.
-  - [ ] Push `main`, create `v0.1.28`, and monitor CI, Publish, and Release.
-  - [ ] Record release URLs/assets and residual risk.
+  - [x] Bump the CLI/API packages to `d1v-cli 0.1.29` and `d1v-api 0.1.11`,
+    then pass local release checks.
+    - Evidence: `cargo fmt --all -- --check`, `cargo test --workspace`,
+      `poetry run python scripts/test_publish.py`, and publisher dry-run
+      passed.
+  - [x] Push `main`, create `v0.1.29`, and monitor CI, Publish, and Release.
+    - Evidence: commit `0ef2e56` and tag `v0.1.29` are pushed. Publish run
+      `33349234446` and Release run `33349234434` completed successfully.
+  - [x] Record release URLs/assets and residual risk.
+    - Evidence: GitHub Release is
+      https://github.com/d1vai/d1v-cli/releases/tag/v0.1.29 and contains
+      seven platform archives plus `checksums.txt`; crates.io downloads for
+      `d1v-api 0.1.11` and `d1v-cli 0.1.29` return HTTP 200.
 
 ### Release Correction
 
@@ -92,7 +98,17 @@
   `0.1.29`; `v0.1.28` remains immutable and its binary Release can complete,
   but its crates.io publish is intentionally not retried.
 - Todo:
-  - [ ] Publish the corrective `v0.1.29` tag after local verification.
+  - [x] Publish the corrective `v0.1.29` tag after local verification.
+    - Evidence: corrected dependency chain is published and the GitHub
+      Release assets are available at the URL above.
+
+### Release Residual Risk
+
+- The dedicated Release workflow passed all seven platform builds and
+  published the release. The separate CI workflow still reports failures in
+  Windows' network-dependent official Skill test and the Linux ARM64 runner
+  job; these do not gate the Publish or Release workflows and should be
+  repaired separately.
 
 # Goal: Automatically install the d1v Skill for detected coding agents
 
