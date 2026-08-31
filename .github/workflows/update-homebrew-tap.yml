@@ -41,6 +41,7 @@ jobs:
           cd "$(brew --repository d1vai/tap)"
           python3 scripts/update_d1v_formula.py
           brew style Formula/d1v.rb
+          brew trust --formula d1vai/tap/d1v
           brew install --formula Formula/d1v.rb
           brew test d1v
           git config user.name github-actions
