@@ -648,3 +648,28 @@
 
 - 命令面不会把“公开预览”和“容器终端”混成一件事。
 - 产品路径更容易扩展权限与审计。
+# Goal: Make self-hosted Docker runner workflows reliable
+
+## Current Execution
+
+- Goal: restore reliable self-hosted workflow execution for the local Docker
+  runner and verify the current CLI revision end to end.
+- Background: the runner was initially offline, then failed because its image
+  lacked `cc` and `python3`; CI also depended on a network download of Task,
+  which repeatedly failed during TLS setup.
+- Todo:
+  - [x] Re-register the local runner at repository scope with
+    `self-hosted,linux,x64,d1vai` labels.
+  - [x] Install the runner prerequisites (`build-essential`, `pkg-config`,
+    `python3`, `python3-venv`, and `python3-pip`) in the running Docker image.
+  - [x] Remove the self-host CI job's unnecessary Task download and run the
+    equivalent Cargo build/test commands directly.
+  - [x] Verify Terminal Smoke, Runtime E2E, and CI on the self-hosted runner.
+    Evidence: runs `33341651343`, `33341651447`, and `33346464162` all passed;
+    the final CI commit is `08180ce`.
+
+### Residual Risk
+
+- The prerequisite packages were installed into the current runner container;
+  rebuilding that image must preserve them (or bake them into the image) to
+  keep future runner replacements equivalent.
