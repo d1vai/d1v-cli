@@ -29,6 +29,7 @@ jobs:
       - name: Update tap formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           RELEASE_TAG: ${{ inputs.release_tag || github.event.workflow_run.head_branch }}
         run: |
           set -euo pipefail
