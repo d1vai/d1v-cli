@@ -25,7 +25,7 @@ jobs:
   build:
     name: Build (Linux ARM64)
     if: github.event_name != 'workflow_dispatch' && github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/')
-    runs-on: [self-hosted, linux, arm64, d1v-linux-runner-arm64]
+    runs-on: [self-hosted, linux, x64, d1vai]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
