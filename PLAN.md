@@ -70,6 +70,20 @@
       runner configuration; parent and web commits record their respective
       backend/migration and approval-handoff changes.
 
+## Current Execution
+
+- Goal: publish `d1v-cli` `0.1.28` with the browser device-login flow after
+  validating the repaired self-hosted CI runner.
+- Selected validators: `@cli-ux-qa`, `@deploy-release-qa`, `@docs-adoption-qa`.
+- Todo:
+  - [x] Bump the CLI package to `0.1.28` and pass local release checks.
+    - Evidence: `cargo test --workspace` passed (160 CLI tests and all API
+      suites); `cargo fmt --all -- --check` passed; `poetry run python
+      scripts/test_publish.py` passed; publisher dry-run resolved `d1v-cli`
+      `0.1.28` and found `d1v-api 0.1.10` already published.
+  - [ ] Push `main`, create `v0.1.28`, and monitor CI, Publish, and Release.
+  - [ ] Record release URLs/assets and residual risk.
+
 # Goal: Automatically install the d1v Skill for detected coding agents
 
 ## Current Execution
