@@ -224,7 +224,10 @@ fn is_executable(_path: &Path) -> bool {
 }
 
 fn validate_skill(contents: &str) -> Result<()> {
-    let trimmed = contents.trim_start();
+    // Git can check Markdown out with CRLF on Windows; frontmatter syntax is
+    // line-ending agnostic.
+    let normalized = contents.replace("\r\n", "\n");
+    let trimmed = normalized.trim_start();
     if !trimmed.starts_with("---\n")
         || !trimmed.contains("\nname: d1v\n")
         || !trimmed.contains("\ndescription:")
@@ -359,6 +362,12 @@ mod tests {
     #[test]
     fn accepts_d1v_skill_frontmatter() {
         validate_skill("---\nname: d1v\ndescription: Use d1v CLI.\n---\n# d1v\n").unwrap();
+    }
+
+    #[test]
+    fn accepts_crlf_skill_frontmatter() {
+        validate_skill("---\r\nname: d1v\r\ndescription: Use d1v CLI.\r\n---\r\n# d1v\r\n")
+            .unwrap();
     }
 
     #[test]

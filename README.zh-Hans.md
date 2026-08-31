@@ -4,8 +4,8 @@
 
 [d1v.ai](https://www.d1v.ai/) 实验性命令行工具。
 <br><br>
-<a href="https://github.com/fhluo/d1v-cli/actions/workflows/ci.yaml">
-<img src="https://github.com/fhluo/d1v-cli/actions/workflows/ci.yaml/badge.svg" alt="ci workflow"></a>
+<a href="https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml">
+<img src="https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml/badge.svg" alt="ci workflow"></a>
 
 <samp>
 

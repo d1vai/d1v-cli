@@ -28,9 +28,8 @@ jobs:
             exit 1
           fi
           version="${RELEASE_TAG#v}"
-          tmp="$(mktemp -d)"
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/d1vai/homebrew-tap.git" "${tmp}/tap"
-          cd "${tmp}/tap"
+          brew tap d1vai/tap "https://x-access-token:${GH_TOKEN}@github.com/d1vai/homebrew-tap.git"
+          cd "$(brew --repository d1vai/tap)"
           python3 scripts/update_d1v_formula.py
           brew style Formula/d1v.rb
           brew install --formula Formula/d1v.rb
@@ -38,7 +37,7 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git checkout -b "update-d1v-${version}"
-          git add Formula/d/d1v.rb
+          git add Formula/d1v.rb
           git commit -m "d1v ${version}"
           git push origin HEAD
           gh pr create --title "d1v ${version}" --body "Automated formula update from the verified GitHub Release." --base main --head "update-d1v-${version}"
