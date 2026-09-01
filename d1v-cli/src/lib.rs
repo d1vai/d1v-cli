@@ -34,7 +34,7 @@ pub mod upgrade;
 pub mod user;
 pub mod workspace;
 
-use std::fmt::Display;
+use std::fmt::{Display, Write as _};
 use std::io::{IsTerminal, stderr};
 use std::sync::{
     Arc,
@@ -44,7 +44,7 @@ use std::time::Duration;
 
 use anstream::ColorChoice;
 use d1v_api::{Client, ProgressEvent, UserAgent};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use serde::Serialize;
 
 use crate::config::Config;
@@ -114,8 +114,19 @@ impl Context {
             let spinner = indicatif::ProgressBar::new_spinner();
             spinner.enable_steady_tick(Duration::from_millis(80));
             spinner.set_style(
-                ProgressStyle::with_template("{spinner:.cyan} {msg} {elapsed_precise}")
-                    .expect("valid progress template"),
+                ProgressStyle::with_template("{spinner:.cyan} {msg} {elapsed}")
+                    .expect("valid progress template")
+                    .with_key(
+                        "elapsed",
+                        |state: &ProgressState, writer: &mut dyn std::fmt::Write| {
+                            let seconds = state.elapsed().as_secs();
+                            if seconds < 60 {
+                                let _ = write!(writer, "{seconds}s");
+                            } else {
+                                let _ = write!(writer, "{}m {}s", seconds / 60, seconds % 60);
+                            }
+                        },
+                    ),
             );
             spinner.set_message("Working...");
             spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
