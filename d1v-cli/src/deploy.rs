@@ -16,6 +16,7 @@ use crate::theme;
 use crate::ui::{Confirm, Select, SelectOption};
 
 pub async fn wait_for_preview(ctx: &Context, project_id: &str) -> Result<DeploymentResponse> {
+    let progress = ctx.deployment_progress();
     let started = ctx.client.deployment().preview(project_id).await?;
     let deployment_id = started.deployment_id.clone();
     for _ in 0..300 {
@@ -31,6 +32,7 @@ pub async fn wait_for_preview(ctx: &Context, project_id: &str) -> Result<Deploym
             let mut result = status;
             result.deployment_id = result.deployment_id.or(deployment_id.clone());
             result.production_url = url;
+            drop(progress);
             return Ok(result);
         }
         if ["ERROR", "FAILED", "CANCELED"]
@@ -97,6 +99,7 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
     {
         return Err(anyhow!("production release canceled").into());
     }
+    let progress = ctx.deployment_progress();
     let key = format!("d1v-{}-{}", std::process::id(), jiff::Timestamp::now());
     let request = CreateReleaseRequest {
         idempotency_key: key,
@@ -140,7 +143,10 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
             Err(error) => return Err(error.into()),
         };
         match status.status.to_ascii_lowercase().as_str() {
-            "succeeded" | "success" | "ready" => return Ok(status),
+            "succeeded" | "success" | "ready" => {
+                drop(progress);
+                return Ok(status);
+            }
             "failed" | "error" | "canceled" | "cancelled" => {
                 return Err(anyhow!(
                     "production release failed (phase={}, code={}): {}",

@@ -4,6 +4,7 @@ use std::fs;
 use std::io::IsTerminal;
 use std::path::Path;
 
+use crate::output::Format;
 use crate::ui::{Select, SelectOption};
 use crate::{Context, Result, workspace};
 use anyhow::anyhow;
@@ -187,20 +188,9 @@ pub async fn run(ctx: &Context, preview: bool) -> Result<()> {
             deployment_id: release.deployment_id.or(release.id),
         }
     };
-    ctx.present(
-        crate::text::Line::raw(format!(
-            "{} deployment requested for {}\n{}\nURL: {}",
-            if preview { "Preview" } else { "Production" },
-            project_id,
-            deployment.message,
-            deployment
-                .production_url
-                .as_deref()
-                .or(deployment.vercel_url.as_deref())
-                .unwrap_or("-"),
-        )),
-        &deployment,
-    )?;
+    if matches!(ctx.output.format, Format::Json) {
+        ctx.present(crate::text::Text::new(), &deployment)?;
+    }
     let ready_message = if preview {
         "Preview deployment is READY"
     } else {

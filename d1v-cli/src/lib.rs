@@ -36,11 +36,15 @@ pub mod workspace;
 
 use std::fmt::Display;
 use std::io::{IsTerminal, stderr};
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::Duration;
 
 use anstream::ColorChoice;
 use d1v_api::{Client, ProgressEvent, UserAgent};
+use indicatif::{ProgressBar, ProgressStyle};
 use serde::Serialize;
 
 use crate::config::Config;
@@ -55,6 +59,22 @@ pub struct Context {
     pub client: Client,
     pub tokens: TokenChain,
     pub output: Output,
+    progress_bar: Option<ProgressBar>,
+    deployment_progress_active: Arc<AtomicBool>,
+}
+
+pub struct DeploymentProgress {
+    progress_bar: Option<ProgressBar>,
+    active: Arc<AtomicBool>,
+}
+
+impl Drop for DeploymentProgress {
+    fn drop(&mut self) {
+        self.active.store(false, Ordering::Release);
+        if let Some(progress_bar) = &self.progress_bar {
+            progress_bar.finish_and_clear();
+        }
+    }
 }
 
 impl Context {
@@ -93,6 +113,10 @@ impl Context {
         let spinner = if matches!(format, Format::Text) && stderr().is_terminal() {
             let spinner = indicatif::ProgressBar::new_spinner();
             spinner.enable_steady_tick(Duration::from_millis(80));
+            spinner.set_style(
+                ProgressStyle::with_template("{spinner:.cyan} {msg} {elapsed_precise}")
+                    .expect("valid progress template"),
+            );
             spinner.set_message("Working...");
             spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
             Some(spinner)
@@ -100,6 +124,8 @@ impl Context {
             None
         };
         let spinner_for_handler = spinner.clone();
+        let deployment_progress_active = Arc::new(AtomicBool::new(false));
+        let progress_active_for_handler = deployment_progress_active.clone();
 
         let mut builder = Client::builder()
             .base_url(base_url.as_str())
@@ -112,11 +138,17 @@ impl Context {
             builder = builder.progress_handler(Arc::new(move |event| match event {
                 ProgressEvent::Started => {
                     spinner.set_draw_target(indicatif::ProgressDrawTarget::stderr());
-                    spinner.set_message("Working...");
+                    if progress_active_for_handler.load(Ordering::Acquire) {
+                        spinner.set_message("Deploying...");
+                    } else {
+                        spinner.set_message("Working...");
+                    }
                 }
                 ProgressEvent::Finished => {
-                    spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
-                    spinner.tick();
+                    if !progress_active_for_handler.load(Ordering::Acquire) {
+                        spinner.set_draw_target(indicatif::ProgressDrawTarget::hidden());
+                        spinner.tick();
+                    }
                 }
             }));
         }
@@ -139,7 +171,25 @@ impl Context {
             client,
             tokens,
             output: Output::new(format, color),
+            progress_bar: spinner,
+            deployment_progress_active,
         })
+    }
+
+    /// Shows a single terminal line for the full lifetime of a deployment.
+    pub fn deployment_progress(&self) -> DeploymentProgress {
+        self.deployment_progress_active
+            .store(true, Ordering::Release);
+        if let Some(progress_bar) = &self.progress_bar {
+            progress_bar.reset_elapsed();
+            progress_bar.set_message("Deploying...");
+            progress_bar.set_draw_target(indicatif::ProgressDrawTarget::stderr());
+            progress_bar.tick();
+        }
+        DeploymentProgress {
+            progress_bar: self.progress_bar.clone(),
+            active: self.deployment_progress_active.clone(),
+        }
     }
 
     /// Writes a success message via the output formatter.
