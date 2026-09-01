@@ -117,11 +117,19 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
         .clone()
         .ok_or_else(|| anyhow!("release response did not include an id"))?;
     for _ in 0..300 {
-        let status = ctx
+        let status = match ctx
             .client
             .deployment()
             .get_production_release(project_id, &release_id)
-            .await?;
+            .await
+        {
+            Ok(status) => status,
+            Err(error) if error.is_timeout() || error.is_network() => {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                continue;
+            }
+            Err(error) => return Err(error.into()),
+        };
         match status.status.to_ascii_lowercase().as_str() {
             "succeeded" | "success" | "ready" => return Ok(status),
             "failed" | "error" | "canceled" | "cancelled" => {
