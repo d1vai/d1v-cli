@@ -379,10 +379,16 @@ impl RequestBuilder {
 
     fn parse_response(status: StatusCode, bytes: &[u8]) -> Result<Response, Error> {
         match status {
-            StatusCode::OK => Ok(serde_json::from_slice(bytes)?),
             StatusCode::UNPROCESSABLE_ENTITY => {
                 Err(serde_json::from_slice::<ServerValidationError>(bytes)?.into())
             }
+            StatusCode::NO_CONTENT => Ok(Response {
+                code: 0,
+                message: "success".to_string(),
+                data: serde_json::Value::Null,
+                total: None,
+            }),
+            status if status.is_success() => Ok(serde_json::from_slice(bytes)?),
             _ if let Ok(resp) = serde_json::from_slice::<Response>(bytes)
                 && let Err(err) = resp.ok::<()>() =>
             {
@@ -510,6 +516,25 @@ mod tests {
 
         assert!(matches!(err, Error::HttpStatus(_)));
         assert_eq!(err.status_code(), Some(StatusCode::INTERNAL_SERVER_ERROR));
+    }
+
+    #[test]
+    fn accepted_response_is_successful() {
+        let response = RequestBuilder::parse_response(
+            StatusCode::ACCEPTED,
+            br#"{"code":0,"msg":"accepted","data":{"status":"pending"}}"#,
+        )
+        .unwrap();
+
+        assert_eq!(response.code, 0);
+        assert_eq!(response.data["status"], "pending");
+    }
+
+    #[test]
+    fn no_content_response_is_successful() {
+        let response = RequestBuilder::parse_response(StatusCode::NO_CONTENT, b"").unwrap();
+        assert_eq!(response.code, 0);
+        assert!(response.ok::<()>().is_ok());
     }
 
     #[test]

@@ -168,7 +168,7 @@ impl DeploymentApi {
     ) -> Result<ProductionRelease, Error> {
         self.client
             .post(format!(
-                "/api/projects/{}/releases/{}/retry",
+                "/api/deployment/{}/releases/{}/retry",
                 project_id.as_ref(),
                 release_id.as_ref()
             ))

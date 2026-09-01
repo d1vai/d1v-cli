@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "d1v-api"
-version = "0.1.12"
+version = "0.1.13"
 dependencies = [
  "ahash",
  "base64",
@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "d1v-cli"
-version = "0.1.37"
+version = "0.1.38"
 dependencies = [
  "anstream",
  "anstyle",
