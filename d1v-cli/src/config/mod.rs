@@ -262,6 +262,12 @@ impl Config {
         let path = dir.join("config.toml");
         let content = toml::to_string_pretty(self)?;
         fs::write(&path, &content).map_err(ConfigError::Write)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o600))
+                .map_err(ConfigError::Write)?;
+        }
         debug!(path = %path.display(), "config saved");
 
         Ok(())

@@ -4,7 +4,6 @@ use tracing::{debug, warn};
 
 use super::config::ConfigProvider;
 use super::env::EnvProvider;
-use super::keyring::{self, KeyringProvider};
 use super::{Result, TokenError, TokenSource, TokenStore};
 
 /// Chains multiple providers in priority order.
@@ -125,13 +124,9 @@ impl Default for TokenChain {
             vec![
                 Box::new(EnvProvider::new("D1V_API_KEY")),
                 Box::new(EnvProvider::new("D1V_AUTH_TOKEN")),
-                Box::new(KeyringProvider::new(keyring::SERVICE, keyring::USER)),
                 Box::new(ConfigProvider),
             ],
-            vec![
-                Box::new(KeyringProvider::new(keyring::SERVICE, keyring::USER)),
-                Box::new(ConfigProvider),
-            ],
+            vec![Box::new(ConfigProvider)],
         )
     }
 }

@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn status_text_logged_in() {
         let status = AuthStatus::LoggedIn {
-            source: "keyring".into(),
+            source: "config".into(),
             subject: Some("user@example.com".into()),
             expires_in: Some(9000),
         };
@@ -448,7 +448,7 @@ mod tests {
         assert_eq!(
             render(&status),
             concat!(
-                "✓ Logged in (keyring)\n",
+                "✓ Logged in (config)\n",
                 "  user        user@example.com\n",
                 "  expires in  2h 30m\n",
             )
@@ -478,14 +478,14 @@ mod tests {
     #[test]
     fn status_json_logged_in() {
         let status = AuthStatus::LoggedIn {
-            source: "keyring".into(),
+            source: "config".into(),
             subject: Some("user@example.com".into()),
             expires_in: Some(9000),
         };
 
         let json: serde_json::Value = serde_json::to_value(&status).unwrap();
         assert_eq!(json["status"], "logged_in");
-        assert_eq!(json["source"], "keyring");
+        assert_eq!(json["source"], "config");
         assert_eq!(json["subject"], "user@example.com");
         assert_eq!(json["expires_in"], 9000);
     }

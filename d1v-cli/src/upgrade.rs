@@ -385,8 +385,7 @@ fn extract_binary(archive_path: &Path, paths: &WorkingPaths) -> Result<PathBuf> 
 }
 
 fn install_binary(source: &Path, destination: &Path) -> Result<()> {
-    // Authentication lives in the OS keyring/config file, never beside the
-    // executable. Keep this operation limited to the binary replacement.
+    // Authentication lives in ~/.d1v/config.toml, never beside the executable.
     ensure_executable(source)?;
 
     let replacement = destination.with_extension("new");
