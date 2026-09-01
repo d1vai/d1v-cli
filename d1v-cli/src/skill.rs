@@ -261,6 +261,17 @@ impl WriteOutcome {
 }
 
 fn write_skill(destination: &Path, contents: &[u8]) -> Result<WriteOutcome> {
+    let timestamp = jiff::Timestamp::now()
+        .strftime("%Y%m%dT%H%M%SZ")
+        .to_string();
+    write_skill_with_timestamp(destination, contents, &timestamp)
+}
+
+fn write_skill_with_timestamp(
+    destination: &Path,
+    contents: &[u8],
+    timestamp: &str,
+) -> Result<WriteOutcome> {
     if destination.is_file() && fs::read(destination)? == contents {
         return Ok(WriteOutcome::Unchanged);
     }
@@ -272,7 +283,7 @@ fn write_skill(destination: &Path, contents: &[u8]) -> Result<WriteOutcome> {
     let temporary = create_temporary_skill(parent, contents)?;
 
     if destination.exists() {
-        let backup = backup_path(parent)?;
+        let backup = backup_path_at(parent, timestamp)?;
         if let Err(error) = fs::rename(destination, &backup) {
             let _ = fs::remove_file(&temporary);
             return Err(error)
@@ -332,10 +343,7 @@ fn create_temporary_skill(parent: &Path, contents: &[u8]) -> Result<PathBuf> {
     Err(anyhow!("could not create a temporary d1v skill file").into())
 }
 
-fn backup_path(parent: &Path) -> Result<PathBuf> {
-    let timestamp = jiff::Timestamp::now()
-        .strftime("%Y%m%dT%H%M%SZ")
-        .to_string();
+fn backup_path_at(parent: &Path, timestamp: &str) -> Result<PathBuf> {
     for suffix in 0..100 {
         let name = if suffix == 0 {
             format!("SKILL.md.d1v-backup-{timestamp}")
@@ -353,8 +361,8 @@ fn backup_path(parent: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::{
-        AgentTarget, OFFICIAL_SKILL, WriteOutcome, backup_path, command_in_path,
-        resolve_destinations, resolve_destinations_with_roots, validate_skill, write_skill,
+        AgentTarget, OFFICIAL_SKILL, WriteOutcome, command_in_path, resolve_destinations,
+        resolve_destinations_with_roots, validate_skill, write_skill,
     };
     use std::ffi::OsString;
     use std::fs;
@@ -498,7 +506,10 @@ mod tests {
         let destination = temp.path().join("skills/d1v/SKILL.md");
         fs::create_dir_all(destination.parent().unwrap()).unwrap();
         fs::write(&destination, b"old").unwrap();
-        let first = backup_path(destination.parent().unwrap()).unwrap();
+        let timestamp = jiff::Timestamp::now()
+            .strftime("%Y%m%dT%H%M%SZ")
+            .to_string();
+        let first = super::backup_path_at(destination.parent().unwrap(), &timestamp).unwrap();
         let prefix = first.file_name().unwrap().to_string_lossy().to_owned();
         for suffix in 0..100 {
             let name = if suffix == 0 {
@@ -508,7 +519,8 @@ mod tests {
             };
             fs::write(destination.parent().unwrap().join(name), b"occupied").unwrap();
         }
-        assert!(write_skill(&destination, b"new").is_err());
+        let result = super::write_skill_with_timestamp(&destination, b"new", &timestamp);
+        assert!(result.is_err());
         assert_eq!(fs::read(&destination).unwrap(), b"old");
     }
 }
