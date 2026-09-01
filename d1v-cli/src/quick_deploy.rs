@@ -189,17 +189,28 @@ pub async fn run(ctx: &Context, preview: bool) -> Result<()> {
     };
     ctx.present(
         crate::text::Line::raw(format!(
-            "{} deployment requested for {}\n{}",
+            "{} deployment requested for {}\n{}\nURL: {}",
             if preview { "Preview" } else { "Production" },
             project_id,
-            deployment.message
+            deployment.message,
+            deployment
+                .production_url
+                .as_deref()
+                .or(deployment.vercel_url.as_deref())
+                .unwrap_or("-"),
         )),
         &deployment,
     )?;
-    ctx.success(if preview {
+    let ready_message = if preview {
         "Preview deployment is READY"
     } else {
         "Production release is READY"
-    });
+    };
+    let ready_url = deployment
+        .production_url
+        .as_deref()
+        .or(deployment.vercel_url.as_deref())
+        .unwrap_or("-");
+    ctx.success(format!("{ready_message}: {ready_url}"));
     Ok(())
 }
