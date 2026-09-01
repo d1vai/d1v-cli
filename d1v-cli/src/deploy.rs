@@ -98,20 +98,29 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
         return Err(anyhow!("production release canceled").into());
     }
     let key = format!("d1v-{}-{}", std::process::id(), jiff::Timestamp::now());
-    let release = ctx
-        .client
-        .deployment()
-        .create_production_release(
-            project_id,
-            &CreateReleaseRequest {
-                idempotency_key: key,
-                expected_dev_commit_sha: None,
-                confirm_managed_reuse: true,
-                copy_development_data: false,
-                environment_decisions: decisions,
-            },
-        )
-        .await?;
+    let request = CreateReleaseRequest {
+        idempotency_key: key,
+        expected_dev_commit_sha: None,
+        confirm_managed_reuse: true,
+        copy_development_data: false,
+        environment_decisions: decisions,
+    };
+    let mut create_attempts = 0;
+    let release = loop {
+        match ctx
+            .client
+            .deployment()
+            .create_production_release(project_id, &request)
+            .await
+        {
+            Ok(release) => break release,
+            Err(error) if (error.is_timeout() || error.is_network()) && create_attempts < 4 => {
+                create_attempts += 1;
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+            Err(error) => return Err(error.into()),
+        }
+    };
     let release_id = release
         .id
         .clone()
