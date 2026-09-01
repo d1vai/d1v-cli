@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Published release tag to add to the tap
         required: true
-        default: v0.1.29
+        default: v0.1.30
         type: string
 
 jobs:
