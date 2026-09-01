@@ -70,6 +70,10 @@ fn banner() -> String {
         .render()
 }
 
+fn should_load_token(command: Option<&Command>, quick_deploy: bool) -> bool {
+    quick_deploy || command.is_some_and(Command::requires_auth)
+}
+
 #[derive(Subcommand)]
 enum Command {
     /// Manage authentication
@@ -276,10 +280,11 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
             .map_err(anyhow::Error::from)?
     };
 
-    let ctx = if matches!(&cli.command, Some(Command::Skill { .. })) {
-        Context::new_without_token_lookup(cli.format, cli.color.as_choice(), base_url_override)?
-    } else {
+    let load_token = should_load_token(cli.command.as_ref(), cli.preview || cli.prod);
+    let ctx = if load_token {
         Context::new(cli.format, cli.color.as_choice(), base_url_override)?
+    } else {
+        Context::new_without_token_lookup(cli.format, cli.color.as_choice(), base_url_override)?
     };
 
     if cli.preview || cli.prod || cli.command.as_ref().is_some_and(Command::requires_auth) {
@@ -448,4 +453,37 @@ async fn main() -> ExitCode {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn login_and_upgrade_skip_token_lookup() {
+        let login = Command::Auth {
+            command: AuthCommand::Login {
+                browser: true,
+                password: false,
+                with_token: false,
+                api_key: false,
+            },
+        };
+        assert!(!should_load_token(Some(&login), false));
+
+        let upgrade = Command::Upgrade(upgrade::UpgradeArgs {
+            check: false,
+            version: None,
+        });
+        assert!(!should_load_token(Some(&upgrade), false));
+    }
+
+    #[test]
+    fn protected_commands_load_a_token() {
+        let project = Command::Project {
+            command: project::ProjectCommand::List,
+        };
+        assert!(should_load_token(Some(&project), false));
+        assert!(should_load_token(None, true));
+    }
 }
