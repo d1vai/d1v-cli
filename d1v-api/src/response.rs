@@ -80,7 +80,7 @@ mod tests {
 
         assert_eq!(
             resp.ok::<String>().unwrap_err().to_string(),
-            "invalid response data: invalid type: null, expected a string"
+            "response data schema mismatch: invalid type: null, expected a string"
         );
     }
 }

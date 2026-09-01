@@ -158,7 +158,7 @@ pub enum Error {
     #[error(transparent)]
     Api(#[from] ApiError),
 
-    #[error("invalid response data: {0}")]
+    #[error("response data schema mismatch: {0}")]
     Data(#[from] serde_json::Error),
 
     #[error(transparent)]
