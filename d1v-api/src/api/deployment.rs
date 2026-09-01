@@ -113,7 +113,7 @@ impl DeploymentApi {
     ) -> Result<ReleasePreflight, Error> {
         self.client
             .get(format!(
-                "/api/projects/{}/release-preflight",
+                "/api/deployment/{}/release-preflight",
                 project_id.as_ref()
             ))
             .ok()
@@ -126,7 +126,7 @@ impl DeploymentApi {
         request: &CreateReleaseRequest,
     ) -> Result<ProductionRelease, Error> {
         self.client
-            .post(format!("/api/projects/{}/releases", project_id.as_ref()))
+            .post(format!("/api/deployment/{}/releases", project_id.as_ref()))
             .json(request)
             .ok()
             .await
@@ -139,7 +139,7 @@ impl DeploymentApi {
     ) -> Result<ProductionRelease, Error> {
         self.client
             .get(format!(
-                "/api/projects/{}/releases/{}",
+                "/api/deployment/{}/releases/{}",
                 project_id.as_ref(),
                 release_id.as_ref()
             ))
