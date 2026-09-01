@@ -66,10 +66,12 @@ pub struct DeploymentLogsResponse {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ReleasePreflight {
+    pub project_id: Option<String>,
     pub first_release: Option<bool>,
-    pub database_summary: Option<String>,
+    pub mode: Option<String>,
+    pub database: Option<Value>,
+    #[serde(default, alias = "variables")]
     pub environment_variables: Vec<ReleaseEnvironmentVariable>,
-    pub recommended_action: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -82,6 +84,7 @@ pub struct ReleaseEnvironmentVariable {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProductionRelease {
+    #[serde(alias = "release_id")]
     pub id: Option<String>,
     pub status: String,
     pub phase: Option<String>,
@@ -95,8 +98,18 @@ pub struct ProductionRelease {
 #[derive(Debug, Clone, Serialize)]
 pub struct CreateReleaseRequest {
     pub idempotency_key: String,
+    pub expected_dev_commit_sha: Option<String>,
+    pub confirm_managed_reuse: bool,
+    pub copy_development_data: bool,
+    pub environment_decisions: Vec<ReleaseEnvironmentDecision>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReleaseEnvironmentDecision {
+    pub key: String,
+    pub action: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub environment_decisions: Option<Value>,
+    pub value: Option<String>,
 }
 
 #[skip_serializing_none]

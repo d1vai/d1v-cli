@@ -26,8 +26,8 @@ pub use crate::api::user::{DailyCount, PromptDailyActivity, User};
 pub use crate::api::{
     deployment::{
         CreateReleaseRequest, DeploymentInfo, DeploymentListOptions, DeploymentListResponse,
-        DeploymentLogsResponse, DeploymentResponse, ProductionRelease, ReleaseEnvironmentVariable,
-        ReleasePreflight,
+        DeploymentLogsResponse, DeploymentResponse, ProductionRelease, ReleaseEnvironmentDecision,
+        ReleaseEnvironmentVariable, ReleasePreflight,
     },
     github_app::{
         GitHubAppConnectUrl, GitHubAppInstallation, GitHubAppRepository, GitHubAppStatus,

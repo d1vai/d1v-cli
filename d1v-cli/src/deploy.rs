@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 use clap::{Args, Subcommand};
-use d1v_api::{CreateReleaseRequest, ProductionRelease};
+use d1v_api::{CreateReleaseRequest, ProductionRelease, ReleaseEnvironmentDecision};
 use d1v_api::{
     DeploymentInfo, DeploymentListOptions, DeploymentListResponse, DeploymentLogsResponse,
     DeploymentResponse,
@@ -64,9 +64,9 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
         "Release preflight: first_release={} env_vars={} {}",
         preflight.first_release.unwrap_or(false),
         preflight.environment_variables.len(),
-        preflight.recommended_action.as_deref().unwrap_or("")
+        preflight.mode.as_deref().unwrap_or("")
     ));
-    let mut decisions = serde_json::Map::new();
+    let mut decisions = Vec::new();
     for variable in &preflight.environment_variables {
         if variable.needs_value.unwrap_or(false)
             || (variable.has_development_value == Some(true)
@@ -79,10 +79,16 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
                     SelectOption::new("skip", "Do not copy"),
                 ])
                 .prompt()?;
-            decisions.insert(
-                variable.key.clone(),
-                serde_json::Value::String(choice.to_string()),
-            );
+            let action = match choice.to_string().as_str() {
+                "development" => "reuse_dev",
+                "production" => "use_prod_existing",
+                _ => "omit",
+            };
+            decisions.push(ReleaseEnvironmentDecision {
+                key: variable.key.clone(),
+                action: action.to_string(),
+                value: None,
+            });
         }
     }
     if !Confirm::new(format!("Confirm production release for {project_id}?"))
@@ -99,7 +105,10 @@ pub async fn production_release(ctx: &Context, project_id: &str) -> Result<Produ
             project_id,
             &CreateReleaseRequest {
                 idempotency_key: key,
-                environment_decisions: Some(serde_json::Value::Object(decisions)),
+                expected_dev_commit_sha: None,
+                confirm_managed_reuse: true,
+                copy_development_data: false,
+                environment_decisions: decisions,
             },
         )
         .await?;
