@@ -2,10 +2,17 @@
 
 # D1V CLI
 
-Experimental CLI for [d1v.ai](https://www.d1v.ai/).
-<br><br>
-<a href="https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml">
-<img src="https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml/badge.svg" alt="ci workflow"></a>
+Deploy, inspect, and work inside D1V projects from your terminal.
+
+[![CI](https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml/badge.svg)](https://github.com/d1vai/d1v-cli/actions/workflows/ci.yaml)
+[![Release](https://img.shields.io/github/v/release/d1vai/d1v-cli?display_name=tag)](https://github.com/d1vai/d1v-cli/releases)
+[![crates.io](https://img.shields.io/crates/v/d1v-cli)](https://crates.io/crates/d1v-cli)
+[![Homebrew](https://img.shields.io/homebrew/v/d1v?tap=d1vai%2Ftap)](https://github.com/d1vai/homebrew-tap)
+[![License](https://img.shields.io/github/license/d1vai/d1v-cli)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/d1vai/d1v-cli)](https://github.com/d1vai/d1v-cli/stargazers)
+[![Rust](https://img.shields.io/badge/rust-1.95%2B-orange)](https://www.rust-lang.org/)
+
+Project-aware by default. Works with Codex and Claude Code. Supports cloud and local runtimes.
 
 <samp>
 
@@ -15,21 +22,24 @@ Experimental CLI for [d1v.ai](https://www.d1v.ai/).
 
 </div>
 
-## Commands
+## Quick Start
 
-Run `d1v --help` for all available commands.
-
-Deploy the current directory without repeating the project ID:
+Install, authenticate, and deploy the current directory:
 
 ```sh
+curl -fsSL https://d1v.ai/install/d1v-cli.sh | bash
+d1v auth login --browser
 d1v --preview   # or: d1v --prev
 d1v --prod
 ```
 
-The CLI reads `D1V_PROJECT_ID` from `.env` (or `.d1v/project.json`). When it
-is missing in an interactive terminal, choose an existing project or create
-one named after the current directory. Cloud environment variables are then
-merged into `.env`; local values are kept by default when keys conflict.
+The CLI reads `D1V_PROJECT_ID` from the current directory's `.env` first, then
+from the process environment and `.d1v/project.json`. Explicit project
+arguments always win. When no project can be resolved interactively, choose one
+from the project picker. Cloud environment variables are merged into `.env`;
+local values are kept by default when keys conflict.
+
+Run `d1v --help` for the complete command list.
 
 ## Coding Agent Skill
 
@@ -54,6 +64,24 @@ a different existing `SKILL.md` is backed up beside it as
 `SKILL.md.d1v-backup-<UTC timestamp>` before replacement. The legacy
 `https://www.d1v.ai/cli-skill.md` URL remains available and redirects to this
 canonical file.
+
+## D1V Mobile App
+
+Pair the terminal workflow with [`d1vai_app`](https://github.com/d1vai/d1vai_app),
+the official open-source Flutter client for d1v.ai. Use the CLI for fast local
+and CI workflows, and the mobile app to create projects, continue AI sessions,
+inspect files, monitor deployments, and manage your workspace away from a desk.
+
+[![d1vai_app Stars](https://img.shields.io/github/stars/d1vai/d1vai_app?label=d1vai_app%20stars)](https://github.com/d1vai/d1vai_app/stargazers)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
+[![Mobile](https://img.shields.io/badge/mobile-iOS%20%7C%20Android-16a34a)](https://github.com/d1vai/d1vai_app/releases)
+
+The companion app supports iOS and Android and includes its own screenshots,
+release downloads, and developer guide:
+
+- [d1vai_app repository](https://github.com/d1vai/d1vai_app)
+- [Mobile releases](https://github.com/d1vai/d1vai_app/releases)
+- [d1v.ai documentation](https://www.d1v.ai/docs/overview)
 
 ## Local Runtime
 
@@ -200,8 +228,7 @@ d1v github status
 
 To authenticate through an existing browser session and save a revocable device
 API key, use `d1v auth login --browser`. The browser approves a one-time,
-10-minute session; the CLI stores the resulting key in the same keyring/config
-location used by other login methods.
+10-minute session; the CLI stores the resulting key in `~/.d1v/config.toml`.
 
 Upgrade later:
 
@@ -211,9 +238,9 @@ d1v upgrade --version v0.1.5
 d1v uninstall
 ```
 
-`d1v upgrade` replaces only the executable. Your login remains available from
-the same OS keyring entry or `~/.d1v/config.toml`; upgrading does not sign you
-out or copy credentials into the release archive.
+`d1v upgrade` replaces only the executable. Your login remains in
+`~/.d1v/config.toml`; upgrading does not sign you out or copy credentials into
+the release archive.
 
 ### Global Options
 
@@ -321,38 +348,64 @@ d1v auth login
 
 ### Core Resources
 
-| Area      | Commands |
-| --------- | -------- |
-| Projects  | `d1v project list|get|create|update|delete|templates` |
-| Sessions  | `d1v session run|continue|status|history|cancel` |
-| Deploys   | `d1v deploy preview|prod|status|history|logs` |
-| GitHub    | `d1v github status|bind|installations|repos|import` |
-| Database  | `d1v db schema|data|branches|tables|rows|token|migrate` |
+| Area | Capability | Start here |
+| --- | --- | --- |
+| Projects | List, inspect, create, update, delete | `d1v project list` |
+| Sessions | Run or continue AI coding sessions | `d1v session run ...` |
+| Deployments | Preview, production, status, history, logs | `d1v --prev` |
+| Containers | Open a PTY or run one command | `d1v shell` / `d1v exec -- ...` |
+| Environment | Read, set, import, export, sync variables | `d1v env list` |
+| Database | Inspect schema/data and manage migrations | `d1v db schema ...` |
+| GitHub | Bind repositories and import projects | `d1v github status` |
+| Expose | Publish a local HTTP port temporarily | `d1v expose 3000` |
+| Runtime | Pair and run a local runtime | `d1v agent pair` |
+
+Project resolution is consistent across project-scoped commands:
+
+```text
+explicit project ID
+-> current .env: D1V_PROJECT_ID
+-> D1V_PROJECT_ID environment variable
+-> workspace binding
+```
 
 ### Container Terminal And Exec
 
-Open an interactive terminal at the personal workspace root or directly in a project directory:
+Open an interactive terminal in the project resolved from the current `.env`:
 
 ```sh
 d1v shell
 d1v shell <project_id>
-d1v shell --organization-id <organization_id>
+d1v shell --workspace
+d1v shell --workspace --organization-id <organization_id>
 ```
 
-With no target, `d1v shell` opens the personal workspace root. A positional project ID opens that project's directory, including organization-owned projects resolved by the control plane. `--organization-id` opens the organization workspace root and cannot be combined with a project ID.
+Use `--workspace` to explicitly open workspace-root. A positional project ID always overrides the current directory context.
 
 The interactive terminal requires a TTY and uses the container's native Bash/Zsh completion. For agents, CI, and commands whose output or status must be captured, use non-interactive `d1v exec` and pass argv after `--`:
 
 ```sh
-d1v exec -- git status --short
+d1v exec -- pwd
 d1v exec --project-id <project_id> -- npm test
-d1v exec --organization-id <organization_id> -- pwd
+d1v exec --workspace -- pwd
+d1v exec --workspace --organization-id <organization_id> -- pwd
 d1v --format json exec --project-id <project_id> -- sh -c 'printf ok; printf problem >&2; exit 7'
 ```
+
+Without `--project-id`, `d1v exec` runs in the project resolved from the current `.env`. Use `--workspace` for workspace-root commands.
 
 Text mode streams remote stdout and stderr to the matching local streams. JSON mode returns `session_id`, `project_id`, `cwd`, `exit_code`, `stdout`, and `stderr`, while the CLI process preserves a nonzero remote exit status. Interactive shell does not support JSON output.
 
 The CLI automatically selects an eligible direct-node connection and otherwise uses the backend relay. It sends an application heartbeat every 20 seconds so long-lived sessions stay active through intermediaries. Shell tickets are short-lived and sent in the WebSocket header, never in the URL or command output. Terminal input and output are not persisted by the terminal service.
+
+Start an AI coding session and choose the engine explicitly when reproducibility matters:
+
+```sh
+d1v session run <project_id> --engine codex --prompt "Run tests and fix failures"
+d1v session run <project_id> --engine claude --prompt "Review the authentication flow"
+```
+
+`--engine` is optional; the backend infers it from the selected model.
 
 ### Container Integration Ensure
 
