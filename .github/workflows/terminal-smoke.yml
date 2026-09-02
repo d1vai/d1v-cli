@@ -39,10 +39,11 @@ jobs:
       - name: Checkout d1v-cli
         uses: actions/checkout@v6
 
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          rustflags: ""
+      - name: Verify Rust toolchain
+        run: |
+          rustc --version
+          cargo --version
+          rustup show active-toolchain
 
       - name: Run CLI terminal unit tests
         run: |

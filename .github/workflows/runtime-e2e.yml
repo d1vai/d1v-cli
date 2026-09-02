@@ -12,17 +12,23 @@ on:
       - "Cargo.lock"
       - ".github/workflows/runtime-e2e.yml"
 
+concurrency:
+  group: runtime-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   runtime-e2e:
     runs-on: [self-hosted, linux, x64, d1vai]
+    timeout-minutes: 30
     steps:
       - name: Checkout d1v-cli
         uses: actions/checkout@v6
 
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          rustflags: ""
+      - name: Verify Rust toolchain
+        run: |
+          rustc --version
+          cargo --version
+          rustup show active-toolchain
 
       - name: Build stub runtime artifact
         run: |
