@@ -178,17 +178,17 @@ pub enum DeployCommand {
 
 #[derive(Args)]
 pub struct ProjectDeployArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
 }
 
 #[derive(Args)]
 pub struct StatusArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
 }
 
 #[derive(Args)]
 pub struct HistoryArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
     #[arg(long)]
     pub environment: Option<String>,
     #[arg(long, default_value_t = 20)]
@@ -317,11 +317,9 @@ fn field_opt(label: &'static str, value: Option<&str>) -> Field {
 pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
     match command {
         DeployCommand::Preview(args) => {
-            let deployment = wait_for_preview(ctx, &args.project_id).await?;
-            ctx.success(format!(
-                "Preview deployment requested for {}",
-                args.project_id
-            ));
+            let project_id = resolve_project_id(args.project_id)?;
+            let deployment = wait_for_preview(ctx, &project_id).await?;
+            ctx.success(format!("Preview deployment requested for {}", project_id));
             ctx.present(
                 DeployResponseView {
                     title: "Preview deployment",
@@ -333,7 +331,8 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             )
         }
         DeployCommand::Prod(args) => {
-            let release = production_release(ctx, &args.project_id).await?;
+            let project_id = resolve_project_id(args.project_id)?;
+            let release = production_release(ctx, &project_id).await?;
             let deployment = DeploymentResponse {
                 success: true,
                 message: release.status.clone(),
@@ -344,7 +343,7 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             };
             ctx.success(format!(
                 "Production deployment requested for {}",
-                args.project_id
+                project_id
             ));
             ctx.present(
                 DeployResponseView {
@@ -357,16 +356,13 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             )
         }
         DeployCommand::Status(args) => {
-            let preview = ctx
-                .client
-                .deployment()
-                .preview_status(&args.project_id)
-                .await?;
+            let project_id = resolve_project_id(args.project_id)?;
+            let preview = ctx.client.deployment().preview_status(&project_id).await?;
             let history = ctx
                 .client
                 .deployment()
                 .history(
-                    &args.project_id,
+                    &project_id,
                     &DeploymentListOptions {
                         environment: None,
                         limit: Some(1),
@@ -416,11 +412,12 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             )
         }
         DeployCommand::History(args) => {
+            let project_id = resolve_project_id(args.project_id)?;
             let history = ctx
                 .client
                 .deployment()
                 .history(
-                    &args.project_id,
+                    &project_id,
                     &DeploymentListOptions {
                         environment: args.environment,
                         limit: Some(args.limit),
@@ -446,4 +443,23 @@ pub async fn run(ctx: &Context, command: DeployCommand) -> Result<()> {
             )
         }
     }
+}
+
+fn resolve_project_id(explicit: Option<String>) -> Result<String> {
+    if let Some(project_id) = explicit.filter(|value| !value.trim().is_empty()) {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = crate::workspace::resolve_env_project_id(None)? {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = std::env::var("D1V_PROJECT_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = crate::workspace::resolve_bound_project_id(None)? {
+        return Ok(project_id);
+    }
+    Err(anyhow!("project id is required; pass PROJECT_ID or add D1V_PROJECT_ID to .env").into())
 }

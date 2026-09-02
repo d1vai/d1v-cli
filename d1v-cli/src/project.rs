@@ -35,7 +35,7 @@ pub enum ProjectCommand {
 #[derive(Args)]
 pub struct GetArgs {
     /// Project ID
-    pub project_id: String,
+    pub project_id: Option<String>,
     /// Ask backend to refresh synced project state
     #[arg(long)]
     pub sync: bool,
@@ -72,7 +72,7 @@ pub struct CreateArgs {
 #[derive(Args)]
 pub struct UpdateArgs {
     /// Project ID
-    pub project_id: String,
+    pub project_id: Option<String>,
     /// New project name
     #[arg(long)]
     pub name: Option<String>,
@@ -121,7 +121,7 @@ impl UpdateArgs {
 #[derive(Args)]
 pub struct DeleteArgs {
     /// Project ID
-    pub project_id: String,
+    pub project_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -409,6 +409,25 @@ fn resolve_ensure_project_id(args: &EnsureArgs) -> Result<String> {
     .into())
 }
 
+fn resolve_project_id(explicit: Option<String>) -> Result<String> {
+    if let Some(project_id) = explicit.filter(|value| !value.trim().is_empty()) {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = workspace::resolve_env_project_id(None)? {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = std::env::var("D1V_PROJECT_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = workspace::resolve_bound_project_id(None)? {
+        return Ok(project_id);
+    }
+    Err(anyhow!("project id is required; pass PROJECT_ID or add D1V_PROJECT_ID to .env").into())
+}
+
 pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
     match command {
         ProjectCommand::List => {
@@ -434,9 +453,10 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             )
         }
         ProjectCommand::Get(args) => {
+            let project_id = resolve_project_id(args.project_id.clone())?;
             let project = ctx
                 .client
-                .project(&args.project_id)
+                .project(&project_id)
                 .get(args.sync.then_some(true))
                 .await?;
             ctx.present(
@@ -492,6 +512,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             }
         }
         ProjectCommand::Update(args) => {
+            let project_id = resolve_project_id(args.project_id.clone())?;
             if args.is_empty() {
                 ctx.message("Nothing to update. Pass at least one field flag.");
                 return Ok(());
@@ -499,7 +520,7 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
 
             let project = ctx
                 .client
-                .project(&args.project_id)
+                .project(&project_id)
                 .update()
                 .maybe_project_name(args.name.as_deref())
                 .maybe_project_description(args.description.as_deref())
@@ -558,8 +579,9 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
             )
         }
         ProjectCommand::Delete(args) => {
-            ctx.client.project(&args.project_id).delete().await?;
-            ctx.success(format!("Deleted project {}", args.project_id));
+            let project_id = resolve_project_id(args.project_id)?;
+            ctx.client.project(&project_id).delete().await?;
+            ctx.success(format!("Deleted project {}", project_id));
             Ok(())
         }
     }
