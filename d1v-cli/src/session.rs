@@ -9,6 +9,28 @@ use crate::error::Result;
 use crate::text::{Field, Fields, Line, Span, Table, TableRow, Text};
 use crate::theme;
 
+fn resolve_project_id(explicit: Option<String>) -> Result<String> {
+    if let Some(project_id) = explicit.filter(|value| !value.trim().is_empty()) {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = crate::workspace::resolve_env_project_id(None)? {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = std::env::var("D1V_PROJECT_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        return Ok(project_id);
+    }
+    if let Some(project_id) = crate::workspace::resolve_bound_project_id(None)? {
+        return Ok(project_id);
+    }
+    Err(
+        anyhow::anyhow!("project id is required; pass PROJECT_ID or add D1V_PROJECT_ID to .env")
+            .into(),
+    )
+}
+
 #[derive(Subcommand)]
 pub enum SessionCommand {
     /// Start a new AI development session
@@ -25,7 +47,7 @@ pub enum SessionCommand {
 
 #[derive(Args)]
 pub struct RunArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
     #[arg(long)]
     pub prompt: String,
     #[arg(long)]
@@ -38,7 +60,7 @@ pub struct RunArgs {
 
 #[derive(Args)]
 pub struct ContinueArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
     #[arg(long)]
     pub prompt: String,
     #[arg(long)]
@@ -53,12 +75,12 @@ pub struct ContinueArgs {
 
 #[derive(Args)]
 pub struct StatusArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
 }
 
 #[derive(Args)]
 pub struct HistoryArgs {
-    pub project_id: String,
+    pub project_id: Option<String>,
     #[arg(long, default_value_t = 20)]
     pub limit: u32,
     #[arg(long)]
@@ -286,9 +308,10 @@ fn field_opt(label: &'static str, value: Option<&str>) -> Field {
 pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
     match command {
         SessionCommand::Run(args) => {
+            let project_id = resolve_project_id(args.project_id)?;
             let response = ctx
                 .client
-                .project(&args.project_id)
+                .project(&project_id)
                 .execute_session(&args.prompt)
                 .session_type(SessionType::New)
                 .maybe_model(args.model.as_deref())
@@ -308,9 +331,10 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
             )
         }
         SessionCommand::Continue(args) => {
+            let project_id = resolve_project_id(args.project_id)?;
             let response = ctx
                 .client
-                .project(&args.project_id)
+                .project(&project_id)
                 .execute_session(&args.prompt)
                 .session_type(SessionType::Continue)
                 .maybe_session_id(args.session_id.as_deref())
@@ -331,20 +355,18 @@ pub async fn run(ctx: &Context, command: SessionCommand) -> Result<()> {
             )
         }
         SessionCommand::Status(args) => {
-            let session = ctx
-                .client
-                .project(&args.project_id)
-                .active_session()
-                .await?;
+            let project_id = resolve_project_id(args.project_id)?;
+            let session = ctx.client.project(&project_id).active_session().await?;
             ctx.present(
                 SessionStatusView { session: &session },
                 &SessionStatusJson { session: &session },
             )
         }
         SessionCommand::History(args) => {
+            let project_id = resolve_project_id(args.project_id)?;
             let history = ctx
                 .client
-                .project(&args.project_id)
+                .project(&project_id)
                 .history()
                 .limit(args.limit)
                 .maybe_direction(args.direction.map(Into::into))

@@ -390,6 +390,34 @@ pub fn resolve_bound_project_id(path: Option<&Path>) -> Result<Option<String>> {
     Ok(metadata.project_id.filter(|value| !value.trim().is_empty()))
 }
 
+/// Reads a project ID from the exact execution directory's `.env` file.
+pub fn resolve_env_project_id(path: Option<&Path>) -> Result<Option<String>> {
+    let directory = match path {
+        Some(path) => path.to_path_buf(),
+        None => std::env::current_dir()?,
+    };
+    let content = match fs::read_to_string(directory.join(".env")) {
+        Ok(content) => content,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    for line in content.lines() {
+        let line = line.trim();
+        let line = line.strip_prefix("export ").unwrap_or(line);
+        let Some((key, value)) = line.split_once('=') else {
+            continue;
+        };
+        if key.trim() != "D1V_PROJECT_ID" {
+            continue;
+        }
+        let value = value.trim().trim_matches(['"', '\'']);
+        if !value.is_empty() {
+            return Ok(Some(value.to_string()));
+        }
+    }
+    Ok(None)
+}
+
 fn write_workspace_metadata(root: &Path, metadata: &WorkspaceMetadata) -> Result<()> {
     let dir = root.join(WORKSPACE_DIR);
     fs::create_dir_all(&dir)?;
@@ -1549,6 +1577,20 @@ mod tests {
         assert_eq!(resolved.as_deref(), Some("proj_nested"));
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn resolves_project_id_from_env_file() {
+        let dir = temp_dir("resolve-env-project-id");
+        fs::write(
+            dir.join(".env"),
+            "OTHER=value\nexport D1V_PROJECT_ID=project_from_env\n",
+        )
+        .unwrap();
+        assert_eq!(
+            resolve_env_project_id(Some(&dir)).unwrap().as_deref(),
+            Some("project_from_env")
+        );
     }
 
     #[test]

@@ -1,5 +1,18 @@
 /target
 
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local OS/editor files
+.DS_Store
+
 .idea
 
 *.exe

@@ -37,8 +37,12 @@ impl From<protocol::ProtocolError> for Error {
 
 #[derive(Debug, Clone, Args)]
 pub struct ShellArgs {
-    /// Project ID; omit to open the workspace root
+    /// Project ID; omit to use D1V_PROJECT_ID from `.env`
     pub project_id: Option<String>,
+
+    /// Explicitly open the workspace root instead of the current project
+    #[arg(long, conflicts_with = "project_id")]
+    pub workspace: bool,
 
     /// Organization workspace ID (workspace-root shells only)
     #[arg(long, value_name = "ID")]
@@ -48,9 +52,13 @@ pub struct ShellArgs {
 #[derive(Debug, Clone, Args)]
 #[command(trailing_var_arg = true)]
 pub struct ExecArgs {
-    /// Project directory target; omit to execute at the workspace root
+    /// Project directory target; omit to use D1V_PROJECT_ID from `.env`
     #[arg(long, value_name = "ID")]
     pub project_id: Option<String>,
+
+    /// Explicitly execute at the workspace root instead of the current project
+    #[arg(long, conflicts_with = "project_id")]
+    pub workspace: bool,
 
     /// Organization workspace ID (workspace-root exec only)
     #[arg(long, value_name = "ID")]
@@ -158,6 +166,14 @@ impl Drop for RawTerminal {
 
 pub async fn run(ctx: &Context, args: ShellArgs) -> Result<()> {
     validate_interactive(&args, ctx.output.format)?;
+    let mut args = args;
+    if !args.workspace && args.project_id.is_none() {
+        args.project_id = crate::workspace::resolve_env_project_id(None)?.or_else(|| {
+            std::env::var("D1V_PROJECT_ID")
+                .ok()
+                .filter(|id| !id.trim().is_empty())
+        });
+    }
     let (cols, rows) = normalize_terminal_size(terminal::size().unwrap_or((120, 40)));
     eprintln!("Connecting to D1V terminal...");
 
@@ -181,6 +197,14 @@ pub async fn run(ctx: &Context, args: ShellArgs) -> Result<()> {
 
 pub async fn run_exec(ctx: &Context, args: ExecArgs) -> Result<()> {
     validate_exec(&args)?;
+    let mut args = args;
+    if !args.workspace && args.project_id.is_none() {
+        args.project_id = crate::workspace::resolve_env_project_id(None)?.or_else(|| {
+            std::env::var("D1V_PROJECT_ID")
+                .ok()
+                .filter(|id| !id.trim().is_empty())
+        });
+    }
     let mut request = CreateShellSessionRequest::exec(args.command.clone());
     let api = ctx.client.shell();
     let connection = if let Some(project_id) = args.project_id.as_deref() {
@@ -221,7 +245,7 @@ pub async fn run_exec(ctx: &Context, args: ExecArgs) -> Result<()> {
 }
 
 fn validate_exec(args: &ExecArgs) -> Result<()> {
-    if args.project_id.is_some() && args.organization_id.is_some() {
+    if (args.project_id.is_some() || !args.workspace) && args.organization_id.is_some() {
         return Err(anyhow!("--organization-id cannot be used with --project-id").into());
     }
     if args.command.is_empty() {
@@ -245,7 +269,7 @@ fn validate_exec(args: &ExecArgs) -> Result<()> {
 }
 
 fn validate_interactive(args: &ShellArgs, format: Format) -> Result<()> {
-    if args.project_id.is_some() && args.organization_id.is_some() {
+    if (args.project_id.is_some() || !args.workspace) && args.organization_id.is_some() {
         return Err(anyhow!("--organization-id cannot be used with PROJECT_ID").into());
     }
     if matches!(format, Format::Json) {
@@ -599,6 +623,7 @@ mod tests {
     fn rejects_organization_with_project() {
         let args = ShellArgs {
             project_id: Some("project_1".into()),
+            workspace: false,
             organization_id: Some(42),
         };
         assert!(validate_interactive(&args, Format::Text).is_err());
@@ -608,6 +633,7 @@ mod tests {
     fn rejects_json_before_tty_check() {
         let args = ShellArgs {
             project_id: None,
+            workspace: false,
             organization_id: None,
         };
         assert!(validate_interactive(&args, Format::Json).is_err());
@@ -624,6 +650,7 @@ mod tests {
     fn validates_exec_scope_and_argument_limits() {
         let conflicting_scope = ExecArgs {
             project_id: Some("project_1".into()),
+            workspace: false,
             organization_id: Some(42),
             command: vec!["true".into()],
         };
@@ -631,6 +658,7 @@ mod tests {
 
         let empty_argument = ExecArgs {
             project_id: None,
+            workspace: false,
             organization_id: None,
             command: vec![String::new()],
         };
@@ -638,6 +666,7 @@ mod tests {
 
         let too_many_arguments = ExecArgs {
             project_id: None,
+            workspace: false,
             organization_id: None,
             command: vec!["x".into(); 129],
         };

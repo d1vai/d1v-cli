@@ -16,7 +16,7 @@ use crate::{Context, Result, t, workspace};
 #[derive(Args)]
 pub struct ProjectArgs {
     /// Project ID (defaults to D1V_PROJECT_ID or workspace binding)
-    #[arg(short = 'p', long = "project", env = "D1V_PROJECT_ID")]
+    #[arg(short = 'p', long = "project")]
     pub project_id: Option<String>,
 }
 
@@ -29,6 +29,17 @@ impl ProjectArgs {
             .filter(|s| !s.is_empty())
         {
             return Ok(id.to_string());
+        }
+
+        if let Some(id) = workspace::resolve_env_project_id(None)? {
+            return Ok(id);
+        }
+
+        if let Some(id) = std::env::var("D1V_PROJECT_ID")
+            .ok()
+            .filter(|id| !id.trim().is_empty())
+        {
+            return Ok(id);
         }
 
         if let Some(id) = workspace::resolve_bound_project_id(None)? {

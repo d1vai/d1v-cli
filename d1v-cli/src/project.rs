@@ -101,8 +101,8 @@ pub struct EnsureArgs {
     /// Integration targets to ensure
     #[arg(value_enum, num_args = 1..)]
     pub targets: Vec<EnsureTarget>,
-    /// Project ID override (defaults to D1V_PROJECT_ID or .d1v/project.json)
-    #[arg(long, env = "D1V_PROJECT_ID")]
+    /// Project ID override (defaults to `.env`, D1V_PROJECT_ID, or workspace binding)
+    #[arg(long)]
     pub project_id: Option<String>,
     /// Resolve workspace metadata from this path instead of the current directory
     #[arg(long)]
@@ -386,6 +386,17 @@ fn resolve_ensure_project_id(args: &EnsureArgs) -> Result<String> {
         .filter(|value| !value.is_empty())
     {
         return Ok(project_id.to_string());
+    }
+
+    if let Some(project_id) = workspace::resolve_env_project_id(args.path.as_deref())? {
+        return Ok(project_id);
+    }
+
+    if let Some(project_id) = std::env::var("D1V_PROJECT_ID")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+    {
+        return Ok(project_id);
     }
 
     if let Some(project_id) = workspace::resolve_bound_project_id(args.path.as_deref())? {
