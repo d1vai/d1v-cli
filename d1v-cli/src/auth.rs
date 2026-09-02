@@ -9,7 +9,7 @@ use secrecy::SecretString;
 use serde::Serialize;
 use tracing::debug;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::output::format_duration;
 use crate::text::{Field, Fields, Line, Render, RenderContext, Span, Text};
 use crate::token::{TokenSource, TokenStore};
@@ -80,6 +80,57 @@ pub async fn login_with_browser(ctx: &Context) -> Result<()> {
         }
     }
     Err(anyhow::anyhow!("browser login timed out").into())
+}
+
+/// Validates the configured credential against the API and repairs it through
+/// the browser device flow when it is missing or rejected.
+pub async fn ensure_authenticated(ctx: &Context) -> Result<()> {
+    let has_token = ctx.tokens.lookup()?.is_some();
+    let locally_expired = ctx.client.is_token_expired();
+
+    if has_token && !locally_expired {
+        match ctx.client.user().info().await {
+            Ok(_) => return Ok(()),
+            Err(error) if is_auth_failure(&error) => {}
+            Err(error) => return Err(error.into()),
+        }
+    } else if has_token && locally_expired {
+        ctx.info("Stored credential is expired; opening browser login.");
+    }
+
+    if !stdin().is_terminal() {
+        return if has_token {
+            Err(Error::Api(d1v_api::Error::Api(d1v_api::ApiError::new(
+                d1v_api::ApiCode::Unauthorized,
+                "stored credential is invalid or expired",
+            ))))
+        } else {
+            Err(Error::NotLoggedIn)
+        };
+    }
+
+    ctx.info("Credential rejected; opening browser login.");
+    login_with_browser(ctx).await?;
+    ctx.client
+        .user()
+        .info()
+        .await
+        .map(|_| ())
+        .map_err(Into::into)
+}
+
+fn is_auth_failure(error: &d1v_api::Error) -> bool {
+    matches!(
+        error,
+        d1v_api::Error::Api(api)
+            if matches!(api.code, d1v_api::ApiCode::Unauthorized | d1v_api::ApiCode::Forbidden)
+                || api.message.to_ascii_lowercase().contains("invalid api key")
+    ) || matches!(
+        error,
+        d1v_api::Error::HttpStatus(status)
+            if status.status == reqwest::StatusCode::UNAUTHORIZED
+                || status.status == reqwest::StatusCode::FORBIDDEN
+    )
 }
 
 fn device_id_path() -> Result<PathBuf> {

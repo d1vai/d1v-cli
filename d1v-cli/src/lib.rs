@@ -34,7 +34,7 @@ pub mod upgrade;
 pub mod user;
 pub mod workspace;
 
-use std::fmt::{Display, Write as _};
+use std::fmt::Display;
 use std::io::{IsTerminal, stderr};
 use std::sync::{
     Arc,

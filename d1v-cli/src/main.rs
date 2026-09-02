@@ -10,9 +10,8 @@ use tracing::info;
 use d1v_cli::banner::Banner;
 use d1v_cli::config::Config;
 use d1v_cli::config::cmd::ConfigKey;
-use d1v_cli::error::{Error, Result};
+use d1v_cli::error::Result;
 use d1v_cli::output::{Format, Output, format_duration};
-use d1v_cli::token::TokenSource;
 use d1v_cli::{
     BaseUrlCandidate, Context, agent, api_key, auth, base_url, config, db, debug, deploy, env,
     expose, github, i18n, logging, node, project, runtime_install, session, shell, skill, t,
@@ -288,21 +287,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
     };
 
     if cli.preview || cli.prod || cli.command.as_ref().is_some_and(Command::requires_auth) {
-        if ctx.tokens.lookup()?.is_none() {
-            return Err(Error::NotLoggedIn);
-        }
-
-        if ctx.client.is_token_expired() {
-            if stdin().is_terminal() {
-                match auth::prompt_relogin(&ctx).await {
-                    Ok(true) => ctx.success(t!("auth-relogin-success")),
-                    Ok(false) => return Ok(()),
-                    Err(err) => return Err(err),
-                }
-            } else {
-                return Err(Error::TokenExpired);
-            }
-        }
+        auth::ensure_authenticated(&ctx).await?;
 
         if let Some(claims) = ctx.client.claims()
             && let Some(remaining) = claims.expires_in()
