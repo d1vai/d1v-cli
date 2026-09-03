@@ -68,6 +68,24 @@ async def build_backend_app(done: asyncio.Event) -> web.Application:
     app = web.Application()
     app["state"] = {"events": [], "done": done}
 
+    async def current_user(request: web.Request) -> web.Response:
+        assert request.headers.get("Authorization") == "Bearer e2e-token"
+        assert request.headers.get("X-D1V-Client") == "d1v-cli"
+        return web.json_response(
+            {
+                "code": 0,
+                "msg": "success",
+                "data": {
+                    "id": 7,
+                    "is_agent": False,
+                    "picture": "",
+                    "email": "agent-e2e@example.com",
+                    "last_login_type": None,
+                    "stripe_customer_id": None,
+                },
+            }
+        )
+
     async def agent_connect(request: web.Request) -> web.WebSocketResponse:
         assert request.query.get("token") == "e2e-token"
         assert request.query.get("device_id") == "e2e-device-1"
@@ -131,6 +149,7 @@ async def build_backend_app(done: asyncio.Event) -> web.Application:
             {"code": 0, "msg": "success", "data": {"accepted": True}}
         )
 
+    app.router.add_get("/api/user/info", current_user)
     app.router.add_get("/api/agent/connect", agent_connect)
     app.router.add_get("/api/devices/runtime/bootstrap", runtime_bootstrap)
     app.router.add_post("/api/devices/runtime-node/register", register_runtime_node)

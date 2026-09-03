@@ -95,6 +95,9 @@ pub async fn ensure_authenticated(ctx: &Context) -> Result<()> {
             Err(error) => return Err(error.into()),
         }
     } else if has_token && locally_expired {
+        if !stdin().is_terminal() {
+            return Err(Error::TokenExpired);
+        }
         ctx.info("Stored credential is expired; opening browser login.");
     }
 

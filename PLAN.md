@@ -688,28 +688,59 @@
 
 - 命令面不会把“公开预览”和“容器终端”混成一件事。
 - 产品路径更容易扩展权限与审计。
-# Goal: Make self-hosted Docker runner workflows reliable
+# Goal: Repair and validate Terminal Smoke and Runtime E2E authentication fixtures
 
 ## Current Execution
 
-- Goal: restore reliable self-hosted workflow execution for the local Docker
-  runner and verify the current CLI revision end to end.
-- Background: the runner was initially offline, then failed because its image
-  lacked `cc` and `python3`; CI also depended on a network download of Task,
-  which repeatedly failed during TLS setup.
+- Goal: restore both affected push workflows by making their E2E mock servers
+  satisfy the `/api/user/info` authentication preflight, then commit, push, and
+  verify the resulting GitHub Actions runs.
+- Background: `ca3f558` added the preflight for protected commands, but the
+  shell and agent relay fixtures omit that route. The result is a 404 rendered
+  as `unexpected server response` before either relay test begins.
+- Selected validators: `@session-runtime-qa`, `@api-backend-qa`, `@cli-json-qa`.
 - Todo:
-  - [x] Re-register the local runner at repository scope with
-    `self-hosted,linux,x64,d1vai` labels.
-  - [x] Install the runner prerequisites (`build-essential`, `pkg-config`,
-    `python3`, `python3-venv`, and `python3-pip`) in the running Docker image.
-  - [x] Remove the self-host CI job's unnecessary Task download and run the
-    equivalent Cargo build/test commands directly.
-  - [x] Verify Terminal Smoke, Runtime E2E, and CI on the self-hosted runner.
-    Evidence: runs `33341651343`, `33341651447`, and `33346464162` all passed;
-    the final CI commit is `08180ce`.
+  - [x] Add a valid authenticated-user fixture to both local E2E mock servers.
+    - Evidence: both mock servers now validate the control headers and return
+      a valid `User` response from `GET /api/user/info`; the shell fixture
+      retains its expired-token path and explicitly selects `--workspace` for
+      the organization-scope exec contract.
+  - [x] Preserve the documented non-interactive expired-token exit semantics
+    while performing the new authentication preflight.
+    - Evidence: `ensure_authenticated` returns `Error::TokenExpired` before
+      browser-login messaging when a locally expired credential is used without
+      a terminal, restoring exit code `4` verified by shell E2E.
+  - [x] Run targeted E2E checks, formatter, workspace tests, help, and JSON
+    debug smoke; record passing evidence.
+    - Evidence: `cargo fmt --all -- --check`, `cargo test` (164 CLI library +
+      2 CLI binary tests), Python syntax checks, both relay E2E scripts,
+      `d1v --help`, and `d1v --format json debug` passed.
+  - [ ] Commit and push the focused repair, then confirm Terminal Smoke and
+    Runtime E2E pass on GitHub Actions.
 
-### Residual Risk
+### Validator Handoff
 
-- The prerequisite packages were installed into the current runner container;
-  rebuilding that image must preserve them (or bake them into the image) to
-  keep future runner replacements equivalent.
+- Result: local repair validation passed; GitHub Actions verification remains
+  pending the planned push.
+- Checked: authenticated-user mock route and headers, expired-token
+  non-interactive exit semantics, organization workspace targeting, both relay
+  protocols, formatter, Rust workspace tests, help output, and JSON debug
+  stdout.
+- Passed: `@api-backend-qa` confirms the auth preflight uses the documented
+  response envelope; `@session-runtime-qa` confirms shell/exec and agent relay
+  E2E complete; `@cli-json-qa` confirms JSON debug returns one machine-readable
+  object without human-only hints on stdout.
+- Failed: none in local validation.
+- Not checked: GitHub-hosted push runs, pending commit and push.
+- Risk: self-hosted runner state and external dependency availability can still
+  affect the remote jobs independently of this deterministic fixture repair.
+- Plan update: local repair is ready to commit; do not mark remote validation
+  complete until both affected workflows finish successfully.
+
+### Historical Baseline
+
+- The local Docker runner was re-registered with
+  `self-hosted,linux,x64,d1vai`, supplied with compiler/Python prerequisites,
+  and the self-host CI job was changed to use Cargo directly. Terminal Smoke,
+  Runtime E2E, and CI had passed in runs `33341651343`, `33341651447`, and
+  `33346464162` at commit `08180ce`.

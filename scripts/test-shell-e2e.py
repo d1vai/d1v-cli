@@ -66,6 +66,25 @@ def require_control_headers(request: web.Request) -> None:
     assert request.headers.get("X-D1V-Client") == "d1v-cli"
 
 
+async def current_user(request: web.Request) -> web.Response:
+    assert request.headers.get("X-D1V-Client") == "d1v-cli"
+    if request.headers.get("Authorization") == f"Bearer {EXPIRED_TOKEN}":
+        return web.json_response(
+            {"code": 401, "msg": "unauthorized", "data": None}, status=401
+        )
+    require_control_headers(request)
+    return response(
+        {
+            "id": 7,
+            "is_agent": False,
+            "picture": "",
+            "email": "shell-e2e@example.com",
+            "last_login_type": None,
+            "stripe_customer_id": None,
+        }
+    )
+
+
 async def create_session(request: web.Request) -> web.Response:
     require_control_headers(request)
     state = request.app["state"]
@@ -196,6 +215,7 @@ async def start_server() -> tuple[web.Application, web.AppRunner, str]:
         "exit_sent": asyncio.Event(),
         "ws_base": "",
     }
+    app.router.add_get("/api/user/info", current_user)
     app.router.add_post("/api/workspace/shell-sessions", create_session)
     app.router.add_post("/api/projects/{project_id}/shell-sessions", create_session)
     app.router.add_delete("/api/shell-sessions/{session_id}", terminate_session)
@@ -268,6 +288,7 @@ async def verify_exec(
         "--format",
         "json",
         "exec",
+        "--workspace",
         "--organization-id",
         "42",
         "--",
