@@ -715,13 +715,16 @@
     - Evidence: `cargo fmt --all -- --check`, `cargo test` (164 CLI library +
       2 CLI binary tests), Python syntax checks, both relay E2E scripts,
       `d1v --help`, and `d1v --format json debug` passed.
-  - [ ] Commit and push the focused repair, then confirm Terminal Smoke and
+  - [x] Commit and push the focused repair, then confirm Terminal Smoke and
     Runtime E2E pass on GitHub Actions.
+    - Evidence: commit `dfef506` is pushed to `main`. Terminal Smoke run
+      `33715585531` passed, including shell/exec and Agent relay E2E; Runtime
+      E2E run `33715585691` passed, including runtime bootstrap and Agent
+      relay E2E.
 
 ### Validator Handoff
 
-- Result: local repair validation passed; GitHub Actions verification remains
-  pending the planned push.
+- Result: passed locally and on the self-hosted GitHub Actions runner.
 - Checked: authenticated-user mock route and headers, expired-token
   non-interactive exit semantics, organization workspace targeting, both relay
   protocols, formatter, Rust workspace tests, help output, and JSON debug
@@ -731,11 +734,12 @@
   E2E complete; `@cli-json-qa` confirms JSON debug returns one machine-readable
   object without human-only hints on stdout.
 - Failed: none in local validation.
-- Not checked: GitHub-hosted push runs, pending commit and push.
+- Not checked: a deliberately invalid non-expired API key response; the
+  existing E2E coverage verifies valid and locally expired token paths.
 - Risk: self-hosted runner state and external dependency availability can still
-  affect the remote jobs independently of this deterministic fixture repair.
-- Plan update: local repair is ready to commit; do not mark remote validation
-  complete until both affected workflows finish successfully.
+  affect future jobs independently of this deterministic fixture repair.
+- Plan update: repair committed as `dfef506`; both failing workflows now pass
+  on their push run.
 
 ### Historical Baseline
 
