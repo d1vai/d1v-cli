@@ -211,6 +211,24 @@ pub struct CreateProjectResponse {
     pub project: Project,
     pub session: Option<Session>,
     pub import_auto_deploy: Option<serde_json::Value>,
+    #[serde(default)]
+    pub enabled_integrations: Vec<String>,
+    #[serde(default)]
+    pub environment_variables: Vec<ProvisionedEnvironmentVariable>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProvisionedEnvironmentVariable {
+    pub key: String,
+    pub value: String,
+    pub description: Option<String>,
+    #[serde(default = "default_sensitive")]
+    pub is_sensitive: bool,
+    pub integration: String,
+}
+
+const fn default_sensitive() -> bool {
+    true
 }
 
 #[derive(Debug, Clone)]
@@ -231,6 +249,13 @@ pub struct ImportLocal {
     pub single_file_content: Option<String>,
     pub wait_for_deploy: Option<bool>,
     pub wait_deploy_seconds: Option<u32>,
+    pub enable_newapi: Option<bool>,
+    pub enable_storage: Option<bool>,
+    pub enable_pay: Option<bool>,
+    pub enable_database: Option<bool>,
+    pub enable_resend: Option<bool>,
+    pub wait_for_integrations: Option<bool>,
+    pub auto_deploy: Option<bool>,
 }
 
 impl From<ImportLocal> for Form {
@@ -246,6 +271,13 @@ impl From<ImportLocal> for Form {
             single_file_content,
             wait_for_deploy,
             wait_deploy_seconds,
+            enable_newapi,
+            enable_storage,
+            enable_pay,
+            enable_database,
+            enable_resend,
+            wait_for_integrations,
+            auto_deploy,
         } = payload;
 
         let mut form = Form::new()
@@ -257,6 +289,14 @@ impl From<ImportLocal> for Form {
             .text_if_display("private", private)
             .text_if_display("wait_for_deploy", wait_for_deploy)
             .text_if_display("wait_deploy_seconds", wait_deploy_seconds);
+        form = form
+            .text_if_display("enable_newapi", enable_newapi)
+            .text_if_display("enable_storage", enable_storage)
+            .text_if_display("enable_pay", enable_pay)
+            .text_if_display("enable_database", enable_database)
+            .text_if_display("enable_resend", enable_resend)
+            .text_if_display("wait_for_integrations", wait_for_integrations);
+        form = form.text_if_display("auto_deploy", auto_deploy);
 
         if let Some(archive) = archive {
             form = form.part(
@@ -354,7 +394,9 @@ pub struct Project {
     pub project_name: String,
     #[serde(default)]
     pub project_description: String,
-    pub project_port: Option<u16>,
+    /// Metadata may contain an internal development-environment sentinel
+    /// above the TCP port range; this is not used for socket binding.
+    pub project_port: Option<u32>,
     pub project_pay_id: Option<String>,
     pub project_database_id: Option<String>,
     pub workspace_current_branch: Option<String>,

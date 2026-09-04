@@ -36,6 +36,15 @@ fn project_json() -> serde_json::Value {
     })
 }
 
+#[test]
+fn project_accepts_development_environment_port_sentinel() {
+    let mut value = project_json();
+    value["project_port"] = json!(65537);
+    let project: d1v_api::api::projects::Project =
+        serde_json::from_value(value).unwrap();
+    assert_eq!(project.project_port, Some(65537));
+}
+
 fn create_response_json() -> serde_json::Value {
     json!({
         "code": 0,
@@ -43,7 +52,14 @@ fn create_response_json() -> serde_json::Value {
         "data": {
             "project": project_json(),
             "session": null,
-            "import_auto_deploy": null
+            "import_auto_deploy": null,
+            "enabled_integrations": ["newapi", "storage"],
+            "environment_variables": [{
+                "key": "D1V_PAI_API_KEY",
+                "value": "project-secret",
+                "is_sensitive": true,
+                "integration": "newapi"
+            }]
         }
     })
 }
@@ -101,6 +117,8 @@ async fn create_project() {
 
     assert_eq!(response.project.id, "proj_123");
     assert!(response.session.is_none());
+    assert_eq!(response.enabled_integrations, ["newapi", "storage"]);
+    assert_eq!(response.environment_variables[0].key, "D1V_PAI_API_KEY");
     mock.assert();
 }
 
@@ -225,6 +243,7 @@ async fn import_from_local() {
             bytes: b"<h1>Hello</h1>".to_vec(),
         }])
         .wait_for_deploy(false)
+        .auto_deploy(false)
         .call()
         .await
         .unwrap();
@@ -258,6 +277,50 @@ async fn cli_import_local() {
         .unwrap();
 
     assert_eq!(response.project.id, "proj_123");
+    mock.assert();
+}
+
+#[tokio::test]
+async fn ensure_project_integrations_includes_all_environment_services() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/api/projects/proj_123/integrations/ensure")
+            .header("authorization", "Bearer token123")
+            .header("content-type", "application/json")
+            .json_body(json!({
+                "newapi": true, "storage": true, "pay": false,
+                "database": true, "resend": true, "analytics": false
+            }));
+        then.status(200).header("content-type", "application/json").json_body(json!({
+            "code": 0, "msg": "success", "data": {
+                "project": project_json(), "errors": [],
+                "newapi": {"requested": true, "status": "enabled", "changed": true, "message": "ok"},
+                "storage": {"requested": true, "status": "enabled", "changed": true, "message": "ok"},
+                "pay": {"requested": false, "status": "not_requested", "changed": false, "message": "ok"},
+                "database": {"requested": true, "status": "enabled", "changed": true, "message": "ok"},
+                "resend": {"requested": true, "status": "enabled", "changed": true, "message": "ok"},
+                "analytics": {"requested": false, "status": "not_requested", "changed": false, "message": "ok"}
+            }
+        }));
+    });
+
+    let result = authed_client(&server)
+        .project("proj_123")
+        .integrations()
+        .ensure()
+        .newapi(true)
+        .storage(true)
+        .pay(false)
+        .database(true)
+        .resend(true)
+        .analytics(false)
+        .call()
+        .await
+        .unwrap();
+
+    assert!(result.errors.is_empty());
+    assert_eq!(result.resend.status, "enabled");
     mock.assert();
 }
 

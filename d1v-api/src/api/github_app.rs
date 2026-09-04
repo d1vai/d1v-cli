@@ -17,7 +17,7 @@ pub struct UserProject {
     pub created_at: String,
     #[serde(default)]
     pub updated_at: String,
-    pub project_port: Option<u16>,
+    pub project_port: Option<u32>,
     pub emoji: Option<String>,
     pub repository_full_name: Option<String>,
     pub repository_current_branch: Option<String>,
