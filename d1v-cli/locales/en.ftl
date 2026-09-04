@@ -13,6 +13,7 @@ auth-not-logged-in = Not logged in.
 auth-status-logged-in = Logged in
 auth-status-not-logged-in = Not logged in
 auth-status-expired = Token expired
+auth-status-invalid = Credentials invalid. Run `d1v auth login`.
 auth-status-label-user = user
 auth-status-label-expires = expires in
 warn-token-expiring = Token expires in { $duration }. Run `d1v auth login` to refresh.

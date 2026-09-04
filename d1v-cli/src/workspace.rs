@@ -1,12 +1,12 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
-use std::io::Write;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use anyhow::{Context as AnyhowContext, anyhow};
-use clap::Args;
-use d1v_api::api::projects::LocalImportFile;
+use clap::{Args, ValueEnum};
+use d1v_api::api::projects::{CreateProjectResponse, LocalImportFile};
 use d1v_api::{GitHubProjectCliAccess, GitHubProjectGitCredential, PullWorkspaceRequest};
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,7 @@ use crate::error::Result;
 use crate::text::{Field, Fields, Line, Span, Text};
 use crate::theme;
 use crate::token::TokenSource;
+use crate::ui::{Confirm, Select, SelectOption};
 
 const WORKSPACE_DIR: &str = ".d1v";
 const WORKSPACE_FILE: &str = "project.json";
@@ -56,6 +57,36 @@ pub struct InitArgs {
     /// Preview the scan and binding result without writing files
     #[arg(long)]
     pub dry_run: bool,
+    /// Initialization mode (defaults to environment-only outside an interactive terminal)
+    #[arg(long, value_enum, conflicts_with = "environment_only")]
+    pub mode: Option<InitMode>,
+    /// Create only a cloud development environment; do not upload local files
+    #[arg(long, conflicts_with = "mode")]
+    pub environment_only: bool,
+    /// Disable the D1V PAI-compatible OpenAI API and project key
+    #[arg(long)]
+    pub no_pai: bool,
+    /// Disable project file storage credentials and public URL
+    #[arg(long)]
+    pub no_storage: bool,
+    /// Enable Pay checkout API and default product
+    #[arg(long)]
+    pub pay: bool,
+    /// Enable the dedicated Postgres database and credentials
+    #[arg(long)]
+    pub database: bool,
+    /// Disable Resend email login and transactional email credentials
+    #[arg(long)]
+    pub no_email: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InitMode {
+    #[default]
+    EnvironmentOnly,
+    ImportAutoDeploy,
+    ImportNoDeploy,
 }
 
 #[derive(Args)]
@@ -101,6 +132,9 @@ struct InitResultJson<'a> {
     metadata: &'a WorkspaceMetadata,
     scan: &'a ScanSummary,
     wrote_binding: bool,
+    mode: InitMode,
+    enabled_integrations: &'a [String],
+    environment_variables_written: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -143,6 +177,9 @@ struct InitResultView<'a> {
     metadata: &'a WorkspaceMetadata,
     scan: &'a ScanSummary,
     wrote_binding: bool,
+    mode: InitMode,
+    enabled_integrations: &'a [String],
+    environment_variables_written: usize,
 }
 
 impl crate::text::Render for InitResultView<'_> {
@@ -166,9 +203,31 @@ impl crate::text::Render for InitResultView<'_> {
             field("Included files", &self.scan.included_files.to_string()),
             field("Excluded files", &self.scan.excluded_files.to_string()),
             field("Included bytes", &self.scan.included_bytes.to_string()),
+            field(
+                "Mode",
+                match self.mode {
+                    InitMode::EnvironmentOnly => "environment_only",
+                    InitMode::ImportAutoDeploy => "import_auto_deploy",
+                    InitMode::ImportNoDeploy => "import_no_deploy",
+                },
+            ),
+            field(
+                "Cloud variables written",
+                &self.environment_variables_written.to_string(),
+            ),
         ])
         .indent(2)
         .render(ctx)?;
+
+        if !self.enabled_integrations.is_empty() {
+            writeln!(ctx.writer)?;
+            Fields::new([field(
+                "Enabled integrations",
+                &self.enabled_integrations.join(", "),
+            )])
+            .indent(2)
+            .render(ctx)?;
+        }
 
         if !self.scan.risky_files.is_empty() {
             writeln!(ctx.writer)?;
@@ -296,13 +355,9 @@ pub async fn init(ctx: &Context, args: InitArgs) -> Result<()> {
     }
 
     let metadata_path = workspace_file_path(&root);
-    if metadata_path.exists() && !args.force {
-        return Err(anyhow!(
-            "workspace already initialized at {}. Re-run with --force to overwrite.",
-            metadata_path.display()
-        )
-        .into());
-    }
+    let existing_metadata = (!args.force && metadata_path.exists())
+        .then(|| read_workspace_metadata(&root))
+        .transpose()?;
 
     let scan = scan_workspace(&root)?;
     let now = Timestamp::now().to_string();
@@ -313,9 +368,18 @@ pub async fn init(ctx: &Context, args: InitArgs) -> Result<()> {
             .into_owned()
     });
 
-    let mut metadata = WorkspaceMetadata {
+    let existing_project_id = args
+        .project_id
+        .clone()
+        .or(resolve_env_project_id(Some(&root))?)
+        .or_else(|| {
+            existing_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.project_id.clone())
+        });
+    let mut metadata = existing_metadata.unwrap_or_else(|| WorkspaceMetadata {
         version: 1,
-        project_id: args.project_id.clone(),
+        project_id: existing_project_id.clone(),
         workspace_id: None,
         project_name,
         root_path: root.display().to_string(),
@@ -327,26 +391,135 @@ pub async fn init(ctx: &Context, args: InitArgs) -> Result<()> {
         created_by_cli_version: env!("CARGO_PKG_VERSION").to_string(),
         ignore_profile_version: IGNORE_PROFILE_VERSION,
         bound_at: now.clone(),
-        updated_at: now,
+        updated_at: now.clone(),
+    });
+    metadata.project_id = existing_project_id;
+    metadata.project_name = args.name.clone().unwrap_or(metadata.project_name);
+    metadata.root_path = root.display().to_string();
+    metadata.framework = scan.framework.clone();
+    metadata.package_manager = scan.package_manager.clone();
+    metadata.updated_at = now;
+
+    let mut enabled_integrations = Vec::new();
+    let mut environment_variables_written = 0;
+    let mode = if metadata.project_id.is_some() {
+        InitMode::EnvironmentOnly
+    } else {
+        resolve_init_mode(&args)?
     };
 
     if !args.dry_run {
-        if metadata.project_id.is_none() && ctx.tokens.lookup()?.is_some() {
-            let upload_files = collect_upload_files(&root)?;
-            ctx.info(format!(
-                "Uploading {} filtered files to /api/projects/cli-import-local",
-                upload_files.len()
-            ));
+        let has_token = ctx.tokens.lookup()?.is_some();
+        let needs_cloud =
+            metadata.project_id.is_some() || has_token || matches!(mode, InitMode::EnvironmentOnly);
+        if needs_cloud && metadata.project_id.is_none() && !has_token {
+            return Err(anyhow!("`d1v init` requires authentication to create a cloud environment; run `d1v auth login` first").into());
+        }
+        if needs_cloud {
+            crate::auth::ensure_authenticated(ctx).await?;
+        }
+
+        if let Some(project_id) = metadata.project_id.clone() {
+            let cloud_keys = ctx
+                .client
+                .project(&project_id)
+                .env()
+                .vars(false)
+                .await?
+                .into_iter()
+                .map(|variable| variable.key)
+                .collect::<BTreeSet<_>>();
+            let selections = EnvironmentSelection::from_args(&args, Some(&cloud_keys))?;
             let result = ctx
                 .client
-                .projects()
-                .cli_import_local()
-                .project_name(metadata.project_name.clone())
-                .files(upload_files)
+                .project(&project_id)
+                .integrations()
+                .ensure()
+                .newapi(selections.pai)
+                .storage(selections.storage)
+                .pay(selections.pay)
+                .database(selections.database)
+                .resend(selections.email)
+                .analytics(false)
                 .call()
                 .await?;
+            enabled_integrations = enabled_service_names(&selections);
+            if !result.errors.is_empty() {
+                return Err(anyhow!(
+                    "environment provisioning failed: {}",
+                    result.errors.join("; ")
+                )
+                .into());
+            }
+            environment_variables_written = sync_cloud_env(ctx, &root, &project_id).await?;
+        } else {
+            let selections = EnvironmentSelection::from_args(&args, None)?;
+            let result: CreateProjectResponse;
+            if matches!(mode, InitMode::EnvironmentOnly) {
+                ctx.info("Creating cloud development environment without uploading local files");
+                result = ctx
+                    .client
+                    .projects()
+                    .create_with_integrations(format!(
+                        "Create a development environment for {}",
+                        metadata.project_name
+                    ))
+                    .project_kind("dev_environment")
+                    .project_name(&metadata.project_name)
+                    .template_repo("auto")
+                    .enable_newapi(selections.pai)
+                    .enable_storage(selections.storage)
+                    .enable_pay(selections.pay)
+                    .enable_database(selections.database)
+                    .enable_resend(selections.email)
+                    .wait_for_integrations(false)
+                    .call()
+                    .await?;
+            } else {
+                let upload_files = collect_upload_files(&root)?;
+                ctx.info(format!(
+                    "Uploading {} filtered files to /api/projects/cli-import-local",
+                    upload_files.len()
+                ));
+                result = ctx
+                    .client
+                    .projects()
+                    .cli_import_local()
+                    .project_name(metadata.project_name.clone())
+                    .files(upload_files)
+                    .enable_newapi(selections.pai)
+                    .enable_storage(selections.storage)
+                    .enable_pay(selections.pay)
+                    .enable_database(selections.database)
+                    .enable_resend(selections.email)
+                    .wait_for_integrations(false)
+                    .auto_deploy(matches!(mode, InitMode::ImportAutoDeploy))
+                    .call()
+                    .await?;
+            }
             metadata.project_id = Some(result.project.id.clone());
             metadata.project_name = result.project.project_name;
+            // Persist the binding before slower provider setup so retrying init never re-imports files.
+            write_workspace_metadata(&root, &metadata)?;
+            let project_id = metadata.project_id.as_deref().expect("project id set");
+            let provisioned = ctx
+                .client
+                .project(project_id)
+                .integrations()
+                .ensure()
+                .newapi(selections.pai)
+                .storage(selections.storage)
+                .pay(selections.pay)
+                .database(selections.database)
+                .resend(selections.email)
+                .analytics(false)
+                .call()
+                .await?;
+            if !provisioned.errors.is_empty() {
+                return Err(anyhow!("project bound but environment provisioning failed: {}. Re-run `d1v init` to resume.", provisioned.errors.join("; ")).into());
+            }
+            enabled_integrations = enabled_service_names(&selections);
+            environment_variables_written = sync_cloud_env(ctx, &root, project_id).await?;
         }
         write_workspace_metadata(&root, &metadata)?;
         ctx.success(format!("Initialized {}", root.display()));
@@ -359,13 +532,211 @@ pub async fn init(ctx: &Context, args: InitArgs) -> Result<()> {
             metadata: &metadata,
             scan: &scan,
             wrote_binding: !args.dry_run,
+            mode,
+            enabled_integrations: &enabled_integrations,
+            environment_variables_written,
         },
         &InitResultJson {
             metadata: &metadata,
             scan: &scan,
             wrote_binding: !args.dry_run,
+            mode,
+            enabled_integrations: &enabled_integrations,
+            environment_variables_written,
         },
     )
+}
+
+struct EnvironmentSelection {
+    pai: bool,
+    storage: bool,
+    pay: bool,
+    database: bool,
+    email: bool,
+}
+
+impl EnvironmentSelection {
+    fn from_args(args: &InitArgs, existing_keys: Option<&BTreeSet<String>>) -> Result<Self> {
+        let missing = |keys: &[&str]| {
+            existing_keys.is_none_or(|present| !keys.iter().all(|key| present.contains(*key)))
+        };
+        let mut result = Self {
+            pai: missing(&["D1V_PAI_API_KEY"]) && !args.no_pai,
+            storage: missing(&["STORAGE_API_KEY"]) && !args.no_storage,
+            pay: missing(&["PAY_API_TOKEN"]) && (existing_keys.is_some() || args.pay),
+            database: missing(&["DATABASE_URL"]) && (existing_keys.is_some() || args.database),
+            email: missing(&["RESEND_API_KEY"]) && !args.no_email,
+        };
+        if std::io::stdin().is_terminal() && !args.dry_run {
+            if missing(&["D1V_PAI_API_KEY"]) {
+                result.pai =
+                    Confirm::new("Enable D1V PAI (OpenAI-compatible API and project key)?")
+                        .default(result.pai)
+                        .prompt()?;
+            }
+            if missing(&["STORAGE_API_KEY"]) {
+                result.storage = Confirm::new("Enable file storage (credentials and public URL)?")
+                    .default(result.storage)
+                    .prompt()?;
+            }
+            if missing(&["PAY_API_TOKEN"]) {
+                result.pay = Confirm::new("Enable Pay (checkout API and default product)?")
+                    .default(result.pay)
+                    .prompt()?;
+            }
+            if missing(&["DATABASE_URL"]) {
+                result.database =
+                    Confirm::new("Enable database (dedicated Postgres and credentials)?")
+                        .default(result.database)
+                        .prompt()?;
+            }
+            if missing(&["RESEND_API_KEY"]) {
+                result.email = Confirm::new("Enable email login (Resend API key)?")
+                    .default(result.email)
+                    .prompt()?;
+            }
+        }
+        if existing_keys.is_none()
+            && !(result.pai || result.storage || result.pay || result.database || result.email)
+        {
+            return Err(anyhow!("at least one environment integration must be enabled").into());
+        }
+        Ok(result)
+    }
+}
+
+fn resolve_init_mode(args: &InitArgs) -> Result<InitMode> {
+    if args.environment_only {
+        return Ok(InitMode::EnvironmentOnly);
+    }
+    if let Some(mode) = args.mode {
+        return Ok(mode);
+    }
+    if !std::io::stdin().is_terminal() {
+        return Ok(InitMode::EnvironmentOnly);
+    }
+    Select::new("How should d1v initialize this directory?")
+        .option(
+            SelectOption::new(
+                InitMode::EnvironmentOnly,
+                "Only initialize development environment",
+            )
+            .description("Create cloud credentials without uploading local files"),
+        )
+        .option(
+            SelectOption::new(
+                InitMode::ImportAutoDeploy,
+                "Import from local and auto-deploy",
+            )
+            .description("Upload files and schedule a background deployment"),
+        )
+        .option(
+            SelectOption::new(
+                InitMode::ImportNoDeploy,
+                "Import from local without deployment",
+            )
+            .description("Upload files without scheduling deployment"),
+        )
+        .default_index(0)
+        .prompt()
+        .map_err(Into::into)
+}
+
+fn enabled_service_names(selection: &EnvironmentSelection) -> Vec<String> {
+    [
+        (selection.pai, "newapi"),
+        (selection.storage, "storage"),
+        (selection.pay, "pay"),
+        (selection.database, "database"),
+        (selection.email, "resend"),
+    ]
+    .into_iter()
+    .filter_map(|(enabled, name)| enabled.then(|| name.to_string()))
+    .collect()
+}
+
+async fn sync_cloud_env(ctx: &Context, root: &Path, project_id: &str) -> Result<usize> {
+    let exported = ctx.client.project(project_id).env().export_vars().await?;
+    let mut variables = parse_env_content(&exported.content);
+    variables.insert("D1V_PROJECT_ID".to_string(), project_id.to_string());
+    let variables = variables
+        .into_iter()
+        .map(
+            |(key, value)| d1v_api::api::projects::ProvisionedEnvironmentVariable {
+                key,
+                value,
+                ..Default::default()
+            },
+        )
+        .collect::<Vec<_>>();
+    merge_provisioned_env(root, &variables)
+}
+
+fn parse_env_content(content: &str) -> HashMap<String, String> {
+    content
+        .lines()
+        .filter_map(|raw_line| {
+            let line = raw_line
+                .trim()
+                .strip_prefix("export ")
+                .unwrap_or(raw_line.trim());
+            if line.is_empty() || line.starts_with('#') {
+                return None;
+            }
+            let (key, value) = line.split_once('=')?;
+            Some((
+                key.trim().to_string(),
+                value.trim().trim_matches(['\'', '"']).to_string(),
+            ))
+        })
+        .collect()
+}
+
+fn merge_provisioned_env(
+    root: &Path,
+    variables: &[d1v_api::api::projects::ProvisionedEnvironmentVariable],
+) -> Result<usize> {
+    if variables.is_empty() {
+        return Ok(0);
+    }
+    let env_path = root.join(".env");
+    let existing = fs::read_to_string(&env_path).unwrap_or_default();
+    let mut replacements = variables
+        .iter()
+        .map(|item| (item.key.as_str(), item.value.as_str()))
+        .collect::<HashMap<_, _>>();
+    let mut written = BTreeSet::new();
+    let mut output = String::new();
+    for line in existing.lines() {
+        let trimmed = line
+            .trim_start()
+            .strip_prefix("export ")
+            .unwrap_or(line.trim_start());
+        if let Some((key, _)) = trimmed.split_once('=')
+            && let Some(value) = replacements.remove(key.trim())
+        {
+            output.push_str(key.trim());
+            output.push('=');
+            output.push_str(value);
+            output.push('\n');
+            written.insert(key.trim().to_string());
+            continue;
+        }
+        output.push_str(line);
+        output.push('\n');
+    }
+    for variable in variables {
+        if written.insert(variable.key.clone()) {
+            output.push_str(&variable.key);
+            output.push('=');
+            output.push_str(&variable.value);
+            output.push('\n');
+        }
+    }
+    let temp = env_path.with_extension("env.d1v.tmp");
+    fs::write(&temp, output)?;
+    fs::rename(temp, env_path)?;
+    Ok(variables.len())
 }
 
 pub async fn pull(ctx: &Context, args: PullArgs) -> Result<()> {
@@ -1639,6 +2010,74 @@ mod tests {
         );
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn merge_provisioned_env_updates_cloud_keys_and_keeps_local_entries() {
+        let dir = temp_dir("provisioned-env");
+        fs::write(dir.join(".env"), "LOCAL_ONLY=yes\nD1V_PAI_API_KEY=old\n").unwrap();
+        let variables = vec![
+            d1v_api::api::projects::ProvisionedEnvironmentVariable {
+                key: "D1V_PAI_API_KEY".to_string(),
+                value: "new".to_string(),
+                ..Default::default()
+            },
+            d1v_api::api::projects::ProvisionedEnvironmentVariable {
+                key: "DATABASE_URL".to_string(),
+                value: "postgres://example".to_string(),
+                ..Default::default()
+            },
+        ];
+
+        assert_eq!(merge_provisioned_env(&dir, &variables).unwrap(), 2);
+        assert_eq!(
+            fs::read_to_string(dir.join(".env")).unwrap(),
+            "LOCAL_ONLY=yes\nD1V_PAI_API_KEY=new\nDATABASE_URL=postgres://example\n"
+        );
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn parses_exported_env_and_ignores_comments() {
+        let parsed = parse_env_content(
+            "# Generated by D1V\nD1V_PAI_API_KEY=secret\nDATABASE_URL=\"postgres://db\"\n",
+        );
+        assert_eq!(
+            parsed.get("D1V_PAI_API_KEY").map(String::as_str),
+            Some("secret")
+        );
+        assert_eq!(
+            parsed.get("DATABASE_URL").map(String::as_str),
+            Some("postgres://db")
+        );
+    }
+
+    #[test]
+    fn existing_project_selection_only_requests_missing_services() {
+        let keys = BTreeSet::from([
+            "D1V_PAI_API_KEY".to_string(),
+            "STORAGE_API_KEY".to_string(),
+            "PAY_API_TOKEN".to_string(),
+            "DATABASE_URL".to_string(),
+        ]);
+        let args = InitArgs {
+            path: PathBuf::from("."),
+            name: None,
+            project_id: None,
+            force: false,
+            dry_run: true,
+            mode: None,
+            environment_only: false,
+            no_pai: false,
+            no_storage: false,
+            pay: false,
+            database: false,
+            no_email: false,
+        };
+        let selection = EnvironmentSelection::from_args(&args, Some(&keys)).unwrap();
+        assert!(!selection.pai && !selection.storage && !selection.pay && !selection.database);
+        assert!(selection.email);
     }
 
     #[test]

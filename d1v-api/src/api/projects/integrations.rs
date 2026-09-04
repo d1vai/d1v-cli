@@ -14,8 +14,11 @@ pub struct IntegrationResponse {
 
 #[derive(Debug, Clone, Default, Serialize)]
 struct EnsureProjectIntegrationsRequest {
+    newapi: bool,
     database: bool,
     pay: bool,
+    storage: bool,
+    resend: bool,
     analytics: bool,
 }
 
@@ -32,11 +35,30 @@ pub struct EnsureProjectIntegrationStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnsureProjectIntegrationsResponse {
     pub project: Project,
+    #[serde(default = "default_integration_status")]
+    pub newapi: EnsureProjectIntegrationStatus,
+    #[serde(default = "default_integration_status")]
     pub database: EnsureProjectIntegrationStatus,
+    #[serde(default = "default_integration_status")]
     pub pay: EnsureProjectIntegrationStatus,
+    #[serde(default = "default_integration_status")]
+    pub storage: EnsureProjectIntegrationStatus,
+    #[serde(default = "default_integration_status")]
+    pub resend: EnsureProjectIntegrationStatus,
+    #[serde(default = "default_integration_status")]
     pub analytics: EnsureProjectIntegrationStatus,
     #[serde(default)]
     pub errors: Vec<String>,
+}
+
+fn default_integration_status() -> EnsureProjectIntegrationStatus {
+    EnsureProjectIntegrationStatus {
+        requested: false,
+        status: "unknown".to_string(),
+        changed: false,
+        message: "Status was not returned by the server".to_string(),
+        error: None,
+    }
 }
 
 pub struct ProjectIntegrations {
@@ -83,8 +105,11 @@ impl ProjectIntegrations {
     #[builder]
     pub async fn ensure(
         &self,
+        newapi: bool,
         database: bool,
         pay: bool,
+        storage: bool,
+        resend: bool,
         analytics: bool,
     ) -> Result<EnsureProjectIntegrationsResponse, Error> {
         self.client
@@ -93,8 +118,11 @@ impl ProjectIntegrations {
                 self.project_id
             ))
             .json(&EnsureProjectIntegrationsRequest {
+                newapi,
                 database,
                 pay,
+                storage,
+                resend,
                 analytics,
             })
             .ok()

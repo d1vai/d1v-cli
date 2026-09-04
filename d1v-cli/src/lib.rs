@@ -143,7 +143,10 @@ impl Context {
             .user_agent(&UserAgent::new("d1v-cli", env!("CARGO_PKG_VERSION")))
             .client_name("d1v-cli")
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30));
+            // Project import can include remote GitHub/workspace creation. Init
+            // persists its binding before later provider setup, but the import
+            // request itself still needs a realistic upper bound.
+            .timeout(Duration::from_secs(300));
 
         if let Some(spinner) = spinner_for_handler {
             builder = builder.progress_handler(Arc::new(move |event| match event {

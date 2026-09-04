@@ -347,6 +347,9 @@ enum AuthStatus {
         #[serde(skip_serializing_if = "Option::is_none")]
         subject: Option<String>,
     },
+    Invalid {
+        source: String,
+    },
 }
 
 struct AuthStatusView<'a> {
@@ -357,7 +360,9 @@ impl AuthStatusView<'_> {
     fn symbol(&self) -> &'static str {
         match self.status {
             AuthStatus::LoggedIn { .. } => symbols::SUCCESS,
-            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => symbols::ERROR,
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } | AuthStatus::Invalid { .. } => {
+                symbols::ERROR
+            }
         }
     }
 
@@ -365,6 +370,7 @@ impl AuthStatusView<'_> {
         match self.status {
             AuthStatus::NotLoggedIn => t!("auth-status-not-logged-in"),
             AuthStatus::Expired { .. } => t!("auth-status-expired"),
+            AuthStatus::Invalid { .. } => t!("auth-status-invalid"),
             AuthStatus::LoggedIn { .. } => t!("auth-status-logged-in"),
         }
     }
@@ -372,22 +378,24 @@ impl AuthStatusView<'_> {
     fn style(&self) -> Style {
         match self.status {
             AuthStatus::LoggedIn { .. } => theme::ansi::success(),
-            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => theme::ansi::error(),
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } | AuthStatus::Invalid { .. } => {
+                theme::ansi::error()
+            }
         }
     }
 
     fn source(&self) -> Option<&str> {
         match self.status {
             AuthStatus::NotLoggedIn => None,
-            AuthStatus::LoggedIn { source, .. } | AuthStatus::Expired { source, .. } => {
-                Some(source)
-            }
+            AuthStatus::LoggedIn { source, .. }
+            | AuthStatus::Expired { source, .. }
+            | AuthStatus::Invalid { source } => Some(source),
         }
     }
 
     fn subject(&self) -> Option<&str> {
         match self.status {
-            AuthStatus::NotLoggedIn => None,
+            AuthStatus::NotLoggedIn | AuthStatus::Invalid { .. } => None,
             AuthStatus::LoggedIn { subject, .. } | AuthStatus::Expired { subject, .. } => {
                 subject.as_deref()
             }
@@ -397,7 +405,9 @@ impl AuthStatusView<'_> {
     fn expires_in(&self) -> Option<i64> {
         match self.status {
             AuthStatus::LoggedIn { expires_in, .. } => *expires_in,
-            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } => None,
+            AuthStatus::NotLoggedIn | AuthStatus::Expired { .. } | AuthStatus::Invalid { .. } => {
+                None
+            }
         }
     }
 }
@@ -437,8 +447,8 @@ impl Render for AuthStatusView<'_> {
     }
 }
 
-pub fn status(ctx: &Context) -> Result<()> {
-    let status = match ctx.tokens.source().map(String::from) {
+pub async fn status(ctx: &Context) -> Result<()> {
+    let mut status = match ctx.tokens.source().map(String::from) {
         None => AuthStatus::NotLoggedIn,
         Some(source) if let Some(claims) = ctx.client.claims() => {
             let expired = claims.is_expired();
@@ -462,7 +472,34 @@ pub fn status(ctx: &Context) -> Result<()> {
         },
     };
 
+    if matches!(status, AuthStatus::LoggedIn { .. }) {
+        match ctx.client.user().info().await {
+            Ok(user) => {
+                if let AuthStatus::LoggedIn { subject, .. } = &mut status {
+                    *subject = user_subject(&user);
+                }
+            }
+            Err(error) if is_auth_failure(&error) => {
+                let source = match &status {
+                    AuthStatus::LoggedIn { source, .. } => source.clone(),
+                    _ => unreachable!("only logged-in credentials are validated"),
+                };
+                status = AuthStatus::Invalid { source };
+            }
+            Err(error) => return Err(error.into()),
+        }
+    }
+
     ctx.present(AuthStatusView { status: &status }, &status)
+}
+
+fn user_subject(user: &d1v_api::User) -> Option<String> {
+    user.email
+        .as_deref()
+        .map(str::trim)
+        .filter(|email| !email.is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| (!user.slug.trim().is_empty()).then(|| user.slug.clone()))
 }
 
 #[cfg(test)]
@@ -567,5 +604,27 @@ mod tests {
         assert!(json.get("source").is_none());
         assert!(json.get("subject").is_none());
         assert!(json.get("expires_in").is_none());
+    }
+
+    #[test]
+    fn status_json_invalid() {
+        let status = AuthStatus::Invalid {
+            source: "config".into(),
+        };
+        let json: serde_json::Value = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["status"], "invalid");
+        assert_eq!(json["source"], "config");
+    }
+
+    #[test]
+    fn user_subject_prefers_email_then_slug() {
+        let mut user: d1v_api::User = serde_json::from_value(serde_json::json!({
+            "id": 1, "slug": "d1v-user", "email": "user@example.com",
+            "is_agent": false, "picture": ""
+        }))
+        .unwrap();
+        assert_eq!(user_subject(&user).as_deref(), Some("user@example.com"));
+        user.email = None;
+        assert_eq!(user_subject(&user).as_deref(), Some("d1v-user"));
     }
 }

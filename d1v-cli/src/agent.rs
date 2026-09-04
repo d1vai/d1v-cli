@@ -794,6 +794,13 @@ async fn init_workspace_binding(
             project_id: Some(project_id.to_string()),
             force: false,
             dry_run: false,
+            mode: None,
+            environment_only: false,
+            no_pai: false,
+            no_storage: false,
+            pay: false,
+            database: false,
+            no_email: false,
         },
     )
     .await

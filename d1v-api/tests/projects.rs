@@ -40,8 +40,7 @@ fn project_json() -> serde_json::Value {
 fn project_accepts_development_environment_port_sentinel() {
     let mut value = project_json();
     value["project_port"] = json!(65537);
-    let project: d1v_api::api::projects::Project =
-        serde_json::from_value(value).unwrap();
+    let project: d1v_api::api::projects::Project = serde_json::from_value(value).unwrap();
     assert_eq!(project.project_port, Some(65537));
 }
 

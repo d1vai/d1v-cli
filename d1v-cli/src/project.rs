@@ -555,8 +555,11 @@ pub async fn run(ctx: &Context, command: ProjectCommand) -> Result<()> {
                 .project(&project_id)
                 .integrations()
                 .ensure()
+                .newapi(false)
                 .database(database)
                 .pay(pay)
+                .storage(false)
+                .resend(false)
                 .analytics(analytics)
                 .call()
                 .await?;

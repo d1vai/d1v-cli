@@ -360,6 +360,34 @@ d1v auth login
 | Expose | Publish a local HTTP port temporarily | `d1v expose 3000` |
 | Runtime | Pair and run a local runtime | `d1v agent pair` |
 
+### Initialize A Development Environment
+
+`d1v init` first checks `.env` for `D1V_PROJECT_ID`. For an existing project it
+checks cloud variables, asks only about missing services, then merges the
+resulting cloud credentials into local `.env`. This also resumes a previous
+import after a provider failure without uploading files again.
+
+For a new directory, the interactive default is to create only a development
+environment. Select local import with or without background auto-deploy when
+you actually want to upload files.
+
+To create only the cloud development environment and bind it to the local
+directory without uploading files, use:
+
+```sh
+d1v init --mode environment-only
+```
+
+For automation, choose integrations explicitly:
+
+```sh
+d1v --format json init --mode import-no-deploy --database --pay --no-storage
+```
+
+PAI, storage, and email are enabled by default; use `--no-pai`,
+`--no-storage`, or `--no-email` to disable them. Pay and Postgres are opt-in
+through `--pay` and `--database`.
+
 Project resolution is consistent across project-scoped commands:
 
 ```text

@@ -70,7 +70,15 @@ fn banner() -> String {
 }
 
 fn should_load_token(command: Option<&Command>, quick_deploy: bool) -> bool {
-    quick_deploy || command.is_some_and(Command::requires_auth)
+    quick_deploy
+        || command.is_some_and(|command| {
+            matches!(
+                command,
+                Command::Auth {
+                    command: AuthCommand::Status
+                }
+            ) || command.requires_auth()
+        })
 }
 
 #[derive(Subcommand)]
@@ -194,7 +202,10 @@ impl Command {
             | Command::Env { .. }
             | Command::ApiKey { .. } => true,
             Command::Expose(..) => false,
-            Command::Init(..) => false,
+            // `init` remains usable without authentication for a local-only
+            // binding, but needs a loaded credential before its optional cloud
+            // import/environment flow can validate it.
+            Command::Init(..) => true,
             Command::Pull(..) | Command::Push(..) => true,
         }
     }
@@ -329,7 +340,7 @@ async fn run(cli: Cli, base_url_override: BaseUrlCandidate) -> Result<()> {
                 }
             }
             AuthCommand::Logout => auth::logout(&ctx),
-            AuthCommand::Status => auth::status(&ctx),
+            AuthCommand::Status => auth::status(&ctx).await,
         },
         Command::User { command } => user::run(&ctx, command).await,
         Command::Project { command } => project::run(&ctx, command).await,

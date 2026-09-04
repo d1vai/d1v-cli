@@ -349,6 +349,30 @@ d1v auth login
 | Expose | 临时公开本地 HTTP 端口 | `d1v expose 3000` |
 | Runtime | 配对并运行本地 Runtime | `d1v agent pair` |
 
+### 初始化开发环境
+
+`d1v init` 会先检查 `.env` 是否已有 `D1V_PROJECT_ID`。已有项目只检查缺失的
+云端环境变量并询问对应服务，然后把凭证合并写入本地 `.env`；供应商初始化失败后
+重跑也会继续该项目，不会重复上传文件。
+
+新目录的交互默认是只初始化开发环境。只有明确需要上传文件时，才选择本地导入并
+决定是否后台自动部署。
+
+只创建云端开发环境并绑定当前目录、不上传本地文件时，运行：
+
+```sh
+d1v init --mode environment-only
+```
+
+自动化场景可用 flags 固定选择：
+
+```sh
+d1v --format json init --mode import-no-deploy --database --pay --no-storage
+```
+
+PAI、存储和邮箱默认开启；`--no-pai`、`--no-storage`、`--no-email` 可关闭，
+支付和 Postgres 分别通过 `--pay`、`--database` 开启。
+
 所有项目级命令使用统一的项目解析顺序：
 
 ```text

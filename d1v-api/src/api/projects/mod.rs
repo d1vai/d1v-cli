@@ -34,8 +34,9 @@ pub use storage::{Asset, AssetFile, ProjectStorage, StorageFile, StorageStructur
 pub use types::{
     AnalyticsInfo, CreateProjectResponse, Database, Deployment, DeploymentEnvironment,
     GenerateEmojisProject, GenerateEmojisResponse, GenerateMetaResponse, GitCommitInfo,
-    GitMigrationStatus, ImportLocal, LocalImportFile, OpcodeInfo, Project, PublishResponse,
-    Repository, RepositoryInfo, RepositoryMode, Template, Token, VercelDeploymentInfo, VercelInfo,
+    GitMigrationStatus, ImportLocal, LocalImportFile, OpcodeInfo, Project,
+    ProvisionedEnvironmentVariable, PublishResponse, Repository, RepositoryInfo, RepositoryMode,
+    Template, Token, VercelDeploymentInfo, VercelInfo,
 };
 
 use bon::bon;
@@ -78,6 +79,9 @@ impl ProjectsApi {
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
+        enable_newapi: Option<bool>,
+        enable_storage: Option<bool>,
+        wait_for_integrations: Option<bool>,
         organization_id: Option<u64>,
     ) -> Result<CreateProjectResponse, Error> {
         #[skip_serializing_none]
@@ -88,6 +92,9 @@ impl ProjectsApi {
             enable_pay: Option<bool>,
             enable_database: Option<bool>,
             enable_resend: Option<bool>,
+            enable_newapi: Option<bool>,
+            enable_storage: Option<bool>,
+            wait_for_integrations: Option<bool>,
             organization_id: Option<u64>,
         }
 
@@ -99,6 +106,9 @@ impl ProjectsApi {
                 enable_pay,
                 enable_database,
                 enable_resend,
+                enable_newapi,
+                enable_storage,
+                wait_for_integrations,
                 organization_id,
             })
             .ok()
@@ -150,12 +160,17 @@ impl ProjectsApi {
     pub async fn create_with_integrations(
         &self,
         #[builder(start_fn)] prompt: impl AsRef<str>,
+        project_kind: Option<&str>,
+        project_name: Option<&str>,
         max_desc_len: Option<u32>,
         template_repo: Option<&str>,
         auto_deploy_on_execute: Option<bool>,
         enable_pay: Option<bool>,
         enable_database: Option<bool>,
         enable_resend: Option<bool>,
+        enable_newapi: Option<bool>,
+        enable_storage: Option<bool>,
+        wait_for_integrations: Option<bool>,
         organization_id: Option<u64>,
         repository: Option<&Repository>,
     ) -> Result<CreateProjectResponse, Error> {
@@ -163,12 +178,17 @@ impl ProjectsApi {
         #[derive(Serialize)]
         struct Payload<'a> {
             prompt: &'a str,
+            project_kind: Option<&'a str>,
+            project_name: Option<&'a str>,
             max_desc_len: Option<u32>,
             template_repo: Option<&'a str>,
             auto_deploy_on_execute: Option<bool>,
             enable_pay: Option<bool>,
             enable_database: Option<bool>,
             enable_resend: Option<bool>,
+            enable_newapi: Option<bool>,
+            enable_storage: Option<bool>,
+            wait_for_integrations: Option<bool>,
             organization_id: Option<u64>,
             #[serde(flatten)]
             repository: Option<&'a Repository>,
@@ -178,12 +198,17 @@ impl ProjectsApi {
             .post("/api/projects/create-with-integrations")
             .json(&Payload {
                 prompt: prompt.as_ref(),
+                project_kind,
+                project_name,
                 max_desc_len,
                 template_repo,
                 auto_deploy_on_execute,
                 enable_pay,
                 enable_database,
                 enable_resend,
+                enable_newapi,
+                enable_storage,
+                wait_for_integrations,
                 organization_id,
                 repository,
             })
@@ -288,6 +313,13 @@ impl ProjectsApi {
         single_file_content: Option<String>,
         wait_for_deploy: Option<bool>,
         wait_deploy_seconds: Option<u32>,
+        enable_newapi: Option<bool>,
+        enable_storage: Option<bool>,
+        enable_pay: Option<bool>,
+        enable_database: Option<bool>,
+        enable_resend: Option<bool>,
+        wait_for_integrations: Option<bool>,
+        auto_deploy: Option<bool>,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/import-from-local")
@@ -303,6 +335,13 @@ impl ProjectsApi {
                     single_file_content,
                     wait_for_deploy,
                     wait_deploy_seconds,
+                    enable_newapi,
+                    enable_storage,
+                    enable_pay,
+                    enable_database,
+                    enable_resend,
+                    wait_for_integrations,
+                    auto_deploy,
                 }
                 .into(),
             )
@@ -323,6 +362,13 @@ impl ProjectsApi {
         single_file_content: Option<String>,
         wait_for_deploy: Option<bool>,
         wait_deploy_seconds: Option<u32>,
+        enable_newapi: Option<bool>,
+        enable_storage: Option<bool>,
+        enable_pay: Option<bool>,
+        enable_database: Option<bool>,
+        enable_resend: Option<bool>,
+        wait_for_integrations: Option<bool>,
+        auto_deploy: Option<bool>,
     ) -> Result<CreateProjectResponse, Error> {
         self.client
             .post("/api/projects/cli-import-local")
@@ -338,6 +384,13 @@ impl ProjectsApi {
                     single_file_content,
                     wait_for_deploy,
                     wait_deploy_seconds,
+                    enable_newapi,
+                    enable_storage,
+                    enable_pay,
+                    enable_database,
+                    enable_resend,
+                    wait_for_integrations,
+                    auto_deploy,
                 }
                 .into(),
             )
